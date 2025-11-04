@@ -22,10 +22,7 @@ type CompanyDashboard = {
 }
 
 type DashboardStats = {
-  total_registrations: number
-  pending_registrations: number
-  approved_registrations: number
-  rejected_registrations: number
+  invited_events: number
   confirmed_bookings: number
   available_events: number
 }
@@ -35,7 +32,6 @@ type UpcomingEvent = {
   event_name: string
   event_date: string
   event_location: string
-  registration_status: 'not_registered' | 'pending' | 'approved' | 'rejected'
   total_offers: number
   total_bookings: number
 }
@@ -92,19 +88,25 @@ export default function CompanyDashboardPage() {
   const loadAdditionalStats = async (companyId: string) => {
     const today = new Date().toISOString()
 
-    const [
-      { count: totalRegs },
-      { count: pendingRegs },
-      { count: approvedRegs },
-      { count: rejectedRegs },
-      { count: availableEvents }
-    ] = await Promise.all([
-      supabase.from('event_registrations').select('*', { count: 'exact', head: true }).eq('company_id', companyId),
-      supabase.from('event_registrations').select('*', { count: 'exact', head: true }).eq('company_id', companyId).eq('status', 'pending'),
-      supabase.from('event_registrations').select('*', { count: 'exact', head: true }).eq('company_id', companyId).eq('status', 'approved'),
-      supabase.from('event_registrations').select('*', { count: 'exact', head: true }).eq('company_id', companyId).eq('status', 'rejected'),
-      supabase.from('events').select('*', { count: 'exact', head: true }).gte('date', today)
-    ])
+    // Get company's participated events (invited events)
+    const { data: participatedEvents } = await supabase
+      .from('event_participants')
+      .select(`
+        event_id,
+        events:event_id (
+          date
+        )
+      `)
+      .eq('company_id', companyId)
+
+    const upcomingParticipations = (participatedEvents || []).filter(
+      (p: any) => p.events && new Date(p.events.date) >= new Date(today)
+    )
+
+    const { count: availableEvents } = await supabase
+      .from('events')
+      .select('*', { count: 'exact', head: true })
+      .gte('date', today)
 
     // Get confirmed bookings by joining through event_slots
     const { count: confirmedBookings } = await supabase
@@ -114,32 +116,34 @@ export default function CompanyDashboardPage() {
       .eq('status', 'confirmed')
 
     setStats({
-      total_registrations: totalRegs || 0,
-      pending_registrations: pendingRegs || 0,
-      approved_registrations: approvedRegs || 0,
-      rejected_registrations: rejectedRegs || 0,
+      invited_events: upcomingParticipations.length,
       confirmed_bookings: confirmedBookings || 0,
       available_events: availableEvents || 0
     })
 
-    // Load upcoming events
+    // Load upcoming events - only show events company is invited to
     const { data: eventsData } = await supabase
-      .from('events')
-      .select('*')
-      .gte('date', today)
-      .order('date', { ascending: true })
-      .limit(3)
+      .from('event_participants')
+      .select(`
+        event_id,
+        events:event_id (
+          id,
+          name,
+          date,
+          location
+        )
+      `)
+      .eq('company_id', companyId)
 
     if (eventsData) {
-      const eventsWithStatus = await Promise.all(
-        eventsData.map(async (event) => {
-          const { data: registration } = await supabase
-            .from('event_registrations')
-            .select('status')
-            .eq('event_id', event.id)
-            .eq('company_id', companyId)
-            .maybeSingle()
+      const futureEvents = eventsData
+        .filter((ep: any) => ep.events && new Date(ep.events.date) >= new Date(today))
+        .slice(0, 3)
 
+      const eventsWithDetails = await Promise.all(
+        futureEvents.map(async (ep: any) => {
+          const event = ep.events
+          
           const [
             { count: offerCount },
             { count: bookingCount }
@@ -157,13 +161,12 @@ export default function CompanyDashboardPage() {
             event_name: event.name,
             event_date: event.date,
             event_location: event.location,
-            registration_status: (registration?.status || 'not_registered') as any,
             total_offers: offerCount || 0,
             total_bookings: bookingCount || 0
           }
         })
       )
-      setUpcomingEvents(eventsWithStatus)
+      setUpcomingEvents(eventsWithDetails)
     }
   }
 
@@ -251,8 +254,8 @@ export default function CompanyDashboardPage() {
           </div>
         )}
 
-        {/* Registration Journey */}
-        {stats && stats.approved_registrations > 0 && (
+        {/* Event Invitation Journey */}
+        {stats && stats.invited_events > 0 && (
           <div className="mb-8 bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-200 rounded-lg p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Your Event Journey</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -262,8 +265,8 @@ export default function CompanyDashboardPage() {
                     ✓
                   </div>
                   <div className="ml-4">
-                    <p className="text-2xl font-bold text-gray-900">{stats.approved_registrations}</p>
-                    <p className="text-sm text-gray-600">Event Approved</p>
+                    <p className="text-2xl font-bold text-gray-900">{stats.invited_events}</p>
+                    <p className="text-sm text-gray-600">Event Invited</p>
                   </div>
                 </div>
               </div>
@@ -329,13 +332,9 @@ export default function CompanyDashboardPage() {
               </svg>
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-900">{stats?.approved_registrations || 0}</p>
-              <p className="text-sm text-gray-600 mt-1">Approved Events</p>
-              {stats && stats.pending_registrations > 0 ? (
-                <p className="text-xs text-amber-600 mt-2 font-medium">{stats.pending_registrations} pending</p>
-              ) : (
-                <p className="text-xs text-gray-500 mt-2">{stats?.available_events || 0} available</p>
-              )}
+              <p className="text-2xl font-bold text-gray-900">{stats?.invited_events || 0}</p>
+              <p className="text-sm text-gray-600 mt-1">Invited Events</p>
+              <p className="text-xs text-gray-500 mt-2">{stats?.available_events || 0} available</p>
             </div>
           </Link>
 
@@ -414,21 +413,9 @@ export default function CompanyDashboardPage() {
                         </p>
                         <p className="text-sm text-gray-500">{event.event_location}</p>
                       </div>
-                      {event.registration_status === 'approved' && (
-                        <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
-                          Approved
-                        </span>
-                      )}
-                      {event.registration_status === 'pending' && (
-                        <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-medium rounded-full">
-                          Pending
-                        </span>
-                      )}
-                      {event.registration_status === 'not_registered' && (
-                        <span className="px-2 py-1 bg-gray-100 text-gray-800 text-xs font-medium rounded-full">
-                          Not Registered
-                        </span>
-                      )}
+                      <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
+                        Invited
+                      </span>
                     </div>
                     <div className="flex items-center justify-between pt-3 border-t border-gray-100">
                       <div className="flex space-x-4 text-sm text-gray-600">
@@ -436,28 +423,12 @@ export default function CompanyDashboardPage() {
                         <span>•</span>
                         <span>{event.total_bookings} interviews</span>
                       </div>
-                      {event.registration_status === 'approved' ? (
-                        <Link
-                          href={`/company/offers/new?event=${event.event_id}`}
-                          className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
-                        >
-                          Create Offer →
-                        </Link>
-                      ) : event.registration_status === 'not_registered' ? (
-                        <Link
-                          href={`/company/events/${event.event_id}`}
-                          className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
-                        >
-                          Register →
-                        </Link>
-                      ) : (
-                        <Link
-                          href="/company/registrations"
-                          className="text-sm text-gray-600 hover:text-gray-700 font-medium"
-                        >
-                          View Status →
-                        </Link>
-                      )}
+                      <Link
+                        href={`/company/events/${event.event_id}`}
+                        className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+                      >
+                        View Event →
+                      </Link>
                     </div>
                   </div>
                 ))}

@@ -73,11 +73,11 @@ export default function NewOfferPage() {
 
       if (!company) return
 
-      // Fetch events where company is approved
-      const { data: registrations, error: regError } = await supabase
-        .from('event_registrations')
+      // Fetch events where company is invited (via event_participants)
+      const { data: participations, error: partError } = await supabase
+        .from('event_participants')
         .select(`
-          event:events (
+          events (
             id,
             name,
             date,
@@ -85,12 +85,11 @@ export default function NewOfferPage() {
           )
         `)
         .eq('company_id', company.id)
-        .eq('status', 'approved')
 
-      if (regError) throw regError
+      if (partError) throw partError
 
-      const events = registrations
-        ?.map((r: any) => r.event)
+      const events = participations
+        ?.map((p: any) => p.events)
         .filter((e: any) => e !== null)
         .flat() as ApprovedEvent[]
 

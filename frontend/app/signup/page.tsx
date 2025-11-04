@@ -13,8 +13,6 @@ export default function SignupPage() {
     phone: '',
     role: 'student' as UserRole,
     is_deprioritized: false,
-    company_name: '',
-    description: '',
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')

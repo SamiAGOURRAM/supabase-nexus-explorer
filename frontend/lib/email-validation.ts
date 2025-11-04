@@ -10,15 +10,13 @@ export const ALLOWED_STUDENT_EMAILS = [
 export function isEmailAllowed(email: string): boolean {
   const normalizedEmail = email.toLowerCase().trim()
   
-  // Vérifier le domaine
-  if (!normalizedEmail.endsWith('@um6p.ma')) {
-    return false
-  }
+  // Vérifier seulement le domaine (whitelist désactivée pour l'instant)
+  return normalizedEmail.endsWith('@um6p.ma')
   
-  // Vérifier si l'email est dans la liste blanche
-  return ALLOWED_STUDENT_EMAILS.some(
-    allowed => allowed.toLowerCase() === normalizedEmail
-  )
+  // TODO: Activer la whitelist plus tard si nécessaire
+  // return ALLOWED_STUDENT_EMAILS.some(
+  //   allowed => allowed.toLowerCase() === normalizedEmail
+  // )
 }
 
 // Fonction pour charger la liste depuis un fichier CSV (optionnel)

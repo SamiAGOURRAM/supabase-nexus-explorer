@@ -26,20 +26,12 @@ interface EventTimeRange {
   end_time: string;
 }
 
-interface Registration {
-  id: string;
-  status: 'pending' | 'approved' | 'rejected';
-  registered_at: string;
-  notes?: string;
-}
-
 export default function EventDetailPage() {
   const [event, setEvent] = useState<Event | null>(null);
   const [timeRanges, setTimeRanges] = useState<EventTimeRange[]>([]);
-  const [registration, setRegistration] = useState<Registration | null>(null);
+  const [isInvited, setIsInvited] = useState<boolean>(false);
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [registering, setRegistering] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const params = useParams();
@@ -92,78 +84,25 @@ export default function EventDetailPage() {
       if (rangesError) throw rangesError;
       setTimeRanges(rangesData || []);
 
-      // Check if already registered
-      const { data: registrationData, error: registrationError } = await supabase
-        .from('event_registrations')
+      // Check if company is invited to this event
+      const { data: participationData, error: participationError } = await supabase
+        .from('event_participants')
         .select('*')
         .eq('event_id', eventId)
         .eq('company_id', company.id)
         .maybeSingle();
 
-      if (registrationError && registrationError.code !== 'PGRST116') {
-        throw registrationError;
+      if (participationError && participationError.code !== 'PGRST116') {
+        throw participationError;
       }
 
-      setRegistration(registrationData);
+      setIsInvited(!!participationData);
 
     } catch (err: any) {
       console.error('Error fetching event details:', err);
       setError(err.message);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleRegister = async () => {
-    if (!companyId) return;
-
-    try {
-      setRegistering(true);
-      setError(null);
-
-      const { data, error } = await supabase.rpc('fn_register_for_event', {
-        p_event_id: eventId,
-        p_company_id: companyId
-      });
-
-      if (error) throw error;
-
-      // Refresh page to show updated status
-      await fetchEventDetails();
-      
-    } catch (err: any) {
-      console.error('Error registering for event:', err);
-      setError(err.message);
-    } finally {
-      setRegistering(false);
-    }
-  };
-
-  const handleCancelRegistration = async () => {
-    if (!registration) return;
-
-    const confirmed = confirm('Êtes-vous sûr de vouloir annuler votre inscription ?');
-    if (!confirmed) return;
-
-    try {
-      setRegistering(true);
-      setError(null);
-
-      const { error } = await supabase
-        .from('event_registrations')
-        .delete()
-        .eq('id', registration.id);
-
-      if (error) throw error;
-
-      // Refresh page
-      await fetchEventDetails();
-
-    } catch (err: any) {
-      console.error('Error canceling registration:', err);
-      setError(err.message);
-    } finally {
-      setRegistering(false);
     }
   };
 
@@ -252,40 +191,30 @@ export default function EventDetailPage() {
 
         {/* Content */}
         <div className="p-6 space-y-6">
-          {/* Registration Status */}
-          {registration && (
-            <div className={`p-4 rounded-lg ${
-              registration.status === 'pending' ? 'bg-yellow-50 border border-yellow-200' :
-              registration.status === 'approved' ? 'bg-green-50 border border-green-200' :
-              'bg-red-50 border border-red-200'
-            }`}>
-              <div className="flex items-center justify-between">
+          {/* Invitation Status */}
+          {isInvited && (
+            <div className="p-4 rounded-lg bg-green-50 border border-green-200">
+              <div className="flex items-center">
                 <div>
-                  <p className={`font-medium ${
-                    registration.status === 'pending' ? 'text-yellow-800' :
-                    registration.status === 'approved' ? 'text-green-800' :
-                    'text-red-800'
-                  }`}>
-                    {registration.status === 'pending' && '⏳ Inscription en attente d\'approbation'}
-                    {registration.status === 'approved' && '✅ Inscription approuvée'}
-                    {registration.status === 'rejected' && '❌ Inscription refusée'}
+                  <p className="font-medium text-green-800">
+                    ✅ You are invited to this event
                   </p>
-                  {registration.notes && (
-                    <p className="text-sm mt-1 text-gray-600">
-                      Note: {registration.notes}
-                    </p>
-                  )}
+                  <p className="text-sm mt-1 text-gray-600">
+                    You can create offers and interview slots for this event.
+                  </p>
                 </div>
-                {registration.status === 'pending' && (
-                  <button
-                    onClick={handleCancelRegistration}
-                    disabled={registering}
-                    className="px-4 py-2 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    Annuler
-                  </button>
-                )}
               </div>
+            </div>
+          )}
+
+          {!isInvited && (
+            <div className="p-4 rounded-lg bg-gray-50 border border-gray-200">
+              <p className="font-medium text-gray-700">
+                ℹ️ You are not invited to this event yet.
+              </p>
+              <p className="text-sm mt-1 text-gray-600">
+                Contact the admin to request an invitation.
+              </p>
             </div>
           )}
 
@@ -358,28 +287,13 @@ export default function EventDetailPage() {
           )}
 
           {/* Action Button */}
-          {!registration && (
-            <div className="pt-4">
-              <button
-                onClick={handleRegister}
-                disabled={registering}
-                className="w-full px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {registering ? 'Inscription en cours...' : 'S\'inscrire à cet événement'}
-              </button>
-              <p className="mt-2 text-sm text-gray-500 text-center">
-                Votre inscription sera soumise pour approbation par l'administrateur
-              </p>
-            </div>
-          )}
-
-          {registration?.status === 'approved' && (
+          {isInvited && (
             <div className="pt-4">
               <Link
                 href="/company/offers/new"
                 className="block w-full text-center px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition-colors"
               >
-                Créer une offre pour cet événement
+                Create an offer for this event
               </Link>
             </div>
           )}

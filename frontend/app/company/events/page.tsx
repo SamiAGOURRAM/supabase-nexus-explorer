@@ -17,8 +17,7 @@ interface Event {
   max_interviews_per_student: number;
   phase1_booking_limit: number;
   phase2_booking_limit: number;
-  registration_status: 'not_registered' | 'pending' | 'approved' | 'rejected';
-  registration_notes?: string;
+  is_invited: boolean;
 }
 
 export default function CompanyEventsPage() {
@@ -59,27 +58,24 @@ export default function CompanyEventsPage() {
 
       if (eventsError) throw eventsError;
 
-      // Fetch all registrations for this company
-      const { data: registrations, error: regError } = await supabase
-        .from('event_registrations')
-        .select('event_id, status, notes')
+      // Fetch events where company is invited via event_participants
+      const { data: participations, error: partError } = await supabase
+        .from('event_participants')
+        .select('event_id')
         .eq('company_id', company.id);
 
-      if (regError) throw regError;
+      if (partError) throw partError;
 
-      // Create a map of registrations by event_id
-      const registrationMap = new Map(
-        (registrations || []).map(reg => [reg.event_id, reg])
+      // Create a set of event IDs where company is invited
+      const invitedEventIds = new Set(
+        (participations || []).map(p => p.event_id)
       );
 
-      // Map events with registration status
+      // Map events with invitation status
       const mappedEvents = eventsData.map((event: any) => {
-        const registration = registrationMap.get(event.id);
-
         return {
           ...event,
-          registration_status: registration ? registration.status : 'not_registered',
-          registration_notes: registration?.notes
+          is_invited: invitedEventIds.has(event.id)
         };
       });
 
@@ -92,19 +88,17 @@ export default function CompanyEventsPage() {
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    const badges: Record<string, { color: string; text: string }> = {
-      not_registered: { color: 'bg-gray-100 text-gray-800', text: 'Non inscrit' },
-      pending: { color: 'bg-yellow-100 text-yellow-800', text: 'En attente' },
-      approved: { color: 'bg-green-100 text-green-800', text: 'Approuvé' },
-      rejected: { color: 'bg-red-100 text-red-800', text: 'Rejeté' }
-    };
-
-    const badge = badges[status] || badges.not_registered;
-
+  const getStatusBadge = (isInvited: boolean) => {
+    if (isInvited) {
+      return (
+        <span className="px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+          Invited
+        </span>
+      );
+    }
     return (
-      <span className={`px-3 py-1 rounded-full text-sm font-medium ${badge.color}`}>
-        {badge.text}
+      <span className="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
+        Not Invited
       </span>
     );
   };
@@ -190,7 +184,7 @@ export default function CompanyEventsPage() {
               <div className="p-6">
                 {/* Status Badge */}
                 <div className="flex justify-between items-start mb-4">
-                  {getStatusBadge(event.registration_status || 'not_registered')}
+                  {getStatusBadge(event.is_invited || false)}
                   <span className="text-sm text-gray-500">
                     {formatDate(event.date)}
                   </span>
@@ -248,24 +242,12 @@ export default function CompanyEventsPage() {
                   </div>
                 </div>
 
-                {/* Registration Notes (if rejected) */}
-                {event.registration_status === 'rejected' && event.registration_notes && (
-                  <div className="bg-red-50 border border-red-200 rounded p-3 mb-4">
-                    <p className="text-sm text-red-800">
-                      <strong>Raison du refus:</strong> {event.registration_notes}
-                    </p>
-                  </div>
-                )}
-
                 {/* Action Button */}
                 <Link
                   href={`/company/events/${event.id}`}
                   className="block w-full text-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
                 >
-                  {event.registration_status === 'not_registered' && 'S\'inscrire'}
-                  {event.registration_status === 'pending' && 'Voir détails'}
-                  {event.registration_status === 'approved' && 'Voir détails'}
-                  {event.registration_status === 'rejected' && 'Voir détails'}
+                  {event.is_invited ? 'View Details' : 'View Event'}
                 </Link>
               </div>
             </div>
