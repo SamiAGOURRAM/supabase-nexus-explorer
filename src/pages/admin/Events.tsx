@@ -238,13 +238,6 @@ export default function AdminEvents() {
                     <Target className="w-5 h-5 text-info" />
                     <span className="text-sm font-medium text-foreground">Phases</span>
                   </Link>
-                  <Link
-                    to={`/admin/events/${event.id}/registrations`}
-                    className="flex items-center gap-2 px-4 py-3 bg-warning/5 border border-warning/20 rounded-lg hover:bg-warning/10 transition-colors"
-                  >
-                    <Calendar className="w-5 h-5 text-warning" />
-                    <span className="text-sm font-medium text-foreground">Registrations</span>
-                  </Link>
                 </div>
               </div>
             ))}

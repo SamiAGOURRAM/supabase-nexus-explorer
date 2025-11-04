@@ -59,7 +59,7 @@ export default function AdminCompanies() {
               </Link>
               <div>
                 <h1 className="text-2xl font-bold text-foreground">Companies</h1>
-                <p className="text-sm text-muted-foreground mt-1">Verify and manage companies</p>
+                <p className="text-sm text-muted-foreground mt-1">View all invited companies</p>
               </div>
             </div>
           </div>
@@ -75,7 +75,7 @@ export default function AdminCompanies() {
           <div className="text-center py-12 bg-card rounded-xl border border-border">
             <Building2 className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-foreground mb-2">No Companies Yet</h3>
-            <p className="text-muted-foreground">Companies will appear here after registration</p>
+            <p className="text-muted-foreground">Invite companies to events to see them here</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in">

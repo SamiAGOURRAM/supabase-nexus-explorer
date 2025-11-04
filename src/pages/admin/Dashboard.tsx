@@ -176,7 +176,7 @@ export default function AdminDashboard() {
         {/* Quick Actions */}
         <div className="bg-card rounded-xl border border-border p-6">
           <h2 className="text-lg font-semibold text-foreground mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Link
               to="/admin/events"
               className="p-4 bg-primary/5 border border-primary/20 rounded-lg hover:bg-primary/10 transition-colors group"
@@ -190,14 +190,9 @@ export default function AdminDashboard() {
               className="p-4 bg-success/5 border border-success/20 rounded-lg hover:bg-success/10 transition-colors group"
             >
               <Building2 className="w-8 h-8 text-success mb-2" />
-              <h3 className="font-semibold text-foreground mb-1">Verify Companies</h3>
-              <p className="text-sm text-muted-foreground">Review and approve company registrations</p>
+              <h3 className="font-semibold text-foreground mb-1">View Companies</h3>
+              <p className="text-sm text-muted-foreground">Browse all invited companies</p>
             </Link>
-            <div className="p-4 bg-muted/50 border border-border rounded-lg">
-              <Users className="w-8 h-8 text-muted-foreground mb-2" />
-              <h3 className="font-semibold text-foreground mb-1">View Analytics</h3>
-              <p className="text-sm text-muted-foreground">Coming soon</p>
-            </div>
           </div>
         </div>
       </main>
