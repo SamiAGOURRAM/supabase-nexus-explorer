@@ -9,6 +9,8 @@ const Offers = lazy(() => import("./pages/Offers"));
 const AdminDashboard = lazy(() => import("./pages/admin/Dashboard"));
 const AdminEvents = lazy(() => import("./pages/admin/Events"));
 const AdminCompanies = lazy(() => import("./pages/admin/Companies"));
+const QuickInvite = lazy(() => import("./pages/admin/events/QuickInvite"));
+const Participants = lazy(() => import("./pages/admin/events/Participants"));
 const StudentDashboard = lazy(() => import("./pages/student/Dashboard"));
 const StudentOffers = lazy(() => import("./pages/student/Offers"));
 const StudentBookings = lazy(() => import("./pages/student/Bookings"));
@@ -32,6 +34,8 @@ function App() {
           {/* Admin Routes */}
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/admin/events" element={<AdminEvents />} />
+          <Route path="/admin/events/:id/quick-invite" element={<QuickInvite />} />
+          <Route path="/admin/events/:id/participants" element={<Participants />} />
           <Route path="/admin/companies" element={<AdminCompanies />} />
           
           {/* Student Routes */}
