@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useNavigate, useParams, Link } from 'react-router-dom'
-import { Building2, TrendingUp, Users } from 'lucide-react'
+import { Building2, TrendingUp, Users, Trash2 } from 'lucide-react'
 
 type CompanyStats = {
   id: string
+  participant_id: string
   company_name: string
   company_code: string
   email: string | null
@@ -73,6 +74,7 @@ export default function EventCompanies() {
     const { data: participantsData } = await supabase
       .from('event_participants')
       .select(`
+        id,
         company_id,
         companies!inner (
           id,
@@ -118,6 +120,7 @@ export default function EventCompanies() {
 
           return {
             ...company,
+            participant_id: p.id,
             total_slots: totalSlots || 0,
             booked_slots: bookedSlots,
             unique_students: uniqueStudents
@@ -126,6 +129,21 @@ export default function EventCompanies() {
       )
 
       setCompanies(companiesWithStats as any)
+    }
+  }
+
+  const handleRemoveCompany = async (participantId: string, companyName: string) => {
+    if (!confirm(`Remove ${companyName} from this event?`)) return
+
+    const { error } = await supabase
+      .from('event_participants')
+      .delete()
+      .eq('id', participantId)
+
+    if (error) {
+      alert('Error removing company: ' + error.message)
+    } else {
+      await loadData()
     }
   }
 
@@ -211,13 +229,15 @@ export default function EventCompanies() {
                   : 0
 
                 return (
-                  <Link
+                  <div
                     key={company.id}
-                    to={`/admin/events/${eventId}/companies/${company.id}`}
-                    className="block px-6 py-4 hover:bg-muted/50 transition"
+                    className="px-6 py-4 hover:bg-muted/50 transition"
                   >
                     <div className="flex items-start justify-between">
-                      <div className="flex-1">
+                      <Link
+                        to={`/admin/events/${eventId}/companies/${company.id}`}
+                        className="flex-1"
+                      >
                         <div className="flex items-center gap-3">
                           <h4 className="text-lg font-semibold">
                             {company.company_name}
@@ -254,13 +274,23 @@ export default function EventCompanies() {
                             </p>
                           </div>
                         </div>
-                      </div>
+                      </Link>
 
-                      <div className="ml-4">
+                      <div className="ml-4 flex items-center gap-2">
                         <TrendingUp className="w-5 h-5 text-primary" />
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleRemoveCompany(company.participant_id, company.company_name)
+                          }}
+                          className="p-2 text-destructive hover:bg-destructive/10 rounded transition"
+                          title="Remove company from event"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
-                  </Link>
+                  </div>
                 )
               })}
             </div>

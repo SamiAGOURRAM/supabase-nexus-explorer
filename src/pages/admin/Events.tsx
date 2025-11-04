@@ -259,13 +259,6 @@ export default function AdminEvents() {
                     <Users className="w-5 h-5 text-primary" />
                     <span className="text-sm font-medium text-foreground">Students</span>
                   </Link>
-                  <Link
-                    to={`/admin/events/${event.id}/participants`}
-                    className="flex items-center gap-2 px-4 py-3 bg-info/5 border border-info/20 rounded-lg hover:bg-info/10 transition-colors"
-                  >
-                    <Users className="w-5 h-5 text-info" />
-                    <span className="text-sm font-medium text-foreground">Participants</span>
-                  </Link>
                 </div>
               </div>
             ))}
