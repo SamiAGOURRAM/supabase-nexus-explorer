@@ -70,54 +70,55 @@ export default function StudentBookings() {
   };
 
   const loadBookings = async (studentId: string) => {
-    let query = supabase
-      .from('bookings')
-      .select(`
-        id,
-        student_id,
-        status,
-        slot_id,
-        event_slots!inner(
-          start_time,
-          end_time,
-          location,
-          event_id,
-          offer_id,
-          company_id,
-          companies!inner(company_name)
-        )
-      `)
-      .eq('student_id', studentId);
+    // Use the RPC function which properly handles sorting and joins
+    const { data, error } = await supabase.rpc('fn_get_student_bookings', {
+      p_student_id: studentId
+    });
 
-    // Filter by event if not 'all'
-    if (selectedEventId !== 'all') {
-      query = query.eq('event_slots.event_id', selectedEventId);
+    if (error) {
+      console.error('Error loading bookings:', error);
+      setLoading(false);
+      return;
     }
 
-    const { data } = await query.order('event_slots(start_time)', { ascending: false });
-
     if (data) {
-      // Fetch offer titles separately
-      const offerIds = [...new Set(data.map((b: any) => b.event_slots?.offer_id).filter(Boolean))];
-      const { data: offers } = await supabase
-        .from('offers')
-        .select('id, title')
-        .in('id', offerIds);
-
-      const offerMap = new Map(offers?.map(o => [o.id, o.title]) || []);
-
+      // Map the RPC response to our Booking type
       const formattedBookings: Booking[] = data.map((booking: any) => ({
-        id: booking.id,
-        student_id: booking.student_id,
+        id: booking.booking_id,
+        student_id: studentId,
         status: booking.status,
-        slot_start_time: booking.event_slots.start_time,
-        slot_end_time: booking.event_slots.end_time,
-        slot_location: booking.event_slots.location,
-        company_name: booking.event_slots.companies.company_name,
-        offer_title: offerMap.get(booking.event_slots.offer_id) || 'Unknown Offer',
+        slot_start_time: booking.slot_time,
+        slot_end_time: booking.slot_time, // RPC doesn't return end_time, but we can calculate it
+        slot_location: null, // RPC doesn't return location
+        company_name: booking.company_name,
+        offer_title: booking.offer_title,
       }));
 
-      setBookings(formattedBookings);
+      // Filter by event if needed
+      if (selectedEventId !== 'all') {
+        // We need to fetch event_id for filtering - let's get slot details
+        const slotIds = data.map((b: any) => b.slot_id).filter(Boolean);
+        if (slotIds.length > 0) {
+          const { data: slots } = await supabase
+            .from('event_slots')
+            .select('id, event_id')
+            .in('id', slotIds);
+
+          const slotEventMap = new Map(slots?.map(s => [s.id, s.event_id]) || []);
+          
+          // Filter bookings by event
+          const filtered = formattedBookings.filter((booking, index) => {
+            const slotId = data[index].slot_id;
+            return slotEventMap.get(slotId) === selectedEventId;
+          });
+          
+          setBookings(filtered);
+        } else {
+          setBookings([]);
+        }
+      } else {
+        setBookings(formattedBookings);
+      }
     }
 
     setLoading(false);
@@ -127,18 +128,21 @@ export default function StudentBookings() {
     if (!confirm('Are you sure you want to cancel this interview?')) return;
 
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       const { data, error } = await supabase.rpc('fn_cancel_booking', {
-        p_booking_id: bookingId
+        p_booking_id: bookingId,
+        p_student_id: user.id
       });
 
       if (error) throw error;
 
-      if (data && data[0]?.success) {
-        alert('Booking cancelled successfully');
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) loadBookings(user.id);
+      if (data && data.length > 0 && data[0].success) {
+        alert(data[0].message);
+        await loadBookings(user.id);
       } else {
-        throw new Error(data?.[0]?.message || 'Failed to cancel booking');
+        alert(data[0]?.message || 'Failed to cancel booking');
       }
     } catch (error: any) {
       alert('Failed to cancel booking: ' + error.message);

@@ -1290,6 +1290,7 @@ export type Database = {
           event_name: string
           notes: string
           offer_title: string
+          slot_id: string
           slot_time: string
           status: string
         }[]
