@@ -139,7 +139,7 @@ export default function CompanyDashboard() {
 
     // Get students scheduled for this event
     const { count: studentsScheduled } = await supabase
-      .from('interview_bookings')
+      .from('bookings')
       .select('*, event_slots!inner(company_id, event_id)', { count: 'exact', head: true })
       .eq('event_slots.company_id', companyId)
       .eq('event_slots.event_id', eventId)
@@ -150,29 +150,9 @@ export default function CompanyDashboard() {
       ? Math.round((studentsScheduled || 0) / totalSlots * 100) 
       : 0;
 
-    // Get top performing offer
-    const { data: bookingsWithOffers } = await supabase
-      .from('interview_bookings')
-      .select('offer_id, offers!inner(title), event_slots!inner(company_id, event_id)')
-      .eq('event_slots.company_id', companyId)
-      .eq('event_slots.event_id', eventId)
-      .eq('status', 'confirmed');
-
-    const offerCounts: Record<string, { title: string; count: number }> = {};
-    bookingsWithOffers?.forEach((booking: any) => {
-      const offerId = booking.offer_id;
-      const offerTitle = booking.offers?.title || 'Unknown';
-      if (!offerCounts[offerId]) {
-        offerCounts[offerId] = { title: offerTitle, count: 0 };
-      }
-      offerCounts[offerId].count++;
-    });
-
-    const topOffer = Object.values(offerCounts).sort((a, b) => b.count - a.count)[0];
-
     // Get scheduled students for this event
     const { data: bookings } = await supabase
-      .from('interview_bookings')
+      .from('bookings')
       .select(`
         id,
         student_id,
@@ -190,6 +170,21 @@ export default function CompanyDashboard() {
       .in('id', offerIds);
 
     const offerMap = new Map(offers?.map(o => [o.id, o.title]) || []);
+
+    // Calculate top offer from actual bookings
+    const offerCounts: Record<string, { title: string; count: number }> = {};
+    bookings?.forEach((booking: any) => {
+      const offerId = booking.event_slots?.offer_id;
+      if (offerId) {
+        const offerTitle = offerMap.get(offerId) || 'Unknown';
+        if (!offerCounts[offerId]) {
+          offerCounts[offerId] = { title: offerTitle, count: 0 };
+        }
+        offerCounts[offerId].count++;
+      }
+    });
+
+    const topOffer = Object.values(offerCounts).sort((a, b) => b.count - a.count)[0];
 
     const sortedBookings = bookings?.sort((a: any, b: any) => 
       new Date(a.event_slots.start_time).getTime() - new Date(b.event_slots.start_time).getTime()

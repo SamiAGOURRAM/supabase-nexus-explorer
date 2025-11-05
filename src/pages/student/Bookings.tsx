@@ -71,19 +71,21 @@ export default function StudentBookings() {
 
   const loadBookings = async (studentId: string) => {
     let query = supabase
-      .from('interview_bookings')
+      .from('bookings')
       .select(`
         id,
         student_id,
         status,
+        slot_id,
         event_slots!inner(
           start_time,
           end_time,
           location,
           event_id,
+          offer_id,
+          company_id,
           companies!inner(company_name)
-        ),
-        offers!inner(title)
+        )
       `)
       .eq('student_id', studentId);
 
@@ -95,6 +97,15 @@ export default function StudentBookings() {
     const { data } = await query.order('event_slots(start_time)', { ascending: false });
 
     if (data) {
+      // Fetch offer titles separately
+      const offerIds = [...new Set(data.map((b: any) => b.event_slots?.offer_id).filter(Boolean))];
+      const { data: offers } = await supabase
+        .from('offers')
+        .select('id, title')
+        .in('id', offerIds);
+
+      const offerMap = new Map(offers?.map(o => [o.id, o.title]) || []);
+
       const formattedBookings: Booking[] = data.map((booking: any) => ({
         id: booking.id,
         student_id: booking.student_id,
@@ -103,7 +114,7 @@ export default function StudentBookings() {
         slot_end_time: booking.event_slots.end_time,
         slot_location: booking.event_slots.location,
         company_name: booking.event_slots.companies.company_name,
-        offer_title: booking.offers.title,
+        offer_title: offerMap.get(booking.event_slots.offer_id) || 'Unknown Offer',
       }));
 
       setBookings(formattedBookings);
@@ -115,17 +126,22 @@ export default function StudentBookings() {
   const handleCancelBooking = async (bookingId: string) => {
     if (!confirm('Are you sure you want to cancel this interview?')) return;
 
-    const { error } = await supabase
-      .from('interview_bookings')
-      .update({ status: 'cancelled' })
-      .eq('id', bookingId);
+    try {
+      const { data, error } = await supabase.rpc('fn_cancel_booking', {
+        p_booking_id: bookingId
+      });
 
-    if (error) {
+      if (error) throw error;
+
+      if (data && data[0]?.success) {
+        alert('Booking cancelled successfully');
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) loadBookings(user.id);
+      } else {
+        throw new Error(data?.[0]?.message || 'Failed to cancel booking');
+      }
+    } catch (error: any) {
       alert('Failed to cancel booking: ' + error.message);
-    } else {
-      alert('Booking cancelled successfully');
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) loadBookings(user.id);
     }
   };
 
