@@ -68,16 +68,18 @@ export default function CompanyDashboard() {
     }
 
     // Get next event they're participating in
-    const { data: nextEventData } = await supabase
+    const { data: participations } = await supabase
       .from('event_participants')
-      .select('events!inner(id, name, date, location)')
+      .select('events(id, name, date, location)')
       .eq('company_id', company.id)
-      .gte('events.date', new Date().toISOString())
-      .order('events.date', { ascending: true })
-      .limit(1)
-      .maybeSingle();
+      .gte('events.date', new Date().toISOString());
 
-    const nextEvent = nextEventData?.events;
+    // Sort in JavaScript and get first one
+    const sortedParticipations = participations
+      ?.filter(p => p.events)
+      .sort((a: any, b: any) => new Date(a.events.date).getTime() - new Date(b.events.date).getTime());
+    
+    const nextEvent = sortedParticipations?.[0]?.events || null;
 
     // Get active offers count
     const { count: activeOffers } = await supabase
@@ -115,15 +117,19 @@ export default function CompanyDashboard() {
         .select(`
           id,
           student_id,
-          event_slots!inner(start_time, end_time, location, company_id, event_id, offers!inner(title)),
+          event_slots!inner(start_time, end_time, location, company_id, event_id, offers(title)),
           profiles!inner(full_name, email, phone, cv_url)
         `)
         .eq('event_slots.company_id', company.id)
         .eq('event_slots.event_id', nextEvent.id)
-        .eq('status', 'confirmed')
-        .order('event_slots.start_time', { ascending: true });
+        .eq('status', 'confirmed');
 
-      const formattedStudents: ScheduledStudent[] = bookings?.map((booking: any) => ({
+      // Sort by start_time in JavaScript
+      const sortedBookings = bookings?.sort((a: any, b: any) => 
+        new Date(a.event_slots.start_time).getTime() - new Date(b.event_slots.start_time).getTime()
+      );
+
+      const formattedStudents: ScheduledStudent[] = sortedBookings?.map((booking: any) => ({
         booking_id: booking.id,
         student_id: booking.student_id,
         student_name: booking.profiles?.full_name || 'Unknown',
