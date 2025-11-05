@@ -157,25 +157,29 @@ export default function StudentOffers() {
   const confirmBooking = async (slotId: string) => {
     if (!selectedOffer) return;
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-    const { error } = await supabase
-      .from('interview_bookings')
-      .insert({
-        student_id: user.id,
-        slot_id: slotId,
-        offer_id: selectedOffer.id,
-        status: 'confirmed',
+      const { data, error } = await supabase.rpc('fn_book_interview', {
+        p_student_id: user.id,
+        p_slot_id: slotId,
+        p_offer_id: selectedOffer.id
       });
 
-    if (error) {
-      alert('Failed to book interview: ' + error.message);
-    } else {
-      alert('Interview booked successfully!');
-      setSelectedOffer(null);
-      setAvailableSlots([]);
-      navigate('/student/bookings');
+      if (error) throw error;
+
+      if (data && data.success) {
+        alert('Interview booked successfully!');
+        setSelectedOffer(null);
+        setAvailableSlots([]);
+        navigate('/student/bookings');
+      } else {
+        throw new Error(data?.error_message || 'Failed to book interview');
+      }
+    } catch (error: any) {
+      console.error('Error booking interview:', error);
+      alert(error.message || 'Failed to book interview. Please check booking limits and phase restrictions.');
     }
   };
 

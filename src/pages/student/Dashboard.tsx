@@ -1,11 +1,23 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { Calendar, Briefcase, User, LogOut, Book } from 'lucide-react';
+import { Calendar, Briefcase, User, LogOut, Book, AlertCircle, CheckCircle2 } from 'lucide-react';
+
+type EventPhaseInfo = {
+  eventId: string;
+  eventName: string;
+  eventDate: string;
+  currentPhase: number;
+  canBook: boolean;
+  currentBookings: number;
+  maxBookings: number;
+  message: string;
+};
 
 export default function StudentDashboard() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ bookings: 0, offers: 0 });
+  const [phaseInfo, setPhaseInfo] = useState<EventPhaseInfo | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -40,6 +52,36 @@ export default function StudentDashboard() {
       .from('offers')
       .select('*', { count: 'exact', head: true })
       .eq('is_active', true);
+
+    // Get active event and phase info
+    const { data: activeEvent } = await supabase
+      .from('events')
+      .select('id, name, date, current_phase, phase1_max_bookings, phase2_max_bookings')
+      .gte('date', new Date().toISOString())
+      .order('date', { ascending: true })
+      .limit(1)
+      .single();
+
+    if (activeEvent) {
+      const { data: limitCheck } = await supabase.rpc('fn_check_student_booking_limit', {
+        p_student_id: user.id,
+        p_event_id: activeEvent.id
+      });
+
+      if (limitCheck && limitCheck.length > 0) {
+        const check = limitCheck[0];
+        setPhaseInfo({
+          eventId: activeEvent.id,
+          eventName: activeEvent.name,
+          eventDate: activeEvent.date,
+          currentPhase: check.current_phase,
+          canBook: check.can_book,
+          currentBookings: check.current_count,
+          maxBookings: check.max_allowed,
+          message: check.message
+        });
+      }
+    }
 
     setStats({ bookings: bookingsCount || 0, offers: offersCount || 0 });
     setLoading(false);
@@ -79,6 +121,56 @@ export default function StudentDashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Phase Status Card */}
+        {phaseInfo && (
+          <div className={`rounded-xl border p-6 mb-6 ${
+            phaseInfo.currentPhase === 0 
+              ? 'bg-destructive/10 border-destructive/30' 
+              : phaseInfo.canBook 
+                ? 'bg-success/10 border-success/30' 
+                : 'bg-warning/10 border-warning/30'
+          }`}>
+            <div className="flex items-start gap-4">
+              {phaseInfo.currentPhase === 0 ? (
+                <AlertCircle className="w-6 h-6 text-destructive flex-shrink-0 mt-1" />
+              ) : phaseInfo.canBook ? (
+                <CheckCircle2 className="w-6 h-6 text-success flex-shrink-0 mt-1" />
+              ) : (
+                <AlertCircle className="w-6 h-6 text-warning flex-shrink-0 mt-1" />
+              )}
+              <div className="flex-1">
+                <h3 className="font-semibold text-foreground mb-1">
+                  {phaseInfo.eventName} - Phase {phaseInfo.currentPhase}
+                </h3>
+                <p className="text-sm text-muted-foreground mb-2">
+                  {new Date(phaseInfo.eventDate).toLocaleDateString('en-US', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  })}
+                </p>
+                <div className="flex items-center gap-4 mb-2">
+                  <span className="text-sm font-medium text-foreground">
+                    Bookings: {phaseInfo.currentBookings}/{phaseInfo.maxBookings}
+                  </span>
+                  <div className="flex-1 max-w-xs bg-muted rounded-full h-2">
+                    <div 
+                      className={`h-2 rounded-full transition-all ${
+                        phaseInfo.currentBookings >= phaseInfo.maxBookings 
+                          ? 'bg-destructive' 
+                          : 'bg-success'
+                      }`}
+                      style={{ width: `${Math.min((phaseInfo.currentBookings / phaseInfo.maxBookings) * 100, 100)}%` }}
+                    />
+                  </div>
+                </div>
+                <p className="text-sm text-foreground">{phaseInfo.message}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 animate-in">
           <Link to="/student/bookings" className="bg-card rounded-xl border border-border p-6 hover:border-primary hover:shadow-elegant transition-all">
             <Calendar className="w-8 h-8 text-primary mb-4" />
