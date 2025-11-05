@@ -38,11 +38,19 @@ export default function StudentOffers() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterTag, setFilterTag] = useState<string>('');
   const [filterPaid, setFilterPaid] = useState<string>('');
+  const [events, setEvents] = useState<Array<{ id: string; name: string; date: string }>>([]);
+  const [selectedEventId, setSelectedEventId] = useState<string>('');
   const navigate = useNavigate();
 
   useEffect(() => {
     checkStudentAndLoadOffers();
   }, []);
+
+  useEffect(() => {
+    if (selectedEventId) {
+      loadOffers();
+    }
+  }, [selectedEventId]);
 
   const checkStudentAndLoadOffers = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -62,10 +70,25 @@ export default function StudentOffers() {
       return;
     }
 
-    loadOffers();
+    // Load events
+    const { data: eventsData } = await supabase
+      .from('events')
+      .select('id, name, date')
+      .gte('date', new Date().toISOString())
+      .order('date', { ascending: true });
+
+    if (eventsData && eventsData.length > 0) {
+      setEvents(eventsData);
+      setSelectedEventId(eventsData[0].id);
+    } else {
+      setLoading(false);
+    }
   };
 
   const loadOffers = async () => {
+    if (!selectedEventId) return;
+
+    setLoading(true);
     const { data: offersData } = await supabase
       .from('offers')
       .select(`
@@ -87,6 +110,7 @@ export default function StudentOffers() {
         )
       `)
       .eq('is_active', true)
+      .eq('event_id', selectedEventId)
       .order('created_at', { ascending: false });
 
     if (offersData) {
@@ -117,11 +141,12 @@ export default function StudentOffers() {
     setSelectedOffer(offer);
     setLoadingSlots(true);
 
-    // Get all slots for this company
+    // Get all slots for this company for the selected event
     const { data: slotsData } = await supabase
       .from('event_slots')
       .select('id, start_time, end_time, location, capacity')
       .eq('company_id', offer.company_id)
+      .eq('event_id', selectedEventId)
       .eq('is_active', true)
       .gte('start_time', new Date().toISOString())
       .order('start_time', { ascending: true });
@@ -226,6 +251,30 @@ export default function StudentOffers() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Event Selector */}
+        {events.length > 0 && (
+          <div className="bg-card rounded-xl border border-border p-4 mb-6">
+            <label className="block text-sm font-medium text-foreground mb-2">
+              Select Event
+            </label>
+            <select
+              value={selectedEventId}
+              onChange={(e) => setSelectedEventId(e.target.value)}
+              className="w-full md:w-auto px-4 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              {events.map((event) => (
+                <option key={event.id} value={event.id}>
+                  {event.name} - {new Date(event.date).toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  })}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         {/* Filters */}
         <div className="bg-card rounded-xl border border-border p-6 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

@@ -17,11 +17,26 @@ type Booking = {
 export default function StudentBookings() {
   const [loading, setLoading] = useState(true);
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [events, setEvents] = useState<Array<{ id: string; name: string; date: string }>>([]);
+  const [selectedEventId, setSelectedEventId] = useState<string>('all');
   const navigate = useNavigate();
 
   useEffect(() => {
     checkStudentAndLoadBookings();
   }, []);
+
+  useEffect(() => {
+    const reloadBookings = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user && selectedEventId) {
+        loadBookings(user.id);
+      }
+    };
+    
+    if (selectedEventId) {
+      reloadBookings();
+    }
+  }, [selectedEventId]);
 
   const checkStudentAndLoadBookings = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -41,11 +56,21 @@ export default function StudentBookings() {
       return;
     }
 
+    // Load events
+    const { data: eventsData } = await supabase
+      .from('events')
+      .select('id, name, date')
+      .order('date', { ascending: false });
+
+    if (eventsData) {
+      setEvents(eventsData);
+    }
+
     loadBookings(user.id);
   };
 
   const loadBookings = async (studentId: string) => {
-    const { data } = await supabase
+    let query = supabase
       .from('interview_bookings')
       .select(`
         id,
@@ -55,12 +80,19 @@ export default function StudentBookings() {
           start_time,
           end_time,
           location,
+          event_id,
           companies!inner(company_name)
         ),
         offers!inner(title)
       `)
-      .eq('student_id', studentId)
-      .order('event_slots(start_time)', { ascending: true });
+      .eq('student_id', studentId);
+
+    // Filter by event if not 'all'
+    if (selectedEventId !== 'all') {
+      query = query.eq('event_slots.event_id', selectedEventId);
+    }
+
+    const { data } = await query.order('event_slots(start_time)', { ascending: false });
 
     if (data) {
       const formattedBookings: Booking[] = data.map((booking: any) => ({
@@ -130,6 +162,31 @@ export default function StudentBookings() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Event Selector */}
+        {events.length > 0 && (
+          <div className="bg-card rounded-xl border border-border p-4 mb-6">
+            <label className="block text-sm font-medium text-foreground mb-2">
+              Filter by Event
+            </label>
+            <select
+              value={selectedEventId}
+              onChange={(e) => setSelectedEventId(e.target.value)}
+              className="w-full md:w-auto px-4 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="all">All Events</option>
+              {events.map((event) => (
+                <option key={event.id} value={event.id}>
+                  {event.name} - {new Date(event.date).toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  })}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-card rounded-xl border border-border p-6">
             <Calendar className="w-8 h-8 text-blue-500 mb-4" />
