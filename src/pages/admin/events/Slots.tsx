@@ -153,6 +153,11 @@ export default function EventSlots() {
         .in('slot_id', slotIds)
         .eq('status', 'confirmed')
 
+      if (!bookingsData || bookingsData.length === 0) {
+        setSlotDetails([])
+        return
+      }
+
       // Fetch slot company info separately
       const { data: slotsData } = await supabase
         .from('event_slots')
@@ -180,18 +185,22 @@ export default function EventSlots() {
         const companyKey = slot.company_id
         const companyInfo = companiesMap.get(companyKey)
         
-        if (!companyMap.has(companyKey)) {
-          companyMap.set(companyKey, {
-            company_name: companyInfo?.company_name || 'Unknown',
-            company_code: companyInfo?.company_code || 'N/A',
-            bookings: []
-          })
-        }
-        
         // Find bookings for this slot
         const slotBookings = bookingsData?.filter(b => b.slot_id === slot.id) || []
-        const company = companyMap.get(companyKey)!
-        company.bookings.push(...slotBookings as any)
+        
+        // Only add company if it has bookings
+        if (slotBookings.length > 0) {
+          if (!companyMap.has(companyKey)) {
+            companyMap.set(companyKey, {
+              company_name: companyInfo?.company_name || 'Unknown',
+              company_code: companyInfo?.company_code || 'N/A',
+              bookings: []
+            })
+          }
+          
+          const company = companyMap.get(companyKey)!
+          company.bookings.push(...slotBookings as any)
+        }
       })
 
       setSlotDetails(Array.from(companyMap.values()))
@@ -303,31 +312,27 @@ export default function EventSlots() {
                   ) : slotDetails.length === 0 ? (
                     <p className="text-muted-foreground text-center py-4">No bookings for this time slot</p>
                   ) : (
-                    <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {slotDetails.map((company, idx) => (
-                        <div key={idx} className="bg-card rounded-lg border p-4">
-                          <div className="font-medium mb-3">
+                        <div key={idx} className="border-2 border-dashed border-primary/30 rounded-lg p-4 bg-card/50">
+                          <div className="font-semibold text-sm mb-3 text-primary">
                             {company.company_name} 
                             <span className="text-xs text-muted-foreground ml-2">({company.company_code})</span>
                           </div>
                           
-                          {company.bookings.length === 0 ? (
-                            <p className="text-sm text-muted-foreground">No interviews scheduled</p>
-                          ) : (
-                            <div className="space-y-2">
-                              {company.bookings.map((booking) => (
-                                <div key={booking.id} className="flex items-center gap-3 text-sm p-2 bg-muted/50 rounded">
-                                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium">
-                                    {booking.profiles?.full_name?.charAt(0) || '?'}
-                                  </div>
-                                  <div className="flex-1">
-                                    <div className="font-medium">{booking.profiles?.full_name || 'Unknown'}</div>
-                                    <div className="text-xs text-muted-foreground">{booking.profiles?.email}</div>
-                                  </div>
+                          <div className="flex flex-wrap gap-2">
+                            {company.bookings.map((booking) => (
+                              <div 
+                                key={booking.id} 
+                                className="inline-flex items-center gap-2 px-3 py-2 bg-card border rounded-lg text-sm"
+                              >
+                                <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium">
+                                  {booking.profiles?.full_name?.charAt(0) || '?'}
                                 </div>
-                              ))}
-                            </div>
-                          )}
+                                <span className="font-medium">{booking.profiles?.full_name || 'Unknown'}</span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       ))}
                     </div>
