@@ -1,9 +1,22 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useNavigate, useParams, Link } from 'react-router-dom'
-import { Calendar, Filter } from 'lucide-react'
+import { Users } from 'lucide-react'
 
-type Slot = {
+type Booking = {
+  id: string
+  student_id: string
+  profiles: {
+    full_name: string
+    email: string
+  }
+}
+
+type SlotDetails = {
+  company_name: string
+  company_code: string
+  bookings: Booking[]
+}
   id: string
   start_time: string
   end_time: string
@@ -17,7 +30,13 @@ type Slot = {
   speed_recruiting_sessions: {
     name: string
   }
-  bookings_count: number
+
+type TimeSlot = {
+  start_time: string
+  end_time: string
+  totalCapacity: number
+  totalBooked: number
+  slotIds: string[]
 }
 
 type Event = {
@@ -26,21 +45,15 @@ type Event = {
   date: string
 }
 
-type Company = {
-  id: string
-  company_name: string
-}
-
 export default function EventSlots() {
   const navigate = useNavigate()
   const { id: eventId } = useParams<{ id: string }>()
   const [loading, setLoading] = useState(true)
   const [event, setEvent] = useState<Event | null>(null)
-  const [slots, setSlots] = useState<Slot[]>([])
-  const [companies, setCompanies] = useState<Company[]>([])
-  
-  const [filterCompany, setFilterCompany] = useState<string>('all')
-  const [filterStatus, setFilterStatus] = useState<string>('all')
+  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([])
+  const [selectedSlot, setSelectedSlot] = useState<string | null>(null)
+  const [slotDetails, setSlotDetails] = useState<SlotDetails[]>([])
+  const [loadingDetails, setLoadingDetails] = useState(false)
 
   useEffect(() => {
     checkAdminAndLoad()
@@ -84,56 +97,16 @@ export default function EventSlots() {
 
     if (eventData) setEvent(eventData)
 
-    const { data: participantsData } = await supabase
-      .from('event_participants')
-      .select(`
-        companies!inner (
-          id,
-          company_name
-        )
-      `)
-      .eq('event_id', eventId)
-
-    if (participantsData) {
-      const uniqueCompanies = participantsData
-        .map((p: any) => p.companies)
-        .filter((c: any, i: number, arr: any[]) => arr.findIndex((x: any) => x.id === c.id) === i)
-      setCompanies(uniqueCompanies)
-    }
-
-    // Fetch slots without embedded relations
-    const { data: slotsData, error: slotsError } = await supabase
+    // Fetch all slots for the event
+    const { data: slotsData } = await supabase
       .from('event_slots')
-      .select('id, start_time, end_time, capacity, company_id, session_id')
+      .select('id, start_time, end_time, capacity')
       .eq('event_id', eventId)
       .eq('is_active', true)
       .order('start_time')
 
-    console.log('Slots data:', slotsData, 'Error:', slotsError)
-
     if (slotsData && slotsData.length > 0) {
-      // Get unique company IDs
-      const companyIds = [...new Set(slotsData.map(s => s.company_id))]
-      const { data: companiesData } = await supabase
-        .from('companies')
-        .select('id, company_name, company_code')
-        .in('id', companyIds)
-
-      const companiesMap = new Map(companiesData?.map(c => [c.id, c]) || [])
-
-      // Get unique session IDs
-      const sessionIds = [...new Set(slotsData.map(s => s.session_id).filter(Boolean))]
-      let sessionsMap = new Map()
-      
-      if (sessionIds.length > 0) {
-        const { data: sessionsData } = await supabase
-          .from('speed_recruiting_sessions')
-          .select('id, name')
-          .in('id', sessionIds)
-        
-        sessionsMap = new Map(sessionsData?.map(s => [s.id, s]) || [])
-      }
-
+      // Get booking counts for each slot
       const slotsWithCounts = await Promise.all(
         slotsData.map(async (slot: any) => {
           const { count } = await supabase
@@ -144,42 +117,105 @@ export default function EventSlots() {
 
           return {
             ...slot,
-            companies: companiesMap.get(slot.company_id) || { company_name: 'Unknown', company_code: 'N/A' },
-            speed_recruiting_sessions: slot.session_id ? sessionsMap.get(slot.session_id) : null,
             bookings_count: count || 0
           }
         })
       )
 
-      setSlots(slotsWithCounts as any)
-    } else {
-      setSlots([])
+      // Group by time ranges
+      const grouped = slotsWithCounts.reduce((acc, slot) => {
+        const timeKey = `${slot.start_time}-${slot.end_time}`
+        if (!acc[timeKey]) {
+          acc[timeKey] = {
+            start_time: slot.start_time,
+            end_time: slot.end_time,
+            totalCapacity: 0,
+            totalBooked: 0,
+            slotIds: []
+          }
+        }
+        acc[timeKey].totalCapacity += slot.capacity
+        acc[timeKey].totalBooked += slot.bookings_count
+        acc[timeKey].slotIds.push(slot.id)
+        return acc
+      }, {} as Record<string, TimeSlot>)
+
+      const timeSlotsArray = Object.values(grouped).sort((a, b) => 
+        new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+      )
+
+      setTimeSlots(timeSlotsArray)
     }
   }
 
-  const [expandedSlot, setExpandedSlot] = useState<string | null>(null)
+  const loadSlotDetails = async (timeKey: string, slotIds: string[]) => {
+    setLoadingDetails(true)
+    try {
+      // Fetch all bookings for these slots with student and company info
+      const { data: bookingsData } = await supabase
+        .from('interview_bookings')
+        .select(`
+          id,
+          student_id,
+          slot_id,
+          profiles!interview_bookings_student_id_fkey (
+            full_name,
+            email
+          )
+        `)
+        .in('slot_id', slotIds)
+        .eq('status', 'confirmed')
 
-  // Group slots by time
-  const slotsByTime = slots.reduce((acc, slot) => {
-    const timeKey = `${slot.start_time}-${slot.end_time}`
-    if (!acc[timeKey]) {
-      acc[timeKey] = {
-        start_time: slot.start_time,
-        end_time: slot.end_time,
-        slots: [],
-        totalCapacity: 0,
-        totalBooked: 0
-      }
+      // Fetch slot company info
+      const { data: slotsData } = await supabase
+        .from('event_slots')
+        .select(`
+          id,
+          company_id,
+          companies (
+            company_name,
+            company_code
+          )
+        `)
+        .in('id', slotIds)
+
+      // Group bookings by company
+      const companyMap = new Map<string, SlotDetails>()
+      
+      slotsData?.forEach((slot: any) => {
+        const companyKey = slot.company_id
+        if (!companyMap.has(companyKey)) {
+          companyMap.set(companyKey, {
+            company_name: slot.companies?.company_name || 'Unknown',
+            company_code: slot.companies?.company_code || 'N/A',
+            bookings: []
+          })
+        }
+        
+        // Find bookings for this slot
+        const slotBookings = bookingsData?.filter(b => b.slot_id === slot.id) || []
+        const company = companyMap.get(companyKey)!
+        company.bookings.push(...slotBookings as any)
+      })
+
+      setSlotDetails(Array.from(companyMap.values()))
+    } catch (err) {
+      console.error('Error loading slot details:', err)
+    } finally {
+      setLoadingDetails(false)
     }
-    acc[timeKey].slots.push(slot)
-    acc[timeKey].totalCapacity += slot.capacity
-    acc[timeKey].totalBooked += slot.bookings_count
-    return acc
-  }, {} as Record<string, { start_time: string; end_time: string; slots: Slot[]; totalCapacity: number; totalBooked: number }>)
+  }
 
-  const timeSlots = Object.values(slotsByTime).sort((a, b) => 
-    new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
-  )
+  const handleSlotClick = (timeKey: string, slotIds: string[]) => {
+    if (selectedSlot === timeKey) {
+      setSelectedSlot(null)
+      setSlotDetails([])
+    } else {
+      setSelectedSlot(timeKey)
+      loadSlotDetails(timeKey, slotIds)
+    }
+  }
+
 
   if (loading) {
     return (
@@ -210,102 +246,99 @@ export default function EventSlots() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8">
-        {/* Simple Schedule View */}
-        <div className="bg-card rounded-lg border">
-          <div className="px-6 py-4 border-b">
-            <h3 className="text-lg font-semibold">
-              Interview Schedule ({slots.length} slots)
-            </h3>
-          </div>
+        {/* Time Grid */}
+        <div className="bg-card rounded-lg border p-6">
+          <h3 className="text-lg font-semibold mb-6">
+            Interview Schedule ({timeSlots.reduce((sum, ts) => sum + ts.totalBooked, 0)} bookings)
+          </h3>
 
           {timeSlots.length === 0 ? (
-            <div className="px-6 py-12 text-center text-muted-foreground">
-              <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />
+            <div className="py-12 text-center text-muted-foreground">
               <p>No slots available for this event.</p>
             </div>
           ) : (
-            <div className="divide-y">
-              {timeSlots.map((timeSlot, idx) => {
-                const timeKey = `${timeSlot.start_time}-${timeSlot.end_time}`
-                const isExpanded = expandedSlot === timeKey
-                
-                return (
-                  <div key={idx}>
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
+                {timeSlots.map((timeSlot) => {
+                  const timeKey = `${timeSlot.start_time}-${timeSlot.end_time}`
+                  const isSelected = selectedSlot === timeKey
+                  
+                  return (
                     <button
-                      onClick={() => setExpandedSlot(isExpanded ? null : timeKey)}
-                      className="w-full px-6 py-4 flex items-center justify-between hover:bg-muted/50 transition-colors text-left"
+                      key={timeKey}
+                      onClick={() => handleSlotClick(timeKey, timeSlot.slotIds)}
+                      className={`relative p-4 rounded-lg border-2 transition-all ${
+                        isSelected 
+                          ? 'border-primary bg-primary/5' 
+                          : 'border-border bg-card hover:border-primary/50'
+                      }`}
                     >
-                      <div className="flex items-center gap-4">
-                        <div className="text-lg font-semibold text-primary">
+                      <div className="text-center">
+                        <div className="font-semibold text-lg">
                           {new Date(timeSlot.start_time).toLocaleTimeString('en-US', {
                             hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                          {' - '}
-                          {new Date(timeSlot.end_time).toLocaleTimeString('en-US', {
-                            hour: '2-digit',
-                            minute: '2-digit'
+                            minute: '2-digit',
+                            hour12: false
                           })}
                         </div>
-                        <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                          <span>{timeSlot.slots.length} {timeSlot.slots.length === 1 ? 'slot' : 'slots'}</span>
-                          <span>•</span>
-                          <span>{timeSlot.totalBooked} / {timeSlot.totalCapacity} booked</span>
-                        </div>
-                      </div>
-                      <div className="text-muted-foreground">
-                        {isExpanded ? '−' : '+'}
+                        {timeSlot.totalBooked > 0 && (
+                          <div className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
+                            {timeSlot.totalBooked}
+                          </div>
+                        )}
                       </div>
                     </button>
+                  )
+                })}
+              </div>
 
-                    {isExpanded && (
-                      <div className="px-6 pb-4 bg-muted/20">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                          {timeSlot.slots.map(slot => (
-                            <div 
-                              key={slot.id} 
-                              className="p-4 rounded-lg border bg-card"
-                            >
-                              <div className="flex items-start justify-between mb-2">
-                                <div className="flex-1">
-                                  <p className="font-medium text-sm">
-                                    {slot.companies?.company_name || 'Unknown'}
-                                  </p>
-                                  {slot.companies?.company_code && (
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                      {slot.companies.company_code}
-                                    </p>
-                                  )}
-                                </div>
-                                {slot.bookings_count >= slot.capacity ? (
-                                  <span className="px-2 py-1 bg-destructive/20 text-destructive text-xs rounded-full font-medium">
-                                    Full
-                                  </span>
-                                ) : (
-                                  <span className="px-2 py-1 bg-success/20 text-success text-xs rounded-full font-medium">
-                                    {slot.capacity - slot.bookings_count} left
-                                  </span>
-                                )}
-                              </div>
-                              
-                              {slot.speed_recruiting_sessions?.name && (
-                                <p className="text-xs text-muted-foreground mb-2">
-                                  {slot.speed_recruiting_sessions.name}
-                                </p>
-                              )}
-
-                              <div className="text-xs text-muted-foreground">
-                                {slot.bookings_count} / {slot.capacity} booked
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+              {/* Slot Details */}
+              {selectedSlot && (
+                <div className="mt-6 p-6 bg-muted/30 rounded-lg border">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Users className="w-5 h-5 text-primary" />
+                    <h4 className="font-semibold text-lg">Interview Details</h4>
                   </div>
-                )
-              })}
-            </div>
+
+                  {loadingDetails ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    </div>
+                  ) : slotDetails.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-4">No bookings for this time slot</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {slotDetails.map((company, idx) => (
+                        <div key={idx} className="bg-card rounded-lg border p-4">
+                          <div className="font-medium mb-3">
+                            {company.company_name} 
+                            <span className="text-xs text-muted-foreground ml-2">({company.company_code})</span>
+                          </div>
+                          
+                          {company.bookings.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">No interviews scheduled</p>
+                          ) : (
+                            <div className="space-y-2">
+                              {company.bookings.map((booking) => (
+                                <div key={booking.id} className="flex items-center gap-3 text-sm p-2 bg-muted/50 rounded">
+                                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium">
+                                    {booking.profiles?.full_name?.charAt(0) || '?'}
+                                  </div>
+                                  <div className="flex-1">
+                                    <div className="font-medium">{booking.profiles?.full_name || 'Unknown'}</div>
+                                    <div className="text-xs text-muted-foreground">{booking.profiles?.email}</div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </div>
       </main>
