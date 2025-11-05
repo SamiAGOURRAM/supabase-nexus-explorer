@@ -417,53 +417,57 @@ export default function StudentOffers() {
             {filteredOffers.map((offer, index) => (
               <div
                 key={offer.id}
-                className="bg-card rounded-xl border border-border p-6 hover:border-primary hover:shadow-elegant transition-all hover-scale animate-fade-in"
+                className="bg-card rounded-xl border border-border p-6 hover:border-primary hover:shadow-elegant transition-all animate-fade-in group"
                 style={{ animationDelay: `${index * 50}ms` }}
               >
-                <div className="flex items-start gap-4 mb-4">
-                  <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Building2 className="w-6 h-6 text-primary" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-foreground mb-1">{offer.company_name}</h3>
-                    <p className="text-sm text-muted-foreground line-clamp-1">{offer.title}</p>
-                  </div>
-                </div>
-
-                <p className="text-sm text-muted-foreground mb-4 line-clamp-3">
-                  {offer.description}
-                </p>
-
-                <div className="flex flex-wrap gap-2 mb-4">
-                  <span className="px-3 py-1 bg-primary/10 text-primary text-xs font-medium rounded-full">
-                    {offer.interest_tag}
-                  </span>
-                  {offer.paid && (
-                    <span className="px-3 py-1 bg-green-500/10 text-green-600 text-xs font-medium rounded-full">
-                      💰 Paid
-                    </span>
-                  )}
-                  {offer.remote_possible && (
-                    <span className="px-3 py-1 bg-blue-500/10 text-blue-600 text-xs font-medium rounded-full">
-                      🏠 Remote
-                    </span>
-                  )}
-                </div>
-
-                <div className="space-y-2 mb-4 text-sm">
-                  {offer.location && (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <MapPin className="w-4 h-4" />
-                      {offer.location}
+                <Link to={`/student/offers/${offer.id}`} className="block mb-4">
+                  <div className="flex items-start gap-4 mb-4">
+                    <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Building2 className="w-6 h-6 text-primary" />
                     </div>
-                  )}
-                  {offer.duration_months && (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Clock className="w-4 h-4" />
-                      {offer.duration_months} months
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-foreground mb-1 group-hover:text-primary transition-colors">
+                        {offer.company_name}
+                      </h3>
+                      <p className="text-sm text-muted-foreground line-clamp-1">{offer.title}</p>
                     </div>
-                  )}
-                </div>
+                  </div>
+
+                  <p className="text-sm text-muted-foreground mb-4 line-clamp-3">
+                    {offer.description}
+                  </p>
+
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    <span className="px-3 py-1 bg-primary/10 text-primary text-xs font-medium rounded-full">
+                      {offer.interest_tag}
+                    </span>
+                    {offer.paid && (
+                      <span className="px-3 py-1 bg-green-500/10 text-green-600 text-xs font-medium rounded-full">
+                        💰 Paid
+                      </span>
+                    )}
+                    {offer.remote_possible && (
+                      <span className="px-3 py-1 bg-blue-500/10 text-blue-600 text-xs font-medium rounded-full">
+                        🏠 Remote
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="space-y-2 mb-4 text-sm">
+                    {offer.location && (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <MapPin className="w-4 h-4" />
+                        {offer.location}
+                      </div>
+                    )}
+                    {offer.duration_months && (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Clock className="w-4 h-4" />
+                        {offer.duration_months} months
+                      </div>
+                    )}
+                  </div>
+                </Link>
 
                 <button
                   onClick={() => handleBookInterview(offer)}
@@ -548,86 +552,75 @@ export default function StudentOffers() {
                   </button>
                 </div>
               ) : (
-                <div className="space-y-3 animate-fade-in">
-                  {availableSlots.map((slot) => {
-                    const spotsLeft = slot.capacity - slot.bookings_count;
-                    const isLowCapacity = spotsLeft <= 2;
-                    const isSelected = selectedSlotId === slot.id;
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 mb-4 animate-fade-in">
+                    {availableSlots.map((slot) => {
+                      const spotsLeft = slot.capacity - slot.bookings_count;
+                      const isLowCapacity = spotsLeft <= 2;
+                      const isSelected = selectedSlotId === slot.id;
 
-                    return (
-                      <div
-                        key={slot.id}
-                        className={`p-4 bg-background rounded-lg border transition-all ${
-                          isSelected 
-                            ? 'border-primary shadow-md' 
-                            : 'border-border hover:border-primary hover:shadow-elegant'
-                        }`}
-                      >
+                      return (
                         <button
+                          key={slot.id}
                           onClick={() => {
                             setSelectedSlotId(slot.id);
                             checkSlotConflict(slot.id);
                           }}
-                          className="w-full text-left"
+                          className={`relative p-3 rounded-lg border-2 transition-all hover:scale-105 ${
+                            isSelected 
+                              ? 'border-primary bg-primary/5 shadow-lg' 
+                              : 'border-border hover:border-primary bg-background'
+                          }`}
                         >
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <div className="flex items-center gap-2 mb-2">
-                                <Clock className="w-4 h-4 text-primary" />
-                                <p className="font-medium text-foreground">
-                                  {new Date(slot.start_time).toLocaleTimeString('en-US', {
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                  })}{' '}
-                                  -{' '}
-                                  {new Date(slot.end_time).toLocaleTimeString('en-US', {
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                  })}
-                                </p>
-                              </div>
-                              <p className="text-sm text-muted-foreground">
-                                {new Date(slot.start_time).toLocaleDateString('en-US', {
-                                  weekday: 'long',
-                                  month: 'long',
-                                  day: 'numeric',
-                                })}
-                              </p>
-                              {slot.location && (
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                                  <MapPin className="w-3 h-3" />
-                                  {slot.location}
-                                </div>
-                              )}
-                            </div>
-                            <div className="text-right">
-                              <span className={`px-3 py-1 text-xs font-medium rounded-full ${
-                                isLowCapacity 
-                                  ? 'bg-orange-500/10 text-orange-600' 
-                                  : 'bg-green-500/10 text-green-600'
-                              }`}>
-                                {spotsLeft} spot{spotsLeft !== 1 ? 's' : ''} left
-                              </span>
-                              {isLowCapacity && (
-                                <p className="text-xs text-orange-600 mt-1">Almost full!</p>
-                              )}
-                            </div>
+                          <div className="text-sm font-semibold text-foreground mb-1">
+                            {new Date(slot.start_time).toLocaleTimeString('en-US', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}{' '}
+                            -{' '}
+                            {new Date(slot.end_time).toLocaleTimeString('en-US', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
                           </div>
+                          <div className="text-xs text-muted-foreground mb-2">
+                            {new Date(slot.start_time).toLocaleDateString('en-US', {
+                              weekday: 'short',
+                              month: 'short',
+                              day: 'numeric',
+                            })}
+                          </div>
+                          <div className={`absolute top-2 right-2 px-2 py-0.5 text-xs rounded-full ${
+                            isLowCapacity 
+                              ? 'bg-orange-500/10 text-orange-600' 
+                              : 'bg-green-500/10 text-green-600'
+                          }`}>
+                            {spotsLeft} left
+                          </div>
+                          {slot.location && (
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                              <MapPin className="w-3 h-3" />
+                              <span className="truncate">{slot.location}</span>
+                            </div>
+                          )}
+                          {isSelected && (
+                            <div className="absolute inset-0 rounded-lg ring-2 ring-primary pointer-events-none" />
+                          )}
                         </button>
-                        
-                        {isSelected && (
-                          <button
-                            onClick={() => confirmBooking(slot.id)}
-                            disabled={!bookingLimit?.can_book || !!validationWarning}
-                            className="w-full mt-3 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            {validationWarning ? 'Cannot Book - Time Conflict' : 'Confirm Booking'}
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+
+                  {selectedSlotId && (
+                    <button
+                      onClick={() => confirmBooking(selectedSlotId)}
+                      disabled={!bookingLimit?.can_book || !!validationWarning}
+                      className="w-full px-4 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {validationWarning ? 'Cannot Book - Time Conflict' : 'Confirm Booking'}
+                    </button>
+                  )}
+                </>
               )}
             </div>
           </div>

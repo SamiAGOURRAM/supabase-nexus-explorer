@@ -1123,6 +1123,7 @@ export type Database = {
         }
         Returns: string
       }
+      fn_auto_transition_event_phases: { Args: never; Returns: undefined }
       fn_book_interview: {
         Args: { p_offer_id: string; p_slot_id: string; p_student_id: string }
         Returns: {
