@@ -237,21 +237,6 @@ export default function CompanyDashboard() {
                   {stats.students_scheduled} student{stats.students_scheduled !== 1 ? 's' : ''} scheduled • {stats.total_slots} slot{stats.total_slots !== 1 ? 's' : ''} created
                 </p>
               </div>
-              <div className="flex gap-2">
-                <Link
-                  to="/company/offers/new"
-                  className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  Create Offer
-                </Link>
-                <Link
-                  to="/company/slots"
-                  className="px-4 py-2 bg-card text-foreground border border-border rounded-lg hover:border-primary transition-colors text-sm font-medium"
-                >
-                  Manage Slots
-                </Link>
-              </div>
             </div>
           </div>
         )}
@@ -259,14 +244,7 @@ export default function CompanyDashboard() {
         {/* Quick Actions if no event */}
         {!stats?.next_event_id && (
           <div className="bg-card rounded-xl border border-border p-6 mb-8 text-center">
-            <p className="text-muted-foreground mb-4">You're not participating in any upcoming events yet</p>
-            <Link
-              to="/company/offers/new"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
-            >
-              <Plus className="w-4 h-4" />
-              Create Your First Offer
-            </Link>
+            <p className="text-muted-foreground">You're not participating in any upcoming events yet</p>
           </div>
         )}
 
@@ -349,21 +327,12 @@ export default function CompanyDashboard() {
             <div className="text-center py-12">
               <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
               <p className="text-muted-foreground mb-4">No students scheduled yet</p>
-              <div className="flex gap-3 justify-center">
-                <Link
-                  to="/company/offers/new"
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
-                >
-                  <Plus className="w-4 h-4" />
-                  Create Offer
-                </Link>
-                <Link
-                  to="/company/slots"
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-card text-foreground border border-border rounded-lg hover:border-primary transition-colors text-sm font-medium"
-                >
-                  Manage Slots
-                </Link>
-              </div>
+              <Link
+                to="/company/slots"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
+              >
+                View Slots
+              </Link>
             </div>
           )}
         </div>

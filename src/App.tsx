@@ -28,6 +28,8 @@ const CompanyDashboard = lazy(() => import("./pages/company/Dashboard"));
 const CompanyOffers = lazy(() => import("./pages/company/Offers"));
 const CompanyEvents = lazy(() => import("./pages/company/Events"));
 const CompanySchedule = lazy(() => import("./pages/company/Schedule"));
+const CompanyProfile = lazy(() => import("./pages/company/Profile"));
+const CompanySlots = lazy(() => import("./pages/company/Slots"));
 
 function App() {
   return (
@@ -67,6 +69,8 @@ function App() {
           <Route path="/company/offers" element={<CompanyOffers />} />
           <Route path="/company/events" element={<CompanyEvents />} />
           <Route path="/company/schedule" element={<CompanySchedule />} />
+          <Route path="/company/profile" element={<CompanyProfile />} />
+          <Route path="/company/slots" element={<CompanySlots />} />
           
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/offers" replace />} />
