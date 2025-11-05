@@ -324,30 +324,22 @@ export default function AdminDashboard() {
             <p className="text-xs text-muted-foreground">remaining capacity</p>
           </Link>
 
-          <Link
-            to={`/admin/events/${nextEvent.id}/companies`}
-            className="bg-card rounded-xl border border-border p-6 hover:border-primary hover:shadow-lg transition-all cursor-pointer group"
-          >
+          <div className="bg-card rounded-xl border border-border p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="w-12 h-12 bg-green-500/10 rounded-lg flex items-center justify-center">
                 <TrendingUp className="w-6 h-6 text-green-500" />
               </div>
-              <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
             </div>
             <p className="text-xl font-bold text-foreground mb-1 truncate">{stats?.top_company_name || 'N/A'}</p>
             <p className="text-sm font-medium text-foreground mb-1">Top Company</p>
             <p className="text-xs text-muted-foreground">{stats?.top_company_bookings || 0} bookings</p>
-          </Link>
+          </div>
 
-          <Link
-            to={`/admin/events/${nextEvent.id}/slots`}
-            className="bg-card rounded-xl border border-border p-6 hover:border-primary hover:shadow-lg transition-all cursor-pointer group"
-          >
+          <div className="bg-card rounded-xl border border-border p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="w-12 h-12 bg-blue-500/10 rounded-lg flex items-center justify-center">
                 <Target className="w-6 h-6 text-blue-500" />
               </div>
-              <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
             </div>
             <div className="mb-3">
               <p className="text-3xl font-bold text-foreground mb-1">{stats?.booking_rate || 0}%</p>
@@ -360,7 +352,7 @@ export default function AdminDashboard() {
                 style={{ width: `${stats?.booking_rate || 0}%` }}
               />
             </div>
-          </Link>
+          </div>
         </div>
 
         {/* Footer Navigation */}
