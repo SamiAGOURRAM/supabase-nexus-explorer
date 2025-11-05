@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { ArrowLeft, Target } from 'lucide-react';
+import { ArrowLeft, Target, Calendar, Settings, Zap, AlertCircle } from 'lucide-react';
 
 type EventPhaseConfig = {
   id: string;
@@ -14,6 +14,7 @@ type EventPhaseConfig = {
   current_phase: number;
   phase1_max_bookings: number;
   phase2_max_bookings: number;
+  phase_mode: string;
 };
 
 export default function EventPhaseManagement() {
@@ -31,7 +32,8 @@ export default function EventPhaseManagement() {
     phase2_end: '',
     current_phase: 0,
     phase1_max_bookings: 3,
-    phase2_max_bookings: 6
+    phase2_max_bookings: 6,
+    phase_mode: 'manual'
   });
 
   useEffect(() => {
@@ -87,7 +89,8 @@ export default function EventPhaseManagement() {
       phase2_end: data.phase2_end_date || '',
       current_phase: data.current_phase || 0,
       phase1_max_bookings: data.phase1_max_bookings || 3,
-      phase2_max_bookings: data.phase2_max_bookings || 6
+      phase2_max_bookings: data.phase2_max_bookings || 6,
+      phase_mode: data.phase_mode || 'manual'
     });
   };
 
@@ -119,7 +122,8 @@ export default function EventPhaseManagement() {
           phase2_end_date: formData.phase2_end,
           current_phase: formData.current_phase,
           phase1_max_bookings: formData.phase1_max_bookings,
-          phase2_max_bookings: formData.phase2_max_bookings
+          phase2_max_bookings: formData.phase2_max_bookings,
+          phase_mode: formData.phase_mode
         })
         .eq('id', eventId);
 
@@ -198,22 +202,90 @@ export default function EventPhaseManagement() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Phase Mode Toggle */}
+        <div className="bg-card rounded-xl border border-border p-6 mb-8 animate-fade-in">
+          <div className="flex items-center gap-3 mb-4">
+            <Settings className="w-5 h-5 text-primary" />
+            <h2 className="text-lg font-semibold text-foreground">Phase Management Mode</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <button
+              onClick={() => setFormData({ ...formData, phase_mode: 'manual' })}
+              className={`p-4 rounded-lg border-2 transition-all text-left ${
+                formData.phase_mode === 'manual'
+                  ? 'border-primary bg-primary/5'
+                  : 'border-border hover:border-primary/50'
+              }`}
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <Settings className={`w-5 h-5 ${formData.phase_mode === 'manual' ? 'text-primary' : 'text-muted-foreground'}`} />
+                <h3 className="font-semibold text-foreground">Manual Control</h3>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Manually control which phase is active using the phase selector below
+              </p>
+            </button>
+            
+            <button
+              onClick={() => setFormData({ ...formData, phase_mode: 'date-based' })}
+              className={`p-4 rounded-lg border-2 transition-all text-left ${
+                formData.phase_mode === 'date-based'
+                  ? 'border-primary bg-primary/5'
+                  : 'border-border hover:border-primary/50'
+              }`}
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <Zap className={`w-5 h-5 ${formData.phase_mode === 'date-based' ? 'text-primary' : 'text-muted-foreground'}`} />
+                <h3 className="font-semibold text-foreground">Automatic (Date-Based)</h3>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Automatically transition phases based on configured dates
+              </p>
+            </button>
+          </div>
+          
+          {formData.phase_mode === 'date-based' && (
+            <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-blue-900 dark:text-blue-100">
+                  <p className="font-medium mb-1">Automatic Phase Transition Active</p>
+                  <p className="text-blue-700 dark:text-blue-300">
+                    The system will automatically determine the current phase based on the date ranges configured below. The manual phase selector will be ignored.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Current Status */}
-        <div className={`mb-8 p-6 rounded-lg border-2 ${
+        <div className={`mb-8 p-6 rounded-lg border-2 animate-fade-in ${
           phaseStatus.status === 'phase1' ? 'bg-primary/5 border-primary/30' :
           phaseStatus.status === 'phase2' ? 'bg-success/5 border-success/30' :
           phaseStatus.status === 'upcoming' ? 'bg-warning/5 border-warning/30' :
           'bg-muted border-border'
         }`}>
-          <h2 className="text-lg font-semibold text-foreground mb-2">Current Status</h2>
+          <div className="flex items-center gap-3 mb-2">
+            <Target className="w-5 h-5 text-primary" />
+            <h2 className="text-lg font-semibold text-foreground">
+              {formData.phase_mode === 'date-based' ? 'Detected Phase Status' : 'Current Manual Phase'}
+            </h2>
+          </div>
           <p className="text-foreground">{phaseStatus.message}</p>
+          {formData.phase_mode === 'date-based' && (
+            <p className="text-sm text-muted-foreground mt-2">
+              Based on current date and configured phase date ranges
+            </p>
+          )}
         </div>
 
         {/* Manual Phase Control */}
-        <div className="bg-card rounded-xl border border-border p-6 mb-8">
+        {formData.phase_mode === 'manual' && (
+          <div className="bg-card rounded-xl border border-border p-6 mb-8 animate-fade-in">
           <h2 className="text-lg font-semibold text-foreground mb-4">Manual Phase Control</h2>
           <p className="text-sm text-muted-foreground mb-4">
-            Override automatic phase detection. Use this to manually control which booking phase is active.
+            Manually set the active booking phase. This setting is only used when Manual Control mode is selected above.
           </p>
           <div className="space-y-3">
             <label className="flex items-center p-4 border-2 rounded-lg cursor-pointer hover:bg-muted/50 transition"
@@ -269,10 +341,14 @@ export default function EventPhaseManagement() {
             </label>
           </div>
         </div>
+        )}
 
         {/* Phase 1 Configuration */}
-        <div className="bg-card rounded-xl border border-border p-6 mb-8">
-          <h2 className="text-lg font-semibold text-foreground mb-4">Phase 1 - Priority Booking</h2>
+        <div className="bg-card rounded-xl border border-border p-6 mb-8 animate-fade-in">
+          <div className="flex items-center gap-3 mb-4">
+            <Calendar className="w-5 h-5 text-primary" />
+            <h2 className="text-lg font-semibold text-foreground">Phase 1 - Priority Booking</h2>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-foreground mb-2">
@@ -312,8 +388,11 @@ export default function EventPhaseManagement() {
         </div>
 
         {/* Phase 2 Configuration */}
-        <div className="bg-card rounded-xl border border-border p-6 mb-8">
-          <h2 className="text-lg font-semibold text-foreground mb-4">Phase 2 - Open Booking</h2>
+        <div className="bg-card rounded-xl border border-border p-6 mb-8 animate-fade-in">
+          <div className="flex items-center gap-3 mb-4">
+            <Calendar className="w-5 h-5 text-success" />
+            <h2 className="text-lg font-semibold text-foreground">Phase 2 - Open Booking</h2>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-foreground mb-2">
@@ -366,7 +445,7 @@ export default function EventPhaseManagement() {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 transition"
+            className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-all hover:scale-105 active:scale-95"
           >
             {saving ? 'Saving...' : 'Save Configuration'}
           </button>
