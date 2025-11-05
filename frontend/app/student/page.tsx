@@ -78,10 +78,10 @@ export default function StudentDashboard() {
           .from('bookings')
           .select(`
             *,
-            slot:event_slots(
+            event_slots!slot_id(
               *,
-              company:companies(*),
-              offer:offers(*)
+              companies!company_id(*),
+              offers!offer_id(*)
             )
           `)
           .eq('student_id', user.id)
@@ -99,21 +99,26 @@ export default function StudentDashboard() {
     }
   }
 
-  const handleBook = async (slotId: string) => {
+  const handleBook = async (slotId: string, offerId: string) => {
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
       const { data, error } = await supabase.rpc('fn_book_interview', {
-        slot_id_to_book: slotId
+        p_student_id: user.id,
+        p_slot_id: slotId,
+        p_offer_id: offerId
       })
 
       if (error) throw error
 
-      const result = data as any
+      const result = Array.isArray(data) && data.length > 0 ? data[0] : null
 
-      if (result.success) {
+      if (result?.success) {
         alert('✅ Booking successful!')
         loadData() // Reload data
       } else {
-        alert(`❌ Booking failed: ${result.error_message}`)
+        alert(`❌ Booking failed: ${result?.message || 'Unknown error'}`)
       }
     } catch (err: any) {
       alert(`❌ Error: ${err.message}`)
@@ -124,19 +129,23 @@ export default function StudentDashboard() {
     if (!confirm('Are you sure you want to cancel this booking?')) return
 
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
       const { data, error } = await supabase.rpc('fn_cancel_booking', {
-        booking_id_to_cancel: bookingId
+        p_booking_id: bookingId,
+        p_student_id: user.id
       })
 
       if (error) throw error
 
-      const result = data as any
+      const result = Array.isArray(data) && data.length > 0 ? data[0] : null
 
-      if (result.success) {
+      if (result?.success) {
         alert('✅ Booking cancelled!')
         loadData()
       } else {
-        alert(`❌ Cancellation failed: ${result.error_message}`)
+        alert(`❌ Cancellation failed: ${result?.message || 'Unknown error'}`)
       }
     } catch (err: any) {
       alert(`❌ Error: ${err.message}`)
@@ -148,8 +157,8 @@ export default function StudentDashboard() {
     router.push('/login')
   }
 
-  const filteredSlots = slots.filter(slot => 
-    filter === 'all' || slot.offer.interest_tag === filter
+  const filteredSlots = slots.filter((slot: any) => 
+    filter === 'all' || slot.offer?.interest_tag === filter
   )
 
   if (loading) {
@@ -214,14 +223,14 @@ export default function StudentDashboard() {
             <p className="text-gray-500">No bookings yet</p>
           ) : (
             <div className="space-y-3">
-              {myBookings.map((booking) => (
+              {myBookings.map((booking: any) => (
                 <div key={booking.id} className="border rounded-lg p-4">
                   <div className="flex justify-between items-start">
                     <div>
-                      <div className="font-medium">{booking.slot.company.company_name}</div>
-                      <div className="text-sm text-gray-600">{booking.slot.offer.title}</div>
+                      <div className="font-medium">{booking.event_slots?.companies?.company_name || 'N/A'}</div>
+                      <div className="text-sm text-gray-600">{booking.event_slots?.offers?.title || 'N/A'}</div>
                       <div className="text-sm text-gray-500 mt-1">
-                        📅 {new Date(booking.slot.start_time).toLocaleString()}
+                        📅 {booking.event_slots?.start_time ? new Date(booking.event_slots.start_time).toLocaleString() : 'N/A'}
                       </div>
                       <div className="text-xs text-gray-400 mt-1">
                         Booked in Phase {booking.booking_phase}
@@ -267,24 +276,24 @@ export default function StudentDashboard() {
           </div>
 
           <div className="space-y-3">
-            {filteredSlots.map((slot) => (
+            {filteredSlots.map((slot: any) => (
               <div key={slot.id} className="border rounded-lg p-4">
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
-                    <div className="font-medium">{slot.company.company_name}</div>
-                    <div className="text-sm text-gray-600">{slot.offer.title}</div>
+                    <div className="font-medium">{slot.company?.company_name || 'N/A'}</div>
+                    <div className="text-sm text-gray-600">{slot.offer?.title || 'N/A'}</div>
                     <div className="text-sm text-gray-500 mt-1">
                       📅 {new Date(slot.start_time).toLocaleString()} - {new Date(slot.end_time).toLocaleTimeString()}
                     </div>
                     <div className="flex gap-2 mt-2">
                       <span className={`text-xs px-2 py-1 rounded ${
-                        slot.offer.interest_tag === 'Opérationnel' 
+                        slot.offer?.interest_tag === 'Opérationnel' 
                           ? 'bg-green-100 text-green-800' 
                           : 'bg-purple-100 text-purple-800'
                       }`}>
-                        {slot.offer.interest_tag}
+                        {slot.offer?.interest_tag}
                       </span>
-                      {slot.company.is_verified && (
+                      {slot.company?.is_verified && (
                         <span className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-800">
                           ✓ Verified
                         </span>
@@ -292,8 +301,8 @@ export default function StudentDashboard() {
                     </div>
                   </div>
                   <button
-                    onClick={() => handleBook(slot.id)}
-                    disabled={config?.current_phase === 0 || (stats?.remaining_bookings || 0) <= 0}
+                    onClick={() => handleBook(slot.id, slot.offer_id)}
+                    disabled={config?.current_phase === 0 || (stats?.remaining_bookings || 0) <= 0 || !slot.offer_id}
                     className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Book
