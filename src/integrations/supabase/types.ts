@@ -754,7 +754,7 @@ export type Database = {
         }
         Relationships: []
       }
-      interview_bookings: {
+      interview_bookings_deprecated: {
         Row: {
           created_at: string
           id: string
