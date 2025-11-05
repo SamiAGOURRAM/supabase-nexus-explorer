@@ -5,6 +5,7 @@ import { ArrowLeft, Save } from 'lucide-react';
 
 export default function CreateOffer() {
   const [loading, setLoading] = useState(false);
+  const [events, setEvents] = useState<any[]>([]);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -15,8 +16,28 @@ export default function CreateOffer() {
     paid: true,
     remote_possible: false,
     skills_required: '',
+    event_id: '',
   });
   const navigate = useNavigate();
+
+  useState(() => {
+    loadEvents();
+  });
+
+  const loadEvents = async () => {
+    const { data } = await supabase
+      .from('events')
+      .select('id, name, date')
+      .eq('is_active', true)
+      .order('date', { ascending: false });
+    
+    if (data) {
+      setEvents(data);
+      if (data.length > 0) {
+        setFormData(prev => ({ ...prev, event_id: data[0].id }));
+      }
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,6 +65,7 @@ export default function CreateOffer() {
       .from('offers')
       .insert({
         company_id: company.id,
+        event_id: formData.event_id,
         title: formData.title,
         description: formData.description,
         interest_tag: formData.interest_tag,
@@ -83,6 +105,29 @@ export default function CreateOffer() {
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <form onSubmit={handleSubmit} className="bg-card rounded-xl border border-border p-6 space-y-6">
+          {/* Event Selection */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">
+              Event <span className="text-red-500">*</span>
+            </label>
+            <select
+              required
+              value={formData.event_id}
+              onChange={(e) => setFormData({ ...formData, event_id: e.target.value })}
+              className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="">Select an event</option>
+              {events.map(event => (
+                <option key={event.id} value={event.id}>
+                  {event.name} - {new Date(event.date).toLocaleDateString()}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-muted-foreground mt-1">
+              Select which recruiting event this offer is for
+            </p>
+          </div>
+
           {/* Title */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">

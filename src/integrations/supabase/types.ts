@@ -759,7 +759,7 @@ export type Database = {
           created_at: string
           id: string
           notes: string | null
-          offer_id: string
+          offer_id: string | null
           slot_id: string
           status: string
           student_id: string
@@ -769,7 +769,7 @@ export type Database = {
           created_at?: string
           id?: string
           notes?: string | null
-          offer_id: string
+          offer_id?: string | null
           slot_id: string
           status?: string
           student_id: string
@@ -779,7 +779,7 @@ export type Database = {
           created_at?: string
           id?: string
           notes?: string | null
-          offer_id?: string
+          offer_id?: string | null
           slot_id?: string
           status?: string
           student_id?: string
@@ -868,7 +868,7 @@ export type Database = {
           department: string | null
           description: string
           duration_months: number | null
-          event_id: string | null
+          event_id: string
           id: string
           interest_tag: Database["public"]["Enums"]["interest_tag"]
           is_active: boolean
@@ -889,7 +889,7 @@ export type Database = {
           department?: string | null
           description: string
           duration_months?: number | null
-          event_id?: string | null
+          event_id: string
           id?: string
           interest_tag: Database["public"]["Enums"]["interest_tag"]
           is_active?: boolean
@@ -910,7 +910,7 @@ export type Database = {
           department?: string | null
           description?: string
           duration_months?: number | null
-          event_id?: string | null
+          event_id?: string
           id?: string
           interest_tag?: Database["public"]["Enums"]["interest_tag"]
           is_active?: boolean
