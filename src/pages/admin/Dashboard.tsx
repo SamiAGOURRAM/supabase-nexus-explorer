@@ -1,21 +1,27 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { Calendar, Building2, Users, Briefcase, LogOut, BarChart3 } from 'lucide-react';
+import { Calendar, Building2, Users, Briefcase, LogOut, Clock, MapPin } from 'lucide-react';
 
-type DashboardStats = {
-  total_events: number;
-  upcoming_events: number;
-  total_companies: number;
-  total_participants: number;
-  total_bookings: number;
+type Event = {
+  id: string;
+  name: string;
+  date: string;
+  location: string | null;
+};
+
+type EventStats = {
+  event_companies: number;
+  event_students: number;
+  event_bookings: number;
   total_students: number;
 };
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [nextEvent, setNextEvent] = useState<Event | null>(null);
+  const [stats, setStats] = useState<EventStats | null>(null);
 
   useEffect(() => {
     checkAdminAndLoadData();
@@ -51,30 +57,36 @@ export default function AdminDashboard() {
   const loadDashboardData = async () => {
     const today = new Date().toISOString();
 
-    const [
-      { count: totalEvents },
-      { count: upcomingEventsCount },
-      { count: totalCompanies },
-      { count: totalParticipants },
-      { count: totalBookings },
-      { count: totalStudents }
-    ] = await Promise.all([
-      supabase.from('events').select('*', { count: 'exact', head: true }),
-      supabase.from('events').select('*', { count: 'exact', head: true }).gte('date', today),
-      supabase.from('companies').select('*', { count: 'exact', head: true }),
-      supabase.from('event_participants').select('*', { count: 'exact', head: true }),
-      supabase.from('interview_bookings').select('*', { count: 'exact', head: true }),
-      supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'student')
-    ]);
+    // Get next upcoming event
+    const { data: upcomingEvent } = await supabase
+      .from('events')
+      .select('id, name, date, location')
+      .gte('date', today)
+      .order('date', { ascending: true })
+      .limit(1)
+      .single();
 
-    setStats({
-      total_events: totalEvents || 0,
-      upcoming_events: upcomingEventsCount || 0,
-      total_companies: totalCompanies || 0,
-      total_participants: totalParticipants || 0,
-      total_bookings: totalBookings || 0,
-      total_students: totalStudents || 0
-    });
+    if (upcomingEvent) {
+      setNextEvent(upcomingEvent);
+
+      // Get stats specific to this event
+      const [
+        { count: eventCompanies },
+        { count: eventBookings },
+        { count: totalStudents }
+      ] = await Promise.all([
+        supabase.from('event_participants').select('*', { count: 'exact', head: true }).eq('event_id', upcomingEvent.id),
+        supabase.from('interview_bookings').select('ib.*, event_slots!inner(event_id)', { count: 'exact', head: true }).eq('event_slots.event_id', upcomingEvent.id),
+        supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'student')
+      ]);
+
+      setStats({
+        event_companies: eventCompanies || 0,
+        event_students: 0, // This would need event-specific registration
+        event_bookings: eventBookings || 0,
+        total_students: totalStudents || 0
+      });
+    }
   };
 
   const handleSignOut = async () => {
@@ -93,40 +105,49 @@ export default function AdminDashboard() {
     );
   }
 
-  const statCards = [
-    {
-      title: 'Upcoming Events',
-      value: stats?.upcoming_events || 0,
-      subtitle: `${stats?.total_events || 0} total`,
-      icon: Calendar,
-      color: 'blue',
-      link: '/admin/events'
-    },
-    {
-      title: 'Companies',
-      value: stats?.total_companies || 0,
-      subtitle: `${stats?.total_participants || 0} participants`,
-      icon: Building2,
-      color: 'green',
-      link: '/admin/companies'
-    },
-    {
-      title: 'Students',
-      value: stats?.total_students || 0,
-      subtitle: 'registered',
-      icon: Users,
-      color: 'purple',
-      link: '#'
-    },
-    {
-      title: 'Bookings',
-      value: stats?.total_bookings || 0,
-      subtitle: 'total interviews',
-      icon: Briefcase,
-      color: 'orange',
-      link: '#'
-    }
-  ];
+  if (!nextEvent) {
+    return (
+      <div className="min-h-screen bg-background">
+        <header className="bg-card border-b border-border">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold text-foreground">Admin Dashboard</h1>
+                <p className="text-sm text-muted-foreground mt-1">Welcome back, Admin</p>
+              </div>
+              <button
+                onClick={handleSignOut}
+                className="flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </header>
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
+          <Calendar className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+          <h2 className="text-xl font-semibold mb-2">No Upcoming Events</h2>
+          <p className="text-muted-foreground mb-6">Create your first event to get started</p>
+          <Link
+            to="/admin/events"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+          >
+            <Calendar className="w-5 h-5" />
+            Manage Events
+          </Link>
+        </main>
+      </div>
+    );
+  }
+
+  const eventDate = new Date(nextEvent.date);
+  const formattedDate = eventDate.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
 
   return (
     <div className="min-h-screen bg-background">
@@ -150,48 +171,104 @@ export default function AdminDashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 animate-in">
-          {statCards.map((stat, index) => (
-            <Link
-              key={index}
-              to={stat.link}
-              className="bg-card rounded-xl border border-border p-6 hover:border-primary hover:shadow-elegant transition-all duration-200 group"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div className={`w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center group-hover:bg-primary/20 transition-colors`}>
-                  <stat.icon className="w-6 h-6 text-primary" />
+        {/* Event Header */}
+        <div className="bg-gradient-to-r from-primary/10 to-primary/5 rounded-xl border border-primary/20 p-6 mb-8">
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="flex items-center gap-2 text-sm text-primary mb-2">
+                <Clock className="w-4 h-4" />
+                <span className="font-medium">Next Event</span>
+              </div>
+              <h2 className="text-2xl font-bold text-foreground mb-2">{nextEvent.name}</h2>
+              <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                <div className="flex items-center gap-1">
+                  <Calendar className="w-4 h-4" />
+                  <span>{formattedDate}</span>
                 </div>
-                <BarChart3 className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                {nextEvent.location && (
+                  <div className="flex items-center gap-1">
+                    <MapPin className="w-4 h-4" />
+                    <span>{nextEvent.location}</span>
+                  </div>
+                )}
               </div>
-              <div>
-                <p className="text-3xl font-bold text-foreground mb-1">{stat.value}</p>
-                <p className="text-sm font-medium text-foreground mb-1">{stat.title}</p>
-                <p className="text-xs text-muted-foreground">{stat.subtitle}</p>
-              </div>
+            </div>
+            <Link
+              to="/admin/events"
+              className="px-4 py-2 text-sm border border-border rounded-lg hover:bg-muted transition-colors"
+            >
+              Manage Events
             </Link>
-          ))}
+          </div>
+        </div>
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="bg-card rounded-xl border border-border p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-12 h-12 bg-success/10 rounded-lg flex items-center justify-center">
+                <Building2 className="w-6 h-6 text-success" />
+              </div>
+            </div>
+            <p className="text-3xl font-bold text-foreground mb-1">{stats?.event_companies || 0}</p>
+            <p className="text-sm font-medium text-foreground mb-1">Companies</p>
+            <p className="text-xs text-muted-foreground">participating</p>
+          </div>
+
+          <div className="bg-card rounded-xl border border-border p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-12 h-12 bg-blue-500/10 rounded-lg flex items-center justify-center">
+                <Users className="w-6 h-6 text-blue-500" />
+              </div>
+            </div>
+            <p className="text-3xl font-bold text-foreground mb-1">{stats?.total_students || 0}</p>
+            <p className="text-sm font-medium text-foreground mb-1">Students</p>
+            <p className="text-xs text-muted-foreground">registered</p>
+          </div>
+
+          <div className="bg-card rounded-xl border border-border p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-12 h-12 bg-orange-500/10 rounded-lg flex items-center justify-center">
+                <Briefcase className="w-6 h-6 text-orange-500" />
+              </div>
+            </div>
+            <p className="text-3xl font-bold text-foreground mb-1">{stats?.event_bookings || 0}</p>
+            <p className="text-sm font-medium text-foreground mb-1">Bookings</p>
+            <p className="text-xs text-muted-foreground">interviews scheduled</p>
+          </div>
         </div>
 
         {/* Quick Actions */}
         <div className="bg-card rounded-xl border border-border p-6">
-          <h2 className="text-lg font-semibold text-foreground mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <h2 className="text-lg font-semibold text-foreground mb-4">Event Management</h2>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             <Link
-              to="/admin/events"
-              className="p-4 bg-primary/5 border border-primary/20 rounded-lg hover:bg-primary/10 transition-colors group"
+              to={`/admin/events/${nextEvent.id}/companies`}
+              className="p-4 border border-border rounded-lg hover:border-primary hover:bg-primary/5 transition-all text-center"
             >
-              <Calendar className="w-8 h-8 text-primary mb-2" />
-              <h3 className="font-semibold text-foreground mb-1">Manage Events</h3>
-              <p className="text-sm text-muted-foreground">Create and manage speed recruiting events</p>
+              <Building2 className="w-6 h-6 text-primary mx-auto mb-2" />
+              <p className="text-sm font-medium">Companies</p>
             </Link>
             <Link
-              to="/admin/companies"
-              className="p-4 bg-success/5 border border-success/20 rounded-lg hover:bg-success/10 transition-colors group"
+              to={`/admin/events/${nextEvent.id}/students`}
+              className="p-4 border border-border rounded-lg hover:border-primary hover:bg-primary/5 transition-all text-center"
             >
-              <Building2 className="w-8 h-8 text-success mb-2" />
-              <h3 className="font-semibold text-foreground mb-1">View Companies</h3>
-              <p className="text-sm text-muted-foreground">Browse all invited companies</p>
+              <Users className="w-6 h-6 text-primary mx-auto mb-2" />
+              <p className="text-sm font-medium">Students</p>
+            </Link>
+            <Link
+              to={`/admin/events/${nextEvent.id}/sessions`}
+              className="p-4 border border-border rounded-lg hover:border-primary hover:bg-primary/5 transition-all text-center"
+            >
+              <Clock className="w-6 h-6 text-primary mx-auto mb-2" />
+              <p className="text-sm font-medium">Sessions</p>
+            </Link>
+            <Link
+              to={`/admin/events/${nextEvent.id}/slots`}
+              className="p-4 border border-border rounded-lg hover:border-primary hover:bg-primary/5 transition-all text-center"
+            >
+              <Calendar className="w-6 h-6 text-primary mx-auto mb-2" />
+              <p className="text-sm font-medium">Slots</p>
             </Link>
           </div>
         </div>
