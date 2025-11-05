@@ -202,28 +202,53 @@ export default function OfferDetail() {
     const selectedSlot = availableSlots.find(s => s.id === slotId);
     if (!selectedSlot) return;
 
-    // Get existing bookings with slot details using a simpler query
-    const { data: existingBookings } = await supabase
+    // Get existing bookings - simplified query
+    const { data: existingBookings, error } = await supabase
       .from('interview_bookings')
-      .select('slot_id, event_slots(start_time, end_time, company_id, companies(company_name))')
+      .select('slot_id')
       .eq('student_id', user.id)
       .eq('status', 'confirmed');
 
+    if (error) {
+      console.error('Error checking conflicts:', error);
+      return;
+    }
+
     if (existingBookings && existingBookings.length > 0) {
-      const slotStart = new Date(selectedSlot.start_time);
-      const slotEnd = new Date(selectedSlot.end_time);
+      // Get slot details for all existing bookings
+      const slotIds = existingBookings.map(b => b.slot_id);
+      const { data: slots, error: slotsError } = await supabase
+        .from('event_slots')
+        .select('id, start_time, end_time, company_id')
+        .in('id', slotIds);
 
-      for (const booking of existingBookings) {
-        if (!booking.event_slots) continue;
-        const bookingStart = new Date(booking.event_slots.start_time);
-        const bookingEnd = new Date(booking.event_slots.end_time);
+      if (slotsError) {
+        console.error('Error fetching slots:', slotsError);
+        return;
+      }
 
-        if (slotStart < bookingEnd && slotEnd > bookingStart) {
-          const companyName = booking.event_slots.companies?.company_name || 'Unknown Company';
-          setValidationWarning(
-            `⚠️ Time conflict with ${companyName} at ${bookingStart.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`
-          );
-          return;
+      if (slots && slots.length > 0) {
+        const slotStart = new Date(selectedSlot.start_time);
+        const slotEnd = new Date(selectedSlot.end_time);
+
+        for (const existingSlot of slots) {
+          const bookingStart = new Date(existingSlot.start_time);
+          const bookingEnd = new Date(existingSlot.end_time);
+
+          if (slotStart < bookingEnd && slotEnd > bookingStart) {
+            // Get company name
+            const { data: company } = await supabase
+              .from('companies')
+              .select('company_name')
+              .eq('id', existingSlot.company_id)
+              .single();
+
+            const companyName = company?.company_name || 'Unknown Company';
+            setValidationWarning(
+              `⚠️ Time conflict with ${companyName} at ${bookingStart.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`
+            );
+            return;
+          }
         }
       }
     }
