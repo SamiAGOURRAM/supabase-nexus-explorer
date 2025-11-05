@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { Calendar, Building2, Users, Briefcase, LogOut, Clock, MapPin } from 'lucide-react';
+import { Calendar, Building2, Users, Briefcase, LogOut, Clock, MapPin, UserPlus, Upload, ChevronRight, Target, TrendingUp } from 'lucide-react';
+import BulkImportModal from '@/components/admin/BulkImportModal';
 
 type Event = {
   id: string;
@@ -15,6 +16,11 @@ type EventStats = {
   event_students: number;
   event_bookings: number;
   total_students: number;
+  total_slots: number;
+  available_slots: number;
+  booking_rate: number;
+  top_company_name: string;
+  top_company_bookings: number;
 };
 
 export default function AdminDashboard() {
@@ -22,6 +28,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [nextEvent, setNextEvent] = useState<Event | null>(null);
   const [stats, setStats] = useState<EventStats | null>(null);
+  const [showBulkImport, setShowBulkImport] = useState(false);
 
   useEffect(() => {
     checkAdminAndLoadData();
@@ -73,18 +80,40 @@ export default function AdminDashboard() {
       const [
         { count: eventCompanies },
         { count: eventBookings },
-        { count: totalStudents }
+        { count: totalStudents },
+        { count: totalSlots },
+        { data: bookingsData }
       ] = await Promise.all([
         supabase.from('event_participants').select('*', { count: 'exact', head: true }).eq('event_id', upcomingEvent.id),
-        supabase.from('interview_bookings').select('ib.*, event_slots!inner(event_id)', { count: 'exact', head: true }).eq('event_slots.event_id', upcomingEvent.id),
-        supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'student')
+        supabase.from('interview_bookings').select('ib.*, event_slots!inner(event_id)', { count: 'exact', head: true }).eq('event_slots.event_id', upcomingEvent.id).eq('status', 'confirmed'),
+        supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'student'),
+        supabase.from('event_slots').select('*', { count: 'exact', head: true }).eq('event_id', upcomingEvent.id).eq('is_active', true),
+        supabase.from('interview_bookings').select('slot_id, event_slots!inner(event_id, company_id, companies!inner(company_name))').eq('event_slots.event_id', upcomingEvent.id).eq('status', 'confirmed')
       ]);
+
+      // Calculate top company
+      const companyCounts: Record<string, number> = {};
+      bookingsData?.forEach((booking: any) => {
+        const companyName = booking.event_slots?.companies?.company_name;
+        if (companyName) {
+          companyCounts[companyName] = (companyCounts[companyName] || 0) + 1;
+        }
+      });
+
+      const topCompanyEntry = Object.entries(companyCounts).sort(([, a], [, b]) => b - a)[0];
+      const availableSlots = (totalSlots || 0) - (eventBookings || 0);
+      const bookingRate = totalSlots && totalSlots > 0 ? Math.round((eventBookings || 0) / totalSlots * 100) : 0;
 
       setStats({
         event_companies: eventCompanies || 0,
-        event_students: 0, // This would need event-specific registration
+        event_students: 0,
         event_bookings: eventBookings || 0,
-        total_students: totalStudents || 0
+        total_students: totalStudents || 0,
+        total_slots: totalSlots || 0,
+        available_slots: availableSlots,
+        booking_rate: bookingRate,
+        top_company_name: topCompanyEntry?.[0] || 'N/A',
+        top_company_bookings: topCompanyEntry?.[1] || 0
       });
     }
   };
@@ -173,7 +202,7 @@ export default function AdminDashboard() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Event Header */}
         <div className="bg-gradient-to-r from-primary/10 to-primary/5 rounded-xl border border-primary/20 p-6 mb-8">
-          <div className="flex items-start justify-between">
+          <div className="flex items-start justify-between flex-wrap gap-4">
             <div>
               <div className="flex items-center gap-2 text-sm text-primary mb-2">
                 <Clock className="w-4 h-4" />
@@ -193,85 +222,160 @@ export default function AdminDashboard() {
                 )}
               </div>
             </div>
-            <Link
-              to="/admin/events"
-              className="px-4 py-2 text-sm border border-border rounded-lg hover:bg-muted transition-colors"
-            >
-              Manage Events
-            </Link>
+            <div className="flex gap-3">
+              <Link
+                to={`/admin/events/${nextEvent.id}/quick-invite`}
+                className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span>Quick Invite</span>
+              </Link>
+              <button
+                onClick={() => setShowBulkImport(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+              >
+                <Upload className="w-4 h-4" />
+                <span>Bulk Import CSV</span>
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-card rounded-xl border border-border p-6">
+        {/* Stats Grid - Row 1: Core Metrics */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+          <Link
+            to={`/admin/events/${nextEvent.id}/companies`}
+            className="bg-card rounded-xl border border-border p-6 hover:border-primary hover:shadow-lg transition-all cursor-pointer group"
+          >
             <div className="flex items-center justify-between mb-4">
               <div className="w-12 h-12 bg-success/10 rounded-lg flex items-center justify-center">
                 <Building2 className="w-6 h-6 text-success" />
               </div>
+              <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
             </div>
             <p className="text-3xl font-bold text-foreground mb-1">{stats?.event_companies || 0}</p>
             <p className="text-sm font-medium text-foreground mb-1">Companies</p>
             <p className="text-xs text-muted-foreground">participating</p>
-          </div>
+          </Link>
 
-          <div className="bg-card rounded-xl border border-border p-6">
+          <Link
+            to={`/admin/events/${nextEvent.id}/students`}
+            className="bg-card rounded-xl border border-border p-6 hover:border-primary hover:shadow-lg transition-all cursor-pointer group"
+          >
             <div className="flex items-center justify-between mb-4">
               <div className="w-12 h-12 bg-blue-500/10 rounded-lg flex items-center justify-center">
                 <Users className="w-6 h-6 text-blue-500" />
               </div>
+              <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
             </div>
             <p className="text-3xl font-bold text-foreground mb-1">{stats?.total_students || 0}</p>
             <p className="text-sm font-medium text-foreground mb-1">Students</p>
             <p className="text-xs text-muted-foreground">registered</p>
-          </div>
+          </Link>
 
-          <div className="bg-card rounded-xl border border-border p-6">
+          <Link
+            to={`/admin/events/${nextEvent.id}/slots`}
+            className="bg-card rounded-xl border border-border p-6 hover:border-primary hover:shadow-lg transition-all cursor-pointer group"
+          >
             <div className="flex items-center justify-between mb-4">
               <div className="w-12 h-12 bg-orange-500/10 rounded-lg flex items-center justify-center">
                 <Briefcase className="w-6 h-6 text-orange-500" />
               </div>
+              <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
             </div>
             <p className="text-3xl font-bold text-foreground mb-1">{stats?.event_bookings || 0}</p>
             <p className="text-sm font-medium text-foreground mb-1">Bookings</p>
             <p className="text-xs text-muted-foreground">interviews scheduled</p>
+          </Link>
+        </div>
+
+        {/* Stats Grid - Row 2: Insights */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <Link
+            to={`/admin/events/${nextEvent.id}/slots`}
+            className="bg-card rounded-xl border border-border p-6 hover:border-primary hover:shadow-lg transition-all cursor-pointer group"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-12 h-12 bg-purple-500/10 rounded-lg flex items-center justify-center">
+                <Calendar className="w-6 h-6 text-purple-500" />
+              </div>
+              <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+            </div>
+            <p className="text-3xl font-bold text-foreground mb-1">{stats?.available_slots || 0}</p>
+            <p className="text-sm font-medium text-foreground mb-1">Available Slots</p>
+            <p className="text-xs text-muted-foreground">remaining capacity</p>
+          </Link>
+
+          <Link
+            to={`/admin/events/${nextEvent.id}/companies`}
+            className="bg-card rounded-xl border border-border p-6 hover:border-primary hover:shadow-lg transition-all cursor-pointer group"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-12 h-12 bg-green-500/10 rounded-lg flex items-center justify-center">
+                <TrendingUp className="w-6 h-6 text-green-500" />
+              </div>
+              <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+            </div>
+            <p className="text-xl font-bold text-foreground mb-1 truncate">{stats?.top_company_name || 'N/A'}</p>
+            <p className="text-sm font-medium text-foreground mb-1">Top Company</p>
+            <p className="text-xs text-muted-foreground">{stats?.top_company_bookings || 0} bookings</p>
+          </Link>
+
+          <Link
+            to={`/admin/events/${nextEvent.id}/slots`}
+            className="bg-card rounded-xl border border-border p-6 hover:border-primary hover:shadow-lg transition-all cursor-pointer group"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-12 h-12 bg-blue-500/10 rounded-lg flex items-center justify-center">
+                <Target className="w-6 h-6 text-blue-500" />
+              </div>
+              <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+            </div>
+            <div className="mb-3">
+              <p className="text-3xl font-bold text-foreground mb-1">{stats?.booking_rate || 0}%</p>
+              <p className="text-sm font-medium text-foreground mb-1">Booking Rate</p>
+              <p className="text-xs text-muted-foreground">{stats?.event_bookings || 0} of {stats?.total_slots || 0} slots</p>
+            </div>
+            <div className="w-full bg-muted rounded-full h-2">
+              <div 
+                className="bg-blue-500 h-2 rounded-full transition-all"
+                style={{ width: `${stats?.booking_rate || 0}%` }}
+              />
+            </div>
+          </Link>
+        </div>
+
+        {/* Footer Navigation */}
+        <div className="pt-6 border-t border-border">
+          <div className="flex flex-wrap gap-4 justify-center text-sm">
+            <Link to={`/admin/events/${nextEvent.id}/sessions`} className="text-muted-foreground hover:text-foreground transition-colors">
+              Sessions
+            </Link>
+            <Link to={`/admin/events/${nextEvent.id}/phases`} className="text-muted-foreground hover:text-foreground transition-colors">
+              Phases
+            </Link>
+            <Link to={`/admin/events/${nextEvent.id}/schedule`} className="text-muted-foreground hover:text-foreground transition-colors">
+              Schedule
+            </Link>
+            <Link to="/admin/events" className="text-muted-foreground hover:text-foreground transition-colors">
+              All Events
+            </Link>
+            <Link to="/admin/companies" className="text-muted-foreground hover:text-foreground transition-colors">
+              All Companies
+            </Link>
           </div>
         </div>
 
-        {/* Quick Actions */}
-        <div className="bg-card rounded-xl border border-border p-6">
-          <h2 className="text-lg font-semibold text-foreground mb-4">Event Management</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-            <Link
-              to={`/admin/events/${nextEvent.id}/companies`}
-              className="p-4 border border-border rounded-lg hover:border-primary hover:bg-primary/5 transition-all text-center"
-            >
-              <Building2 className="w-6 h-6 text-primary mx-auto mb-2" />
-              <p className="text-sm font-medium">Companies</p>
-            </Link>
-            <Link
-              to={`/admin/events/${nextEvent.id}/students`}
-              className="p-4 border border-border rounded-lg hover:border-primary hover:bg-primary/5 transition-all text-center"
-            >
-              <Users className="w-6 h-6 text-primary mx-auto mb-2" />
-              <p className="text-sm font-medium">Students</p>
-            </Link>
-            <Link
-              to={`/admin/events/${nextEvent.id}/sessions`}
-              className="p-4 border border-border rounded-lg hover:border-primary hover:bg-primary/5 transition-all text-center"
-            >
-              <Clock className="w-6 h-6 text-primary mx-auto mb-2" />
-              <p className="text-sm font-medium">Sessions</p>
-            </Link>
-            <Link
-              to={`/admin/events/${nextEvent.id}/slots`}
-              className="p-4 border border-border rounded-lg hover:border-primary hover:bg-primary/5 transition-all text-center"
-            >
-              <Calendar className="w-6 h-6 text-primary mx-auto mb-2" />
-              <p className="text-sm font-medium">Slots</p>
-            </Link>
-          </div>
-        </div>
+        {/* Bulk Import Modal */}
+        {showBulkImport && (
+          <BulkImportModal
+            eventId={nextEvent.id}
+            onClose={() => setShowBulkImport(false)}
+            onSuccess={() => {
+              loadDashboardData();
+            }}
+          />
+        )}
       </main>
     </div>
   );
