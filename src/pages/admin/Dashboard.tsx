@@ -79,51 +79,59 @@ export default function AdminDashboard() {
       // Get stats specific to this event
       const [
         { count: eventCompanies },
-        { count: totalStudents },
         { count: totalSlots }
       ] = await Promise.all([
         supabase.from('event_participants').select('*', { count: 'exact', head: true }).eq('event_id', upcomingEvent.id),
-        supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'student'),
         supabase.from('event_slots').select('*', { count: 'exact', head: true }).eq('event_id', upcomingEvent.id).eq('is_active', true)
       ]);
 
-      // Get bookings count separately
+      // Get bookings count
       const { count: eventBookings } = await supabase
         .from('interview_bookings')
         .select('*, event_slots!inner(event_id)', { count: 'exact', head: true })
         .eq('event_slots.event_id', upcomingEvent.id)
         .eq('status', 'confirmed');
 
-      // Get bookings data for top company calculation
-      const { data: bookingsData } = await supabase
+      // Get unique students who have bookings for this event
+      const { data: studentBookings } = await supabase
         .from('interview_bookings')
-        .select('slot_id, event_slots!inner(event_id, company_id, companies!inner(company_name))')
+        .select('student_id, event_slots!inner(event_id)')
         .eq('event_slots.event_id', upcomingEvent.id)
         .eq('status', 'confirmed');
 
-      // Calculate top company
-      const companyCounts: Record<string, number> = {};
-      bookingsData?.forEach((booking: any) => {
-        const companyName = booking.event_slots?.companies?.company_name;
-        if (companyName) {
-          companyCounts[companyName] = (companyCounts[companyName] || 0) + 1;
+      const uniqueStudents = new Set(studentBookings?.map(b => b.student_id) || []).size;
+
+      // Get top company - simplified approach
+      const { data: companySlots } = await supabase
+        .from('event_slots')
+        .select('company_id, companies!inner(company_name), interview_bookings!inner(status)')
+        .eq('event_id', upcomingEvent.id)
+        .eq('interview_bookings.status', 'confirmed');
+
+      const companyCounts: Record<string, { name: string; count: number }> = {};
+      companySlots?.forEach((slot: any) => {
+        const companyId = slot.company_id;
+        const companyName = slot.companies?.company_name || 'Unknown';
+        if (!companyCounts[companyId]) {
+          companyCounts[companyId] = { name: companyName, count: 0 };
         }
+        companyCounts[companyId].count++;
       });
 
-      const topCompanyEntry = Object.entries(companyCounts).sort(([, a], [, b]) => b - a)[0];
+      const topCompanyEntry = Object.values(companyCounts).sort((a, b) => b.count - a.count)[0];
       const availableSlots = (totalSlots || 0) - (eventBookings || 0);
       const bookingRate = totalSlots && totalSlots > 0 ? Math.round((eventBookings || 0) / totalSlots * 100) : 0;
 
       setStats({
         event_companies: eventCompanies || 0,
-        event_students: 0,
+        event_students: uniqueStudents,
         event_bookings: eventBookings || 0,
-        total_students: totalStudents || 0,
+        total_students: uniqueStudents,
         total_slots: totalSlots || 0,
         available_slots: availableSlots,
         booking_rate: bookingRate,
-        top_company_name: topCompanyEntry?.[0] || 'N/A',
-        top_company_bookings: topCompanyEntry?.[1] || 0
+        top_company_name: topCompanyEntry?.name || 'N/A',
+        top_company_bookings: topCompanyEntry?.count || 0
       });
     }
   };
@@ -284,7 +292,7 @@ export default function AdminDashboard() {
           </Link>
 
           <Link
-            to={`/admin/events/${nextEvent.id}/slots`}
+            to={`/admin/events/${nextEvent.id}/participants`}
             className="bg-card rounded-xl border border-border p-6 hover:border-primary hover:shadow-lg transition-all cursor-pointer group"
           >
             <div className="flex items-center justify-between mb-4">
