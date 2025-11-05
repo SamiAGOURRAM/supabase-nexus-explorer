@@ -79,17 +79,27 @@ export default function AdminDashboard() {
       // Get stats specific to this event
       const [
         { count: eventCompanies },
-        { count: eventBookings },
         { count: totalStudents },
-        { count: totalSlots },
-        { data: bookingsData }
+        { count: totalSlots }
       ] = await Promise.all([
         supabase.from('event_participants').select('*', { count: 'exact', head: true }).eq('event_id', upcomingEvent.id),
-        supabase.from('interview_bookings').select('ib.*, event_slots!inner(event_id)', { count: 'exact', head: true }).eq('event_slots.event_id', upcomingEvent.id).eq('status', 'confirmed'),
         supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'student'),
-        supabase.from('event_slots').select('*', { count: 'exact', head: true }).eq('event_id', upcomingEvent.id).eq('is_active', true),
-        supabase.from('interview_bookings').select('slot_id, event_slots!inner(event_id, company_id, companies!inner(company_name))').eq('event_slots.event_id', upcomingEvent.id).eq('status', 'confirmed')
+        supabase.from('event_slots').select('*', { count: 'exact', head: true }).eq('event_id', upcomingEvent.id).eq('is_active', true)
       ]);
+
+      // Get bookings count separately
+      const { count: eventBookings } = await supabase
+        .from('interview_bookings')
+        .select('*, event_slots!inner(event_id)', { count: 'exact', head: true })
+        .eq('event_slots.event_id', upcomingEvent.id)
+        .eq('status', 'confirmed');
+
+      // Get bookings data for top company calculation
+      const { data: bookingsData } = await supabase
+        .from('interview_bookings')
+        .select('slot_id, event_slots!inner(event_id, company_id, companies!inner(company_name))')
+        .eq('event_slots.event_id', upcomingEvent.id)
+        .eq('status', 'confirmed');
 
       // Calculate top company
       const companyCounts: Record<string, number> = {};
