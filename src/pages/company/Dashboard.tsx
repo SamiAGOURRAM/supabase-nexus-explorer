@@ -117,12 +117,21 @@ export default function CompanyDashboard() {
         .select(`
           id,
           student_id,
-          event_slots!inner(start_time, end_time, location, company_id, event_id, offers(title)),
+          event_slots!inner(start_time, end_time, location, company_id, event_id, offer_id),
           profiles!inner(full_name, email, phone, cv_url)
         `)
         .eq('event_slots.company_id', company.id)
         .eq('event_slots.event_id', nextEvent.id)
         .eq('status', 'confirmed');
+
+      // Get offer titles separately
+      const offerIds = [...new Set(bookings?.map((b: any) => b.event_slots?.offer_id).filter(Boolean))];
+      const { data: offers } = await supabase
+        .from('offers')
+        .select('id, title')
+        .in('id', offerIds);
+
+      const offerMap = new Map(offers?.map(o => [o.id, o.title]) || []);
 
       // Sort by start_time in JavaScript
       const sortedBookings = bookings?.sort((a: any, b: any) => 
@@ -136,7 +145,7 @@ export default function CompanyDashboard() {
         student_email: booking.profiles?.email || '',
         student_phone: booking.profiles?.phone || null,
         cv_url: booking.profiles?.cv_url || null,
-        offer_title: booking.event_slots?.offers?.title || 'Unknown Offer',
+        offer_title: offerMap.get(booking.event_slots?.offer_id) || 'Unknown Offer',
         slot_start_time: booking.event_slots?.start_time,
         slot_end_time: booking.event_slots?.end_time,
         slot_location: booking.event_slots?.location || null,
@@ -244,16 +253,27 @@ export default function CompanyDashboard() {
         {/* Quick Actions if no event */}
         {!stats?.next_event_id && (
           <div className="bg-card rounded-xl border border-border p-6 mb-8 text-center">
-            <p className="text-muted-foreground">You're not participating in any upcoming events yet</p>
+            <p className="text-muted-foreground mb-4">You're not participating in any upcoming events yet</p>
+            <Link
+              to="/company/offers"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
+            >
+              <Plus className="w-4 h-4" />
+              Create Your First Offer
+            </Link>
           </div>
         )}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Link to="/company/offers" className="bg-card rounded-xl border border-border p-6 hover:border-primary hover:shadow-elegant transition-all group">
-            <Briefcase className="w-8 h-8 text-blue-500 mb-4 group-hover:scale-110 transition-transform" />
+            <div className="flex items-center justify-between mb-4">
+              <Briefcase className="w-8 h-8 text-blue-500 group-hover:scale-110 transition-transform" />
+              <Plus className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+            </div>
             <p className="text-3xl font-bold text-foreground mb-1">{stats?.total_active_offers || 0}</p>
             <p className="text-sm text-muted-foreground">Active Offers</p>
+            <p className="text-xs text-primary mt-2 opacity-0 group-hover:opacity-100 transition-opacity">+ Create New</p>
           </Link>
           
           <Link to="/company/slots" className="bg-card rounded-xl border border-border p-6 hover:border-primary hover:shadow-elegant transition-all group">

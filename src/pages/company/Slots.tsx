@@ -55,13 +55,27 @@ export default function CompanySlots() {
         capacity,
         is_active,
         event_id,
-        events(name, date),
-        offers(title)
+        offer_id
       `)
-      .eq('company_id', company.id)
-      .order('start_time', { ascending: true });
+      .eq('company_id', company.id);
 
-    if (eventSlots) {
+    if (eventSlots && eventSlots.length > 0) {
+      // Get event details
+      const eventIds = [...new Set(eventSlots.map(s => s.event_id))];
+      const { data: events } = await supabase
+        .from('events')
+        .select('id, name, date')
+        .in('id', eventIds);
+
+      // Get offer details
+      const offerIds = [...new Set(eventSlots.map(s => s.offer_id).filter(Boolean))];
+      const { data: offers } = await supabase
+        .from('offers')
+        .select('id, title')
+        .in('id', offerIds);
+
+      const eventMap = new Map(events?.map(e => [e.id, e]) || []);
+      const offerMap = new Map(offers?.map(o => [o.id, o.title]) || []);
       // Count bookings for each slot
       const slotsWithBookings = await Promise.all(
         eventSlots.map(async (slot: any) => {
@@ -71,6 +85,8 @@ export default function CompanySlots() {
             .eq('slot_id', slot.id)
             .eq('status', 'confirmed');
 
+          const event = eventMap.get(slot.event_id);
+          
           return {
             id: slot.id,
             start_time: slot.start_time,
@@ -79,13 +95,16 @@ export default function CompanySlots() {
             capacity: slot.capacity,
             is_active: slot.is_active,
             event_id: slot.event_id,
-            event_name: slot.events?.name || 'Unknown Event',
-            event_date: slot.events?.date || '',
-            offer_title: slot.offers?.title || 'Unknown Offer',
+            event_name: event?.name || 'Unknown Event',
+            event_date: event?.date || '',
+            offer_title: offerMap.get(slot.offer_id) || 'Unknown Offer',
             bookings_count: count || 0,
           };
         })
       );
+
+      // Sort by start_time
+      slotsWithBookings.sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
 
       setSlots(slotsWithBookings);
     }
