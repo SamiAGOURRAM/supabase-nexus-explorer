@@ -282,26 +282,30 @@ export default function CompanyDashboard() {
             <p className="text-sm text-muted-foreground">Interview Slots</p>
           </Link>
 
-          <div className="bg-card rounded-xl border border-border p-6">
-            <Users className="w-8 h-8 text-green-500 mb-4" />
+          <Link to="/company/students" className="bg-card rounded-xl border border-border p-6 hover:border-primary hover:shadow-elegant transition-all group">
+            <Users className="w-8 h-8 text-green-500 mb-4 group-hover:scale-110 transition-transform" />
             <p className="text-3xl font-bold text-foreground mb-1">{stats?.students_scheduled || 0}</p>
             <p className="text-sm text-muted-foreground">Students Scheduled</p>
-          </div>
+          </Link>
         </div>
 
         {/* Scheduled Students */}
         <div className="bg-card rounded-xl border border-border p-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold text-foreground">Scheduled Interviews</h2>
-            <Link to="/company/slots" className="text-sm text-primary hover:text-primary/80 transition-colors">
-              View Slots
+            <Link to="/company/students" className="text-sm text-primary hover:text-primary/80 transition-colors">
+              View All Students
             </Link>
           </div>
 
           {scheduledStudents.length > 0 ? (
             <div className="space-y-3">
               {scheduledStudents.map((student) => (
-                <div key={student.booking_id} className="flex items-center gap-4 p-4 bg-background rounded-lg border border-border hover:border-primary/50 transition-colors">
+                <Link 
+                  key={student.booking_id} 
+                  to={`/company/students/${student.student_id}`}
+                  className="flex items-center gap-4 p-4 bg-background rounded-lg border border-border hover:border-primary/50 transition-colors"
+                >
                   <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
                     <Users className="w-6 h-6 text-primary" />
                   </div>
@@ -315,6 +319,7 @@ export default function CompanyDashboard() {
                           rel="noopener noreferrer"
                           className="text-primary hover:text-primary/80 transition-colors"
                           title="View CV"
+                          onClick={(e) => e.stopPropagation()}
                         >
                           <FileText className="w-4 h-4" />
                         </a>
@@ -340,7 +345,7 @@ export default function CompanyDashboard() {
                       <p className="text-xs text-muted-foreground mt-1">{student.slot_location}</p>
                     )}
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           ) : (
