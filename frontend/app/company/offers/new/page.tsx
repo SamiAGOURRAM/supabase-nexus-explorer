@@ -35,7 +35,6 @@ interface ApprovedEvent {
 
 export default function NewOfferPage() {
   const router = useRouter()
-  const supabase = createClient()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [approvedEvents, setApprovedEvents] = useState<ApprovedEvent[]>([])
@@ -62,6 +61,7 @@ export default function NewOfferPage() {
 
   const fetchApprovedEvents = async () => {
     try {
+      const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
@@ -105,6 +105,7 @@ export default function NewOfferPage() {
     setLoading(true)
 
     try {
+      const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Not authenticated')
 
