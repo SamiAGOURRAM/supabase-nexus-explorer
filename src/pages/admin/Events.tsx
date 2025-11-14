@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { Calendar, MapPin, Users, ArrowLeft, Clock, Target } from 'lucide-react';
+import { Calendar, Users, ArrowLeft, Clock, Target } from 'lucide-react';
 import type { Event } from '@/types/database';
 
 export default function AdminEvents() {

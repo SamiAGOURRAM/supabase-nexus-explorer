@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { ArrowLeft, Briefcase, Building2, MapPin, Calendar, Clock, Users, X, DollarSign, Tag, Search } from 'lucide-react';
+import { ArrowLeft, Briefcase, Building2, MapPin, Calendar, Clock, X, Search } from 'lucide-react';
+import { extractNestedObject, assertSupabaseType } from '@/utils/supabaseTypes';
 
 type Offer = {
   id: string;
@@ -223,14 +224,27 @@ export default function StudentOffers() {
       const slotStart = new Date(selectedSlot.start_time);
       const slotEnd = new Date(selectedSlot.end_time);
 
+      // Check for time conflicts with existing bookings
+      // Supabase nested queries require type assertions for proper typing
       for (const booking of existingBookings) {
-        const bookingStart = new Date(booking.event_slots.start_time);
-        const bookingEnd = new Date(booking.event_slots.end_time);
+        const eventSlot = assertSupabaseType<{ 
+          start_time: string; 
+          end_time: string; 
+          companies: { company_name: string } | null;
+        } | null>(booking.event_slots);
+        
+        if (!eventSlot) continue;
+        
+        const bookingStart = new Date(eventSlot.start_time);
+        const bookingEnd = new Date(eventSlot.end_time);
 
-        // Check for overlap
+        // Check for time overlap
         if (slotStart < bookingEnd && slotEnd > bookingStart) {
+          // Extract company name from nested query result
+          const company = extractNestedObject<{ company_name: string }>(eventSlot.companies);
+          const companyName = company?.company_name || 'Unknown Company';
           setValidationWarning(
-            `⚠️ Time conflict detected! You already have an interview with ${booking.event_slots.companies.company_name} at ${bookingStart.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`
+            `⚠️ Time conflict detected! You already have an interview with ${companyName} at ${bookingStart.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`
           );
           return;
         }

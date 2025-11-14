@@ -172,7 +172,7 @@ export default function QuickInvitePage() {
     if (!confirm(`Re-invite ${companyName} to this event?`)) return;
 
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('event_participants')
         .insert({
           event_id: eventId,

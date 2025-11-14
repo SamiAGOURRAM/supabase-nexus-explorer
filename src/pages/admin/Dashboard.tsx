@@ -1,437 +1,87 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { supabase } from '@/lib/supabase';
-import { Calendar, Building2, Users, Briefcase, LogOut, Clock, MapPin, UserPlus, Upload, ChevronRight, Target, TrendingUp, AlertCircle, Settings } from 'lucide-react';
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
+import { useEvents } from '@/hooks/useEvents';
+import { useEventStats } from '@/hooks/useEventStats';
+import LoadingScreen from '@/components/shared/LoadingScreen';
+import AdminHeader from '@/components/admin/dashboard/AdminHeader';
+import EmptyState from '@/components/admin/dashboard/EmptyState';
+import EventSelector from '@/components/admin/dashboard/EventSelector';
+import EventHeader from '@/components/admin/dashboard/EventHeader';
+import PhaseStatusCard from '@/components/admin/dashboard/PhaseStatusCard';
+import StatsGrid from '@/components/admin/dashboard/StatsGrid';
 import BulkImportModal from '@/components/admin/BulkImportModal';
 
-type Event = {
-  id: string;
-  name: string;
-  date: string;
-  location: string | null;
-  current_phase: number;
-  phase1_max_bookings: number;
-  phase2_max_bookings: number;
-};
-
-type EventStats = {
-  event_companies: number;
-  event_students: number;
-  event_bookings: number;
-  total_students: number;
-  total_slots: number;
-  available_slots: number;
-  top_company_name: string;
-  top_company_bookings: number;
-};
-
+/**
+ * AdminDashboard - Main dashboard page for administrators
+ * 
+ * Displays event statistics, phase status, and quick actions.
+ * Allows admins to manage events, companies, and bookings.
+ * 
+ * Features:
+ * - Event selection and statistics
+ * - Phase management overview
+ * - Quick actions (invite companies, bulk import)
+ * - Real-time event metrics
+ * 
+ * @component
+ * @example
+ * <AdminDashboard />
+ */
 export default function AdminDashboard() {
-  const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [events, setEvents] = useState<Event[]>([]);
-  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
-  const [stats, setStats] = useState<EventStats | null>(null);
+  const { loading: authLoading, signOut } = useAuth('admin');
+  const { events, selectedEvent, selectedEventId, loading: eventsLoading, setSelectedEventId } = useEvents();
+  const { stats, loading: statsLoading, refetch: refetchStats } = useEventStats(selectedEventId);
   const [showBulkImport, setShowBulkImport] = useState(false);
 
-  useEffect(() => {
-    checkAdminAndLoadData();
-  }, []);
-
-  const checkAdminAndLoadData = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        navigate('/login');
-        return;
-      }
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-
-      if (!profile || profile.role !== 'admin') {
-        navigate('/offers');
-        return;
-      }
-
-      await loadDashboardData();
-    } catch (err) {
-      console.error('Error:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadDashboardData = async () => {
-    const today = new Date().toISOString();
-
-    // Get all events sorted by date (upcoming first)
-    const { data: allEvents } = await supabase
-      .from('events')
-      .select('id, name, date, location, current_phase, phase1_max_bookings, phase2_max_bookings')
-      .order('date', { ascending: true });
-
-    if (allEvents && allEvents.length > 0) {
-      setEvents(allEvents);
-      
-      // Find the closest upcoming event
-      const upcomingEvent = allEvents.find(e => new Date(e.date) >= new Date(today)) || allEvents[0];
-      setSelectedEventId(upcomingEvent.id);
-      
-      await loadEventStats(upcomingEvent.id);
-    }
-  };
-
-  const loadEventStats = async (eventId: string) => {
-    const event = events.find(e => e.id === eventId) || (await supabase
-      .from('events')
-      .select('id, name, date, location, current_phase, phase1_max_bookings, phase2_max_bookings')
-      .eq('id', eventId)
-      .single()).data;
-
-    if (event) {
-
-      // Get stats specific to this event
-      const [
-        { count: eventCompanies },
-        { count: totalSlots }
-      ] = await Promise.all([
-        supabase.from('event_participants').select('*', { count: 'exact', head: true }).eq('event_id', eventId),
-        supabase.from('event_slots').select('*', { count: 'exact', head: true }).eq('event_id', eventId).eq('is_active', true)
-      ]);
-
-      // Get bookings count
-      const { count: eventBookings } = await supabase
-        .from('bookings')
-        .select('*, event_slots!inner(event_id)', { count: 'exact', head: true })
-        .eq('event_slots.event_id', eventId)
-        .eq('status', 'confirmed');
-
-      // Get unique students who have bookings for this event
-      const { data: studentBookings } = await supabase
-        .from('bookings')
-        .select('student_id, event_slots!inner(event_id)')
-        .eq('event_slots.event_id', eventId)
-        .eq('status', 'confirmed');
-
-      const uniqueStudents = new Set(studentBookings?.map(b => b.student_id) || []).size;
-
-      // Get top company by bookings - reversed query to avoid 400 error
-      const { data: confirmedBookings } = await supabase
-        .from('bookings')
-        .select('event_slots!inner(company_id, event_id, companies!inner(company_name))')
-        .eq('event_slots.event_id', eventId)
-        .eq('status', 'confirmed');
-
-      const companyCounts: Record<string, { name: string; count: number }> = {};
-      confirmedBookings?.forEach((booking: any) => {
-        const companyId = booking.event_slots?.company_id;
-        const companyName = booking.event_slots?.companies?.company_name || 'Unknown';
-        if (!companyCounts[companyId]) {
-          companyCounts[companyId] = { name: companyName, count: 0 };
-        }
-        companyCounts[companyId].count++;
-      });
-
-      const topCompanyEntry = Object.values(companyCounts).sort((a, b) => b.count - a.count)[0];
-      const availableSlots = (totalSlots || 0) - (eventBookings || 0);
-
-      setStats({
-        event_companies: eventCompanies || 0,
-        event_students: uniqueStudents,
-        event_bookings: eventBookings || 0,
-        total_students: uniqueStudents,
-        total_slots: totalSlots || 0,
-        available_slots: availableSlots,
-        top_company_name: topCompanyEntry?.name || 'N/A',
-        top_company_bookings: topCompanyEntry?.count || 0
-      });
-    }
-  };
-
-  useEffect(() => {
-    if (selectedEventId) {
-      loadEventStats(selectedEventId);
-    }
-  }, [selectedEventId]);
-
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    navigate('/');
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Loading dashboard...</p>
-        </div>
-      </div>
-    );
+  // Show loading screen while checking auth or loading events
+  if (authLoading || eventsLoading) {
+    return <LoadingScreen message="Loading dashboard..." />;
   }
 
-  const selectedEvent = events.find(e => e.id === selectedEventId);
-
+  // Show empty state if no events
   if (!selectedEvent) {
     return (
       <div className="min-h-screen bg-background">
-        <header className="bg-card border-b border-border">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold text-foreground">Admin Dashboard</h1>
-                <p className="text-sm text-muted-foreground mt-1">Welcome back, Admin</p>
-              </div>
-              <button
-                onClick={handleSignOut}
-                className="flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <LogOut className="w-4 h-4" />
-                Sign Out
-              </button>
-            </div>
-          </div>
-        </header>
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
-          <Calendar className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-          <h2 className="text-xl font-semibold mb-2">No Upcoming Events</h2>
-          <p className="text-muted-foreground mb-6">Create your first event to get started</p>
-          <Link
-            to="/admin/events"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-          >
-            <Calendar className="w-5 h-5" />
-            Manage Events
-          </Link>
-        </main>
+        <AdminHeader onSignOut={signOut} />
+        <EmptyState />
       </div>
     );
   }
 
-  const eventDate = new Date(selectedEvent.date);
-  const formattedDate = eventDate.toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  });
+  const handleBulkImportSuccess = () => {
+    setShowBulkImport(false);
+    if (selectedEventId) {
+      refetchStats();
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="bg-card border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">Admin Dashboard</h1>
-              <p className="text-sm text-muted-foreground mt-1">Welcome back, Admin</p>
-            </div>
-            <button
-              onClick={handleSignOut}
-              className="flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
-              Sign Out
-            </button>
-          </div>
-        </div>
-      </header>
+      <AdminHeader onSignOut={signOut} />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Event Selector */}
-        <div className="mb-6">
-          <label htmlFor="event-select" className="block text-sm font-medium text-muted-foreground mb-2">
-            Select Event
-          </label>
-          <select
-            id="event-select"
-            value={selectedEventId || ''}
-            onChange={(e) => setSelectedEventId(e.target.value)}
-            className="w-full md:w-96 px-4 py-2 bg-card border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-          >
-            {events.map((event) => {
-              const date = new Date(event.date).toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric'
-              });
-              return (
-                <option key={event.id} value={event.id}>
-                  {event.name} - {date}
-                </option>
-              );
-            })}
-          </select>
-        </div>
+        <EventSelector
+          events={events}
+          selectedEventId={selectedEventId}
+          onEventChange={setSelectedEventId}
+        />
 
-        {/* Event Header */}
-        <div className="bg-gradient-to-r from-primary/10 to-primary/5 rounded-xl border border-primary/20 p-6 mb-8">
-          <div className="flex items-start justify-between flex-wrap gap-4">
-            <div>
-              <div className="flex items-center gap-2 text-sm text-primary mb-2">
-                <Clock className="w-4 h-4" />
-                <span className="font-medium">Selected Event</span>
-              </div>
-              <h2 className="text-2xl font-bold text-foreground mb-2">{selectedEvent.name}</h2>
-              <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-                <div className="flex items-center gap-1">
-                  <Calendar className="w-4 h-4" />
-                  <span>{formattedDate}</span>
-                </div>
-                {selectedEvent.location && (
-                  <div className="flex items-center gap-1">
-                    <MapPin className="w-4 h-4" />
-                    <span>{selectedEvent.location}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <Link
-                to={`/admin/events/${selectedEvent.id}/quick-invite`}
-                className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-              >
-                <UserPlus className="w-4 h-4" />
-                <span>Quick Invite</span>
-              </Link>
-              <button
-                onClick={() => setShowBulkImport(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-              >
-                <Upload className="w-4 h-4" />
-                <span>Bulk Import CSV</span>
-              </button>
-            </div>
+        <EventHeader
+          event={selectedEvent}
+          onBulkImportClick={() => setShowBulkImport(true)}
+        />
+
+        <PhaseStatusCard event={selectedEvent} />
+
+        {statsLoading ? (
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+            <p className="mt-4 text-muted-foreground">Loading statistics...</p>
           </div>
-        </div>
-
-        {/* Phase Status Card */}
-        <div className={`rounded-xl border p-6 mb-6 ${
-          selectedEvent.current_phase === 0 
-            ? 'bg-destructive/10 border-destructive/30' 
-            : 'bg-primary/10 border-primary/30'
-        }`}>
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-start gap-4">
-              {selectedEvent.current_phase === 0 ? (
-                <AlertCircle className="w-6 h-6 text-destructive flex-shrink-0 mt-1" />
-              ) : (
-                <Settings className="w-6 h-6 text-primary flex-shrink-0 mt-1" />
-              )}
-              <div>
-                <h3 className="font-semibold text-foreground mb-1">
-                  Booking Phase {selectedEvent.current_phase}
-                  {selectedEvent.current_phase === 0 && ' - Bookings Closed'}
-                  {selectedEvent.current_phase === 1 && ' - Priority Phase'}
-                  {selectedEvent.current_phase === 2 && ' - Open Phase'}
-                </h3>
-                <p className="text-sm text-muted-foreground mb-2">
-                  {selectedEvent.current_phase === 0 && 'Students cannot book interviews yet'}
-                  {selectedEvent.current_phase === 1 && `Students can book up to ${selectedEvent.phase1_max_bookings} interviews`}
-                  {selectedEvent.current_phase === 2 && `Students can book up to ${selectedEvent.phase2_max_bookings} interviews`}
-                </p>
-              </div>
-            </div>
-            <Link
-              to={`/admin/events/${selectedEvent.id}/phases`}
-              className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg hover:bg-accent transition-colors text-sm font-medium"
-            >
-              <Settings className="w-4 h-4" />
-              Manage Phases
-            </Link>
-          </div>
-        </div>
-
-        {/* Stats Grid - Row 1: Core Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-          <Link
-            to={`/admin/events/${selectedEvent.id}/companies`}
-            className="bg-card rounded-xl border border-border p-6 hover:border-primary hover:shadow-lg transition-all cursor-pointer group"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-success/10 rounded-lg flex items-center justify-center">
-                <Building2 className="w-6 h-6 text-success" />
-              </div>
-              <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
-            </div>
-            <p className="text-3xl font-bold text-foreground mb-1">{stats?.event_companies || 0}</p>
-            <p className="text-sm font-medium text-foreground mb-1">Companies</p>
-            <p className="text-xs text-muted-foreground">participating</p>
-          </Link>
-
-          <Link
-            to={`/admin/events/${selectedEvent.id}/students`}
-            className="bg-card rounded-xl border border-border p-6 hover:border-primary hover:shadow-lg transition-all cursor-pointer group"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-blue-500/10 rounded-lg flex items-center justify-center">
-                <Users className="w-6 h-6 text-blue-500" />
-              </div>
-              <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
-            </div>
-            <p className="text-3xl font-bold text-foreground mb-1">{stats?.total_students || 0}</p>
-            <p className="text-sm font-medium text-foreground mb-1">Students</p>
-            <p className="text-xs text-muted-foreground">registered</p>
-          </Link>
-
-          <Link
-            to={`/admin/events/${selectedEvent.id}/participants`}
-            className="bg-card rounded-xl border border-border p-6 hover:border-primary hover:shadow-lg transition-all cursor-pointer group"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-orange-500/10 rounded-lg flex items-center justify-center">
-                <Briefcase className="w-6 h-6 text-orange-500" />
-              </div>
-              <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
-            </div>
-            <p className="text-3xl font-bold text-foreground mb-1">{stats?.event_bookings || 0}</p>
-            <p className="text-sm font-medium text-foreground mb-1">Interviews Scheduled</p>
-            <p className="text-xs text-muted-foreground">confirmed bookings</p>
-          </Link>
-        </div>
-
-        {/* Stats Grid - Row 2: Insights */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Link
-            to={`/admin/events/${selectedEvent.id}/slots`}
-            className="bg-card rounded-xl border border-border p-6 hover:border-primary hover:shadow-lg transition-all cursor-pointer group"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-purple-500/10 rounded-lg flex items-center justify-center">
-                <Calendar className="w-6 h-6 text-purple-500" />
-              </div>
-              <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
-            </div>
-            <p className="text-3xl font-bold text-foreground mb-1">{stats?.available_slots || 0}</p>
-            <p className="text-sm font-medium text-foreground mb-1">Available Slots</p>
-            <p className="text-xs text-muted-foreground">remaining capacity</p>
-          </Link>
-
-          <div className="bg-card rounded-xl border border-border p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-green-500/10 rounded-lg flex items-center justify-center">
-                <TrendingUp className="w-6 h-6 text-green-500" />
-              </div>
-            </div>
-            <p className="text-xl font-bold text-foreground mb-1 truncate">{stats?.top_company_name || 'N/A'}</p>
-            <p className="text-sm font-medium text-foreground mb-1">Top Company</p>
-            <p className="text-xs text-muted-foreground">{stats?.top_company_bookings || 0} interviews</p>
-          </div>
-
-          <div className="bg-card rounded-xl border border-border p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-blue-500/10 rounded-lg flex items-center justify-center">
-                <Target className="w-6 h-6 text-blue-500" />
-              </div>
-            </div>
-            <p className="text-3xl font-bold text-foreground mb-1">{stats?.event_bookings || 0}</p>
-            <p className="text-sm font-medium text-foreground mb-1">Total Interviews</p>
-            <p className="text-xs text-muted-foreground">scheduled for event</p>
-          </div>
-        </div>
+        ) : (
+          <StatsGrid stats={stats} eventId={selectedEvent.id} />
+        )}
 
         {/* Footer Navigation */}
         <div className="pt-6 border-t border-border">
@@ -459,12 +109,7 @@ export default function AdminDashboard() {
           <BulkImportModal
             eventId={selectedEvent.id}
             onClose={() => setShowBulkImport(false)}
-            onSuccess={() => {
-              setShowBulkImport(false);
-              if (selectedEventId) {
-                loadEventStats(selectedEventId);
-              }
-            }}
+            onSuccess={handleBulkImportSuccess}
           />
         )}
       </main>

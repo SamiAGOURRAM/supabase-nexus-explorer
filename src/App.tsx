@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Suspense, lazy } from "react";
-import LoadingScreen from "./components/LoadingScreen";
+import LoadingScreen from "./components/shared/LoadingScreen";
 
 // Lazy load pages for better performance
 const Login = lazy(() => import("./pages/Login"));

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { ArrowLeft, Building2, MapPin, Clock, DollarSign, Tag, Briefcase, CheckCircle, Calendar, X } from 'lucide-react';
+import { extractNestedObject } from '@/utils/supabaseTypes';
 
 type Offer = {
   id: string;
@@ -128,11 +129,25 @@ export default function OfferDetail() {
       salary_range: offerData.salary_range,
       department: offerData.department,
       company_id: offerData.company_id,
-      company_name: offerData.companies?.company_name || 'Unknown',
-      company_logo: offerData.companies?.logo_url || null,
-      company_description: offerData.companies?.description || null,
-      company_website: offerData.companies?.website || null,
-      company_industry: offerData.companies?.industry || null,
+      // Extract company data from nested Supabase query result
+      // Supabase returns nested objects as arrays or objects depending on join type
+      ...(() => {
+        const company = extractNestedObject<{
+          company_name: string;
+          logo_url: string | null;
+          description: string | null;
+          website: string | null;
+          industry: string | null;
+        }>(offerData.companies);
+        
+        return {
+          company_name: company?.company_name || 'Unknown',
+          company_logo: company?.logo_url || null,
+          company_description: company?.description || null,
+          company_website: company?.website || null,
+          company_industry: company?.industry || null,
+        };
+      })(),
     });
 
     setLoading(false);

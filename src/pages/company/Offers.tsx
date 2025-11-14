@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { ArrowLeft, Plus, Search, Filter, Edit, Trash2, ToggleLeft, ToggleRight, Briefcase } from 'lucide-react';
+import { ArrowLeft, Plus, Search, Edit, Trash2, ToggleLeft, ToggleRight, Briefcase } from 'lucide-react';
 
 type Offer = {
   id: string;

@@ -127,7 +127,7 @@ export default function EventSlots() {
         return acc
       }, {} as Record<string, TimeSlot>)
 
-      const timeSlotsArray = Object.values(grouped).sort((a, b) => 
+      const timeSlotsArray = (Object.values(grouped) as TimeSlot[]).sort((a, b) => 
         new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
       )
 
@@ -135,7 +135,7 @@ export default function EventSlots() {
     }
   }
 
-  const loadSlotDetails = async (timeKey: string, slotIds: string[]) => {
+  const loadSlotDetails = async (_timeKey: string, slotIds: string[]) => {
     setLoadingDetails(true)
     try {
       // Fetch all bookings for these slots with student info

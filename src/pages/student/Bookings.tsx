@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { ArrowLeft, Calendar, Clock, MapPin, Building2, Briefcase, XCircle } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, MapPin, Building2, Briefcase } from 'lucide-react';
 
 type Booking = {
   id: string;
@@ -107,7 +107,7 @@ export default function StudentBookings() {
           const slotEventMap = new Map(slots?.map(s => [s.id, s.event_id]) || []);
           
           // Filter bookings by event
-          const filtered = formattedBookings.filter((booking, index) => {
+          const filtered = formattedBookings.filter((_booking, index) => {
             const slotId = data[index].slot_id;
             return slotEventMap.get(slotId) === selectedEventId;
           });

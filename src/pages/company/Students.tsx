@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { ArrowLeft, Search, Users, FileText, Download } from 'lucide-react';
+import { ArrowLeft, Search, Users, FileText } from 'lucide-react';
 
 type StudentBooking = {
   booking_id: string;
