@@ -58,115 +58,118 @@ export default function QuickInvitePage() {
   };
 
   const handleQuickInvite = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setResult(null);
+  e.preventDefault();
+  setLoading(true);
+  setResult(null);
 
-    try {
-      const { data, error } = await supabase.rpc('quick_invite_company', {
-        p_email: email.trim(),
-        p_company_name: companyName.trim(),
-        p_event_id: eventId,
-        p_industry: industry || 'Other',
-        p_website: website.trim() || null
-      });
+  try {
+    const { data, error } = await supabase.rpc('quick_invite_company', {
+      p_email: email.trim(),
+      p_company_name: companyName.trim(),
+      p_event_id: eventId,
+      p_industry: industry || 'Other',
+      p_website: website.trim() || null
+    });
 
-      if (error) throw error;
-      setResult(data);
+    if (error) throw error;
+    setResult(data);
 
-      if (data.success) {
-        if (data.action === 'send_signup_email') {
-          try {
-            const array = new Uint8Array(24);
-            crypto.getRandomValues(array);
-            const hexPart = Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
-            const timestampPart = Date.now().toString(36);
-            const tempPassword = hexPart + timestampPart;
-            
-            const { error: signUpError } = await supabase.auth.signUp({
-              email: email.trim().toLowerCase(),
-              password: tempPassword,
-              options: {
-                data: {
-                  company_name: companyName.trim(),
-                  company_code: data.company_code,
-                  role: 'company',
-                  event_name: eventName,
-                  event_id: eventId
-                },
-                emailRedirectTo: `${window.location.origin}/company`
-              }
-            });
-
-            if (signUpError) {
-              setResult({
-                ...data,
-                message: data.message + '\n⚠️ Email error: ' + signUpError.message
-              });
-            } else {
-              setResult({
-                ...data,
-                message: data.message + '\n\n📧 Invitation email sent!'
-              });
+    if (data.success) {
+      // Use next_step field from database (not action)
+      if (data.next_step === 'send_invite_email') {
+        // NEW COMPANY - Send signup email
+        try {
+          const array = new Uint8Array(24);
+          crypto.getRandomValues(array);
+          const hexPart = Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+          const timestampPart = Date.now().toString(36);
+          const tempPassword = hexPart + timestampPart;
+          
+          const { error: signUpError } = await supabase.auth.signUp({
+            email: email.trim().toLowerCase(),
+            password: tempPassword,
+            options: {
+              data: {
+                company_name: companyName.trim(),
+                company_code: data.company_code,
+                role: 'company',
+                event_name: eventName,
+                event_id: eventId
+              },
+              emailRedirectTo: `${window.location.origin}/company`
             }
-          } catch (emailError: any) {
+          });
+
+          if (signUpError) {
             setResult({
               ...data,
-              message: data.message + '\n\n⚠️ Email could not be sent.'
+              message: data.message + '\n⚠️ Email error: ' + signUpError.message
+            });
+          } else {
+            setResult({
+              ...data,
+              message: data.message + '\n\n📧 Invitation email sent!'
             });
           }
-        } else if (data.action === 'send_notification_email') {
-          // Count auto-generated slots for feedback
-          const { count: slotCount } = await supabase
-            .from('event_slots')
-            .select('*', { count: 'exact', head: true })
-            .eq('company_id', data.company_id)
-            .eq('event_id', eventId);
-
+        } catch (emailError: any) {
           setResult({
             ...data,
-            message: data.message + `\n\n✅ Company added to event!\n🎯 ${slotCount || 0} interview slots automatically generated`
+            message: data.message + '\n\n⚠️ Email could not be sent.'
           });
         }
+      } else if (data.next_step === 'send_notification_email') {
+        // EXISTING COMPANY - Count slots
+        const { count: slotCount } = await supabase
+          .from('event_slots')
+          .select('*', { count: 'exact', head: true })
+          .eq('company_id', data.company_id)
+          .eq('event_id', eventId);
 
-        if (data.action !== 'use_resend_button') {
-          setEmail('');
-          setCompanyName('');
-          setIndustry('Technology');
-          setWebsite('');
-        }
+        setResult({
+          ...data,
+          message: data.message + `\n\n✅ Company added to event!\n🎯 ${slotCount || 0} interview slots automatically generated`
+        });
       }
-    } catch (error: any) {
-      setResult({
-        success: false,
-        message: error.message || 'Failed to invite company'
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) {
-      setSearchResults([]);
-      return;
+      // Clear form if not already invited
+      if (!data.already_invited) {
+        setEmail('');
+        setCompanyName('');
+        setIndustry('Technology');
+        setWebsite('');
+      }
     }
+  } catch (error: any) {
+    setResult({
+      success: false,
+      message: error.message || 'Failed to invite company'
+    });
+  } finally {
+    setLoading(false);
+  }
+};
 
-    setSearching(true);
-    try {
-      const { data, error } = await supabase.rpc('search_companies_for_invitation', {
-        query: searchQuery.trim(),
-        event_id: eventId
-      });
+const handleSearch = async () => {
+  if (!searchQuery.trim()) {
+    setSearchResults([]);
+    return;
+  }
 
-      if (error) throw error;
-      setSearchResults(data || []);
-    } catch (error) {
-      console.error('Search error:', error);
-    } finally {
-      setSearching(false);
-    }
-  };
+  setSearching(true);
+  try {
+    const { data, error } = await supabase.rpc('search_companies_for_invitation', {
+      search_query: searchQuery.trim(),  // Changed from 'query' to 'search_query'
+      event_id_filter: eventId           // Changed from 'event_id' to 'event_id_filter'
+    });
+
+    if (error) throw error;
+    setSearchResults(data || []);
+  } catch (error) {
+    console.error('Search error:', error);
+  } finally {
+    setSearching(false);
+  }
+};
 
   const handleReInvite = async (companyId: string, companyName: string) => {
     if (!confirm(`Re-invite ${companyName} to this event?`)) return;
