@@ -1,6 +1,113 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { Mail, ArrowLeft } from 'lucide-react';
+
+export default function VerifyEmail() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  // email may be passed in navigation state or as a query param
+  const stateEmail = (location.state as any)?.email;
+  const queryEmail = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('email') : null;
+  const email = stateEmail || queryEmail || '';
+
+  const [resending, setResending] = useState(false);
+  const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
+
+  useEffect(() => {
+    // show a gentle message if we don't have an email
+    if (!email) {
+      setInfo('If you just signed up, a confirmation link was sent to your email.');
+    } else {
+      setInfo(`A confirmation link was sent to ${email}. Click it to verify your account.`);
+    }
+  }, [email]);
+
+  const handleResend = async () => {
+    if (!email) {
+      setError('No email available to resend to. Please go back to signup.');
+      return;
+    }
+
+    setResending(true);
+    setError('');
+    try {
+      // Try to trigger a confirmation email/link by calling signUp again with redirect.
+      // If the user already exists Supabase may still resend the confirmation link depending on config.
+      const { error: authError } = await supabase.auth.signUp({
+        email,
+        password: undefined,
+        options: {
+          emailRedirectTo: `${window.location.origin}/verify-email`,
+        },
+      } as any);
+
+      if (authError) {
+        // show friendly message but don't treat as fatal
+        setError(authError.message || 'Failed to resend confirmation link');
+      } else {
+        setInfo(`A new confirmation link was sent to ${email}. Check your inbox.`);
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Failed to resend confirmation link');
+    } finally {
+      setResending(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-background to-muted flex items-center justify-center p-4">
+      <div className="max-w-md w-full bg-card rounded-2xl shadow-elegant p-8 border border-border">
+        <button
+          onClick={() => navigate('/signup')}
+          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to signup
+        </button>
+
+        <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+          <Mail className="w-8 h-8 text-primary" />
+        </div>
+
+        <h2 className="text-2xl font-bold text-foreground text-center mb-2">Confirm your email</h2>
+        <p className="text-sm text-muted-foreground text-center mb-6">
+          {info}
+        </p>
+
+        {error && (
+          <div className="mb-4 bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-lg flex items-start gap-3">
+            <span className="text-sm">{error}</span>
+          </div>
+        )}
+
+        <div className="space-y-4">
+          <button
+            onClick={() => navigate('/login')}
+            className="w-full py-3 px-4 bg-primary text-primary-foreground rounded-lg font-medium shadow-soft hover:shadow-elegant transition-all duration-200"
+          >
+            Go to Sign in
+          </button>
+
+          <div className="text-center">
+            <p className="text-sm text-muted-foreground mb-2">Didn't receive the email?</p>
+            <button
+              onClick={handleResend}
+              disabled={resending}
+              className="text-sm text-primary hover:underline font-medium disabled:opacity-50"
+            >
+              {resending ? 'Sending...' : 'Resend confirmation email'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { supabase } from '@/lib/supabase';
 import { AlertCircle, Mail, ArrowLeft } from 'lucide-react';
 
 export default function VerifyEmail() {
