@@ -26,8 +26,9 @@ export default function QuickInvitePage() {
 
   useEffect(() => {
     checkAdmin();
+    if (!eventId) return; // guard undefined eventId
     loadEventName();
-  }, [eventId]);
+  }, [eventId, navigate]); // include navigate in deps
 
   const checkAdmin = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -72,56 +73,71 @@ export default function QuickInvitePage() {
     });
 
     if (error) throw error;
+    
+    console.log('RPC Response:', data); // Debug: check what the RPC returns
     setResult(data);
 
     if (data.success) {
-      if (data.next_step === 'send_invite_email') {
-        // NEW COMPANY - Send magic link
-        try {
-          const { error: magicLinkError } = await supabase.auth.signInWithOtp({
-            email: email.trim().toLowerCase(),
-            options: {
-              emailRedirectTo: `${window.location.origin}/auth/set-password`,
-              data: {
-                company_name: companyName.trim(),
-                company_code: data.company_code,
-                role: 'company',
-                event_name: eventName,
-                event_id: eventId
-              }
-            }
-          });
-
-          if (magicLinkError) {
-            setResult({
-              ...data,
-              message: data.message + '\n⚠️ Magic link error: ' + magicLinkError.message
-            });
-          } else {
-            setResult({
-              ...data,
-              message: data.message + '\n\n📧 Magic link sent! Company will receive an email to set their password.'
-            });
-          }
-        } catch (emailError: any) {
-          setResult({
-            ...data,
-            message: data.message + '\n\n⚠️ Magic link could not be sent.'
-          });
-        }
-      } else if (data.next_step === 'send_notification_email') {
-        const { count: slotCount } = await supabase
-          .from('event_slots')
-          .select('*', { count: 'exact', head: true })
-          .eq('company_id', data.company_id)
-          .eq('event_id', eventId);
-
+      const inviteEmail = email.trim().toLowerCase();
+      
+      if (!inviteEmail) {
         setResult({
           ...data,
-          message: data.message + `\n\n✅ Company added to event!\n🎯 ${slotCount || 0} interview slots automatically generated`
+          message: (data.message || 'Company invited') + '\n\n⚠️ No email provided — magic link not sent.'
+        });
+        return;
+      }
+
+      // Always try to send magic link for new invites
+      // The RPC should tell us if it's a new company or existing
+      const isNewCompany = data.next_step === 'send_invite_email' || data.company_created;
+      
+      try {
+        const { error: magicLinkError } = await supabase.auth.signInWithOtp({
+          email: inviteEmail,
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/set-password`,
+            data: {
+              company_name: companyName.trim(),
+              company_code: data.company_code,
+              role: 'company',
+              event_name: eventName,
+              event_id: eventId
+            }
+          }
+        });
+
+        if (magicLinkError) {
+          console.error('Magic link error:', magicLinkError);
+          setResult({
+            ...data,
+            message: data.message + `\n\n⚠️ Magic link error: ${magicLinkError.message}`
+          });
+        } else {
+          // Count slots
+          const { count: slotCount } = await supabase
+            .from('event_slots')
+            .select('*', { count: 'exact', head: true })
+            .eq('company_id', data.company_id)
+            .eq('event_id', eventId);
+
+          setResult({
+            ...data,
+            message: data.message + 
+              `\n\n📧 Magic link sent to ${inviteEmail}!` +
+              `\n🎯 ${slotCount || 0} interview slots generated` +
+              (isNewCompany ? '\n✅ Company will receive an email to set their password.' : '')
+          });
+        }
+      } catch (emailError: any) {
+        console.error('Email send error:', emailError);
+        setResult({
+          ...data,
+          message: data.message + '\n\n⚠️ Failed to send magic link: ' + (emailError?.message || 'Unknown error')
         });
       }
 
+      // Clear form on success
       if (!data.already_invited) {
         setEmail('');
         setCompanyName('');
@@ -130,6 +146,7 @@ export default function QuickInvitePage() {
       }
     }
   } catch (error: any) {
+    console.error('Quick invite error:', error);
     setResult({
       success: false,
       message: error.message || 'Failed to invite company'
@@ -145,6 +162,11 @@ const handleSearch = async () => {
     return;
   }
 
+  if (!eventId) {
+    alert('Event ID is missing. Cannot search.');
+    return;
+  }
+
   setSearching(true);
   try {
     const { data, error } = await supabase.rpc('search_companies_for_invitation', {
@@ -154,14 +176,20 @@ const handleSearch = async () => {
 
     if (error) throw error;
     setSearchResults(data || []);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Search error:', error);
+    alert('Search failed: ' + (error?.message || String(error)));
   } finally {
     setSearching(false);
   }
 };
 
   const handleReInvite = async (companyId: string, companyName: string) => {
+    if (!eventId) {
+      alert('Missing event ID. Cannot invite.');
+      return;
+    }
+
     if (!confirm(`Re-invite ${companyName} to this event?`)) return;
 
     try {
@@ -174,19 +202,72 @@ const handleSearch = async () => {
         .select()
         .single();
 
-      if (error) throw error;
+      // If insert errored because the row already exists, treat as success
+      if (error) {
+        const isDuplicate =
+          // Postgres unique_violation code
+          (error as any).code === '23505' ||
+          // fallback string check
+          /duplicate|unique/i.test((error as any).message || '');
 
-      // Count how many slots were auto-generated
+        if (!isDuplicate) throw error;
+      }
+
+      // Count how many slots were auto-generated (or already exist)
       const { count: slotCount } = await supabase
         .from('event_slots')
         .select('*', { count: 'exact', head: true })
         .eq('company_id', companyId)
         .eq('event_id', eventId);
 
-      alert(`✅ ${companyName} invited to the event!\n\n🎯 ${slotCount || 0} interview slots automatically generated`);
+      // Try to fetch company email and send magic link
+      const { data: companyData, error: companyError } = await supabase
+        .from('companies')
+        .select('email, company_name, company_code')
+        .eq('id', companyId)
+        .single();
+
+      if (companyError) {
+        // still consider the invite successful but inform admin
+        alert(`✅ ${companyName} invited to the event!\n\n🎯 ${slotCount || 0} interview slots generated\n\n⚠️ Could not fetch company email: ${companyError.message}`);
+        await handleSearch();
+        return;
+      }
+
+      const companyEmail = (companyData?.email || '').trim().toLowerCase();
+      if (!companyEmail) {
+        alert(`✅ ${companyName} invited to the event!\n\n🎯 ${slotCount || 0} interview slots generated\n\n⚠️ No email on file for this company — cannot send an invite email.`);
+        await handleSearch();
+        return;
+      }
+
+      try {
+        const { error: magicLinkError } = await supabase.auth.signInWithOtp({
+          email: companyEmail,
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/set-password`,
+            data: {
+              company_name: companyData.company_name || companyName,
+              company_code: companyData.company_code,
+              role: 'company',
+              event_name: eventName,
+              event_id: eventId
+            }
+          }
+        });
+
+        if (magicLinkError) {
+          alert(`✅ ${companyName} invited to the event!\n\n🎯 ${slotCount || 0} interview slots generated\n\n⚠️ Could not send invite email: ${magicLinkError.message}`);
+        } else {
+          alert(`✅ ${companyName} invited and magic link sent to ${companyEmail}!\n\n🎯 ${slotCount || 0} interview slots generated`);
+        }
+      } catch (sendErr: any) {
+        alert(`✅ ${companyName} invited to the event!\n\n🎯 ${slotCount || 0} interview slots generated\n\n⚠️ Error sending invite: ${sendErr?.message || String(sendErr)}`);
+      }
+
       await handleSearch();
     } catch (error: any) {
-      alert('Error: ' + error.message);
+      alert('Error: ' + (error?.message || JSON.stringify(error)));
     }
   };
 
@@ -208,16 +289,23 @@ const handleSearch = async () => {
 
       if (error) throw error;
 
+      const escape = (v: any) => {
+        if (v === null || v === undefined) return '';
+        const s = String(v);
+        // escape quotes and wrap in quotes
+        return `"${s.replace(/"/g, '""')}"`;
+      };
+
       const csvContent = [
-        ['Company Name', 'Code', 'Email', 'Industry', 'Website'].join(','),
+        ['Company Name', 'Code', 'Email', 'Industry', 'Website'].map(escape).join(','),
         ...(data || []).map((p: any) => {
-          const c = p.companies;
+          const c = p.companies || {};
           return [
-            c.company_name,
-            c.company_code,
-            c.email || '',
-            c.industry || '',
-            c.website || ''
+            escape(c.company_name),
+            escape(c.company_code),
+            escape(c.email),
+            escape(c.industry),
+            escape(c.website)
           ].join(',');
         })
       ].join('\n');
@@ -376,7 +464,12 @@ const handleSearch = async () => {
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleSearch();
+                      }
+                    }}
                     className="flex-1 px-3 py-2 bg-background border border-border rounded-md focus:ring-2 focus:ring-primary"
                     placeholder="Search by company name, code, or email..."
                   />
