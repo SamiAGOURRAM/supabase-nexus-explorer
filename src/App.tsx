@@ -3,6 +3,7 @@ import { Suspense, lazy } from "react";
 import LoadingScreen from "./components/shared/LoadingScreen";
 
 // Lazy load pages for better performance
+const SetPassword = lazy(() => import("./pages/auth/SetPassword"));
 const Login = lazy(() => import("./pages/Login"));
 const Signup = lazy(() => import("./pages/Signup"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
@@ -83,6 +84,7 @@ function App() {
           <Route path="/company/schedule" element={<CompanySchedule />} />
           <Route path="/company/profile" element={<CompanyProfile />} />
           <Route path="/company/slots" element={<CompanySlots />} />
+          <Route path="/auth/set-password" element={<SetPassword />} />
           
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/offers" replace />} />

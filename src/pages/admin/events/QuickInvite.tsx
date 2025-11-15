@@ -75,50 +75,41 @@ export default function QuickInvitePage() {
     setResult(data);
 
     if (data.success) {
-      // Use next_step field from database (not action)
       if (data.next_step === 'send_invite_email') {
-        // NEW COMPANY - Send signup email
+        // NEW COMPANY - Send magic link
         try {
-          const array = new Uint8Array(24);
-          crypto.getRandomValues(array);
-          const hexPart = Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
-          const timestampPart = Date.now().toString(36);
-          const tempPassword = hexPart + timestampPart;
-          
-          const { error: signUpError } = await supabase.auth.signUp({
+          const { error: magicLinkError } = await supabase.auth.signInWithOtp({
             email: email.trim().toLowerCase(),
-            password: tempPassword,
             options: {
+              emailRedirectTo: `${window.location.origin}/auth/set-password`,
               data: {
                 company_name: companyName.trim(),
                 company_code: data.company_code,
                 role: 'company',
                 event_name: eventName,
                 event_id: eventId
-              },
-              emailRedirectTo: `${window.location.origin}/company`
+              }
             }
           });
 
-          if (signUpError) {
+          if (magicLinkError) {
             setResult({
               ...data,
-              message: data.message + '\n⚠️ Email error: ' + signUpError.message
+              message: data.message + '\n⚠️ Magic link error: ' + magicLinkError.message
             });
           } else {
             setResult({
               ...data,
-              message: data.message + '\n\n📧 Invitation email sent!'
+              message: data.message + '\n\n📧 Magic link sent! Company will receive an email to set their password.'
             });
           }
         } catch (emailError: any) {
           setResult({
             ...data,
-            message: data.message + '\n\n⚠️ Email could not be sent.'
+            message: data.message + '\n\n⚠️ Magic link could not be sent.'
           });
         }
       } else if (data.next_step === 'send_notification_email') {
-        // EXISTING COMPANY - Count slots
         const { count: slotCount } = await supabase
           .from('event_slots')
           .select('*', { count: 'exact', head: true })
@@ -131,7 +122,6 @@ export default function QuickInvitePage() {
         });
       }
 
-      // Clear form if not already invited
       if (!data.already_invited) {
         setEmail('');
         setCompanyName('');
@@ -158,8 +148,8 @@ const handleSearch = async () => {
   setSearching(true);
   try {
     const { data, error } = await supabase.rpc('search_companies_for_invitation', {
-      search_query: searchQuery.trim(),  // Changed from 'query' to 'search_query'
-      event_id_filter: eventId           // Changed from 'event_id' to 'event_id_filter'
+      search_query: searchQuery.trim(),
+      event_id_filter: eventId
     });
 
     if (error) throw error;
