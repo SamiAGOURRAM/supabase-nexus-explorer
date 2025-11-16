@@ -38,7 +38,7 @@ export default function Signup() {
       const role = isGmail ? 'test_student' : 'student';
 
       // Use signUp with email confirmation instead of OTP
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+      const { error: signUpError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
