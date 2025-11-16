@@ -142,11 +142,14 @@ export default function VerifyEmail() {
             <h2 className="text-2xl font-bold text-foreground text-center mb-2">
               Check Your Email
             </h2>
+            
+            {/* Warning/Info Message */}
             {customMessage && (
-              <div className="mb-4 bg-warning/10 border border-warning/20 text-warning px-4 py-3 rounded-lg text-center">
-                <p className="text-sm font-medium">{customMessage}</p>
+              <div className="mb-4 bg-warning/10 border border-warning/20 text-warning px-4 py-3 rounded-lg">
+                <p className="text-sm font-medium text-center">{customMessage}</p>
               </div>
             )}
+            
             <p className="text-sm text-muted-foreground text-center mb-6">
               We sent a confirmation link to
               <br />

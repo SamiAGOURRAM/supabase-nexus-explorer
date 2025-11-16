@@ -22,7 +22,7 @@ export default function StudentDashboard() {
   const navigate = useNavigate();
   
   // Check email verification status
-  const { isVerified, isLoading: verificationLoading } = useEmailVerification();
+  const { isLoading: verificationLoading } = useEmailVerification();
 
   useEffect(() => {
     // Don't load data until verification check is complete

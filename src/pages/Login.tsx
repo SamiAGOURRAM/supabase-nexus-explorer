@@ -57,10 +57,19 @@
 
         if (error) throw error;
 
-        // Check if email is verified
+        // CRITICAL: Check if email is verified before allowing login
         if (!data.user.email_confirmed_at) {
+          // Sign out immediately to prevent access
           await supabase.auth.signOut();
-          throw new Error('⚠️ Email not verified! Please check your inbox and click the confirmation link before you can sign in.');
+          
+          // Redirect to verification page with email for easy resend
+          navigate('/verify-email', {
+            state: {
+              email: email,
+              message: 'Please verify your email address before signing in. Check your inbox for the confirmation link.'
+            }
+          });
+          return;
         }
 
         const { data: profile } = await supabase
@@ -75,7 +84,8 @@
             return;
           }
 
-          if (loginAs === 'student' && profile.role !== 'student') {
+          // Allow both real students and test_student accounts to sign in as students
+          if (loginAs === 'student' && !(profile.role === 'student' || profile.role === 'test_student')) {
             await supabase.auth.signOut();
             throw new Error('This account is not a student account. Please use Company Login.');
           }

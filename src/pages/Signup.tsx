@@ -13,6 +13,7 @@ export default function Signup() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -37,8 +38,8 @@ export default function Signup() {
       // Determine role based on email domain
       const role = isGmail ? 'test_student' : 'student';
 
-      // Use signUp with email confirmation instead of OTP
-      const { error: signUpError } = await supabase.auth.signUp({
+      // Use signUp with email confirmation
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
@@ -52,6 +53,9 @@ export default function Signup() {
         },
       });
 
+      // Log full response for debugging (server-side email send attempts appear in auth logs)
+      console.debug('signUp response:', { signUpData, signUpError });
+
       if (signUpError) throw signUpError;
 
       // Log signup status for debugging
@@ -61,13 +65,20 @@ export default function Signup() {
       // Important: Sign out immediately to prevent auto-login
       await supabase.auth.signOut();
       
-      // Redirect to verification page with email
-      navigate('/verify-email', { 
-        state: { 
-          email: formData.email,
-          isNewUser: true,
-        } 
-      });
+      // Show immediate success feedback
+      setSuccessMessage(
+        '✅ Account created successfully! A confirmation email has been sent to your inbox.'
+      );
+      
+      // Redirect to verification page with email after a brief delay
+      setTimeout(() => {
+        navigate('/verify-email', {
+          state: {
+            email: formData.email,
+            isNewUser: true,
+          }
+        });
+      }, 1500);
       
     } catch (err: any) {
       console.error('❌ Signup error:', err);
@@ -107,6 +118,14 @@ export default function Signup() {
             <div className="mb-6 bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-lg flex items-start gap-3 animate-in">
               <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
               <span className="text-sm">{error}</span>
+            </div>
+          )}
+
+          {/* Success Message */}
+          {successMessage && (
+            <div className="mb-6 bg-primary/10 border border-primary/20 text-primary px-4 py-3 rounded-lg flex items-start gap-3 animate-in">
+              <Info className="w-5 h-5 flex-shrink-0 mt-0.5" />
+              <span className="text-sm">{successMessage}</span>
             </div>
           )}
 
