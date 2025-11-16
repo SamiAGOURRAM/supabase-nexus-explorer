@@ -1,96 +1,80 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { AlertCircle, Mail, ArrowLeft, CheckCircle } from 'lucide-react';
+import { AlertCircle, Mail, ArrowLeft } from 'lucide-react';
 
 export default function VerifyEmail() {
-  const [loading, setLoading] = useState(true);
+  const [otp, setOtp] = useState('');
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
   const [resending, setResending] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const email = location.state?.email;
-  const customMessage = location.state?.message;
+  const password = location.state?.password;
+  const isNewUser = location.state?.isNewUser;
 
   useEffect(() => {
-    // Check if user came from a confirmation link
-    const checkEmailConfirmation = async () => {
-      try {
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        
-        if (sessionError) throw sessionError;
-        
-        if (session) {
-          // User is authenticated, email is verified
-          setSuccess(true);
-          setLoading(false);
-          
-          // Redirect to login after a short delay
-          setTimeout(() => {
-            navigate('/login', { state: { verified: true } });
-          }, 2000);
-        } else {
-          // No session yet, waiting for user to click confirmation link
-          setLoading(false);
-        }
-      } catch (err: any) {
-        console.error('❌ Session check error:', err);
-        setError(err.message);
-        setLoading(false);
-      }
-    };
-
-    checkEmailConfirmation();
-
-    // Listen for auth state changes (when user clicks the confirmation link)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && session) {
-        setSuccess(true);
-        setTimeout(() => {
-          navigate('/login', { state: { verified: true } });
-        }, 2000);
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [navigate]);
-
-  useEffect(() => {
-    if (!email && !success) {
-      // Only redirect if we don't have email and haven't succeeded
-      const timer = setTimeout(() => {
-        navigate('/signup');
-      }, 100);
-      return () => clearTimeout(timer);
+    if (!email) {
+      navigate('/signup');
     }
-  }, [email, success, navigate]);
+  }, [email, navigate]);
+
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      // Verify the OTP
+      const { data, error: verifyError } = await supabase.auth.verifyOtp({
+        email: email,
+        token: otp,
+        type: 'email',
+      });
+
+      if (verifyError) throw verifyError;
+      
+      // If this is a new user and we have a password, update it
+      if (isNewUser && password && data.session) {
+        const { error: updateError } = await supabase.auth.updateUser({
+          password: password,
+        });
+        
+        if (updateError) {
+          console.error('Password update error:', updateError);
+          // Don't throw - user is verified, just password update failed
+        }
+      }
+      
+      console.log('✅ Email verified successfully');
+      navigate('/login', { state: { verified: true } });
+      
+    } catch (err: any) {
+      console.error('❌ Verification error:', err);
+      setError(err.message || 'Invalid verification code');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleResend = async () => {
-    if (!email) {
-      setError('Email address not found. Please sign up again.');
-      return;
-    }
-
     setResending(true);
     setError('');
     
     try {
-      const { error: resendError } = await supabase.auth.resend({
-        type: 'signup',
+      const { error: resendError } = await supabase.auth.signInWithOtp({
         email: email,
         options: {
-          emailRedirectTo: `${window.location.origin}/verify-email`,
+          shouldCreateUser: false,
         },
       });
       
       if (resendError) throw resendError;
-      alert('✅ Confirmation link resent to your email!');
+      alert('New verification code sent to your email!');
       
     } catch (err: any) {
-      setError('Failed to resend confirmation link: ' + err.message);
+      setError('Failed to resend code: ' + err.message);
     } finally {
       setResending(false);
     }
@@ -109,96 +93,74 @@ export default function VerifyEmail() {
           Back to signup
         </button>
 
-        {loading ? (
-          <div className="text-center py-8">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Checking verification status...</p>
+        {/* Icon */}
+        <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+          <Mail className="w-8 h-8 text-primary" />
+        </div>
+
+        {/* Title */}
+        <h2 className="text-2xl font-bold text-foreground text-center mb-2">
+          Verify Your Email
+        </h2>
+        <p className="text-sm text-muted-foreground text-center mb-6">
+          We sent a 6-digit code to
+          <br />
+          <span className="font-mono text-foreground">{email}</span>
+        </p>
+
+        {/* Error Message */}
+        {error && (
+          <div className="mb-4 bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-lg flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+            <span className="text-sm">{error}</span>
           </div>
-        ) : success ? (
-          <>
-            {/* Success Icon */}
-            <div className="w-16 h-16 bg-success/10 rounded-full flex items-center justify-center mx-auto mb-4">
-              <CheckCircle className="w-8 h-8 text-success" />
-            </div>
-
-            {/* Success Message */}
-            <h2 className="text-2xl font-bold text-foreground text-center mb-2">
-              Email Verified!
-            </h2>
-            <p className="text-sm text-muted-foreground text-center mb-6">
-              Your email has been successfully verified.
-              <br />
-              Redirecting you to login...
-            </p>
-          </>
-        ) : (
-          <>
-            {/* Icon */}
-            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Mail className="w-8 h-8 text-primary" />
-            </div>
-
-            {/* Title */}
-            <h2 className="text-2xl font-bold text-foreground text-center mb-2">
-              Check Your Email
-            </h2>
-            
-            {/* Warning/Info Message */}
-            {customMessage && (
-              <div className="mb-4 bg-warning/10 border border-warning/20 text-warning px-4 py-3 rounded-lg">
-                <p className="text-sm font-medium text-center">{customMessage}</p>
-              </div>
-            )}
-            
-            <p className="text-sm text-muted-foreground text-center mb-6">
-              We sent a confirmation link to
-              <br />
-              <span className="font-mono text-foreground">{email}</span>
-            </p>
-
-            {/* Error Message */}
-            {error && (
-              <div className="mb-4 bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-lg flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                <span className="text-sm">{error}</span>
-              </div>
-            )}
-
-            {/* Instructions */}
-            <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 mb-6">
-              <h3 className="font-semibold text-foreground mb-2">Next Steps:</h3>
-              <ol className="text-sm text-muted-foreground space-y-2 list-decimal list-inside">
-                <li>Open your email inbox</li>
-                <li>Look for our confirmation email</li>
-                <li>Click the confirmation link in the email</li>
-                <li>You'll be automatically signed in</li>
-              </ol>
-              <div className="mt-3 pt-3 border-t border-primary/20">
-                <p className="text-xs text-primary font-medium">🧪 Local Development:</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Check <a href="http://localhost:54324" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-mono">http://localhost:54324</a> (Inbucket) to view test emails
-                </p>
-              </div>
-            </div>
-
-            {/* Resend */}
-            <div className="text-center">
-              <p className="text-sm text-muted-foreground mb-3">
-                Didn't receive the email?
-              </p>
-              <button
-                onClick={handleResend}
-                disabled={resending}
-                className="text-sm text-primary hover:underline font-medium disabled:opacity-50"
-              >
-                {resending ? 'Sending...' : 'Resend confirmation link'}
-              </button>
-              <p className="text-xs text-muted-foreground mt-3">
-                Check your spam folder if you don't see it
-              </p>
-            </div>
-          </>
         )}
+
+        {/* OTP Form */}
+        <form onSubmit={handleVerify} className="space-y-4">
+          <div>
+            <label htmlFor="otp" className="block text-sm font-medium text-foreground mb-2">
+              Verification Code
+            </label>
+            <input
+              id="otp"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={6}
+              required
+              value={otp}
+              onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+              placeholder="000000"
+              className="w-full px-4 py-3 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring transition-shadow text-center text-2xl font-mono tracking-widest"
+            />
+            <p className="text-xs text-muted-foreground mt-2 text-center">
+              Enter the 6-digit code from your email
+            </p>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading || otp.length !== 6}
+            className="w-full py-3 px-4 bg-primary text-primary-foreground rounded-lg font-medium shadow-soft hover:shadow-elegant transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? 'Verifying...' : 'Verify Email'}
+          </button>
+        </form>
+
+        {/* Resend */}
+        <div className="mt-6 text-center">
+          <p className="text-sm text-muted-foreground mb-2">
+            Didn't receive the code?
+          </p>
+          <button
+            onClick={handleResend}
+            disabled={resending}
+            className="text-sm text-primary hover:underline font-medium disabled:opacity-50"
+          >
+            {resending ? 'Sending...' : 'Resend verification code'}
+          </button>
+        </div>
       </div>
     </div>
   );

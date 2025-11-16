@@ -13,7 +13,6 @@ export default function Signup() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -38,47 +37,36 @@ export default function Signup() {
       // Determine role based on email domain
       const role = isGmail ? 'test_student' : 'student';
 
-      // Use signUp with email confirmation
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+      // Instead of signUp, use signInWithOtp with createUser option
+      // This forces OTP flow and creates the user
+      const { data, error: otpError } = await supabase.auth.signInWithOtp({
         email: formData.email,
-        password: formData.password,
         options: {
-          emailRedirectTo: `${window.location.origin}/verify-email`,
+          shouldCreateUser: true,
           data: {
             full_name: formData.full_name,
             role: role,
             phone: formData.phone || null,
             is_deprioritized: formData.is_deprioritized,
+            // Store password for later (after OTP verification)
+            temp_password: formData.password,
           },
         },
       });
 
-      // Log full response for debugging (server-side email send attempts appear in auth logs)
-      console.debug('signUp response:', { signUpData, signUpError });
+      if (otpError) throw otpError;
 
-      if (signUpError) throw signUpError;
-
-      // Log signup status for debugging
-      console.log('✅ Signup successful for:', formData.email);
-      console.log('📧 Email confirmation required - Check your inbox');
+      console.log('✅ OTP sent to:', formData.email);
+      console.log('📧 Check your email for 6-digit code');
       
-      // Important: Sign out immediately to prevent auto-login
-      await supabase.auth.signOut();
-      
-      // Show immediate success feedback
-      setSuccessMessage(
-        '✅ Account created successfully! A confirmation email has been sent to your inbox.'
-      );
-      
-      // Redirect to verification page with email after a brief delay
-      setTimeout(() => {
-        navigate('/verify-email', {
-          state: {
-            email: formData.email,
-            isNewUser: true,
-          }
-        });
-      }, 1500);
+      // Pass both email and password to verification page
+      navigate('/verify-email', { 
+        state: { 
+          email: formData.email,
+          password: formData.password,
+          isNewUser: true,
+        } 
+      });
       
     } catch (err: any) {
       console.error('❌ Signup error:', err);
@@ -118,14 +106,6 @@ export default function Signup() {
             <div className="mb-6 bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-lg flex items-start gap-3 animate-in">
               <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
               <span className="text-sm">{error}</span>
-            </div>
-          )}
-
-          {/* Success Message */}
-          {successMessage && (
-            <div className="mb-6 bg-primary/10 border border-primary/20 text-primary px-4 py-3 rounded-lg flex items-start gap-3 animate-in">
-              <Info className="w-5 h-5 flex-shrink-0 mt-0.5" />
-              <span className="text-sm">{successMessage}</span>
             </div>
           )}
 
