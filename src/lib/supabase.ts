@@ -22,5 +22,8 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
     storage: localStorage,        // Persist sessions in browser localStorage
     persistSession: true,         // Keep user logged in across page reloads
     autoRefreshToken: true,       // Automatically refresh expired tokens
+    // Disable auto-confirmation - require email verification
+    detectSessionInUrl: true,     // Detect auth tokens in URL (from email links)
+    flowType: 'pkce',            // Use PKCE flow for better security
   }
 });

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Clock, Calendar, MapPin, UserPlus, Upload } from 'lucide-react';
+import { Clock, Calendar, MapPin, UserPlus, Upload, Settings } from 'lucide-react';
 import { formatDate } from '@/utils/dateUtils';
 
 /**
@@ -55,6 +55,13 @@ export default function EventHeader({
           </div>
         </div>
         <div className="flex gap-3">
+          <Link
+            to="/admin/events"
+            className="flex items-center gap-2 px-4 py-2 bg-card border border-border text-foreground rounded-lg hover:bg-accent transition-colors"
+          >
+            <Settings className="w-4 h-4" />
+            <span>Manage Events</span>
+          </Link>
           <Link
             to={`/admin/events/${event.id}/quick-invite`}
             className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"

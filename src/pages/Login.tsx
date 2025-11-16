@@ -57,6 +57,12 @@
 
         if (error) throw error;
 
+        // Check if email is verified
+        if (!data.user.email_confirmed_at) {
+          await supabase.auth.signOut();
+          throw new Error('⚠️ Email not verified! Please check your inbox and click the confirmation link before you can sign in.');
+        }
+
         const { data: profile } = await supabase
           .from('profiles')
           .select('role')

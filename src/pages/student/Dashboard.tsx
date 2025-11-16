@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { useEmailVerification } from '@/hooks/useEmailVerification';
 import { Calendar, Briefcase, User, LogOut, Book, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 type EventPhaseInfo = {
@@ -19,15 +20,31 @@ export default function StudentDashboard() {
   const [stats, setStats] = useState({ bookings: 0, offers: 0 });
   const [phaseInfo, setPhaseInfo] = useState<EventPhaseInfo | null>(null);
   const navigate = useNavigate();
+  
+  // Check email verification status
+  const { isVerified, isLoading: verificationLoading } = useEmailVerification();
 
   useEffect(() => {
-    checkStudentAndLoadData();
-  }, []);
+    // Don't load data until verification check is complete
+    if (!verificationLoading) {
+      checkStudentAndLoadData();
+    }
+  }, [verificationLoading]);
 
   const checkStudentAndLoadData = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       navigate('/login');
+      return;
+    }
+    
+    // Double-check email verification
+    if (!user.email_confirmed_at) {
+      console.warn('⚠️ Unverified user detected, signing out...');
+      await supabase.auth.signOut();
+      navigate('/verify-email', {
+        state: { email: user.email },
+      });
       return;
     }
 

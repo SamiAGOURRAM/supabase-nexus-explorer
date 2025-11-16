@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { Calendar, Users, ArrowLeft, Clock, Target } from 'lucide-react';
+import { Calendar, Users, ArrowLeft, Clock, Target, Trash2, Power } from 'lucide-react';
 import type { Event } from '@/types/database';
 
 export default function AdminEvents() {
@@ -12,7 +12,11 @@ export default function AdminEvents() {
     name: '',
     date: '',
     description: '',
-    location: ''
+    location: '',
+    current_phase: 0,
+    phase1_max_bookings: 3,
+    phase2_max_bookings: 6,
+    phase_mode: 'manual'
   });
   const navigate = useNavigate();
 
@@ -65,11 +69,53 @@ export default function AdminEvents() {
       if (error) throw error;
 
       setShowCreateForm(false);
-      setFormData({ name: '', date: '', description: '', location: '' });
+      setFormData({ 
+        name: '', 
+        date: '', 
+        description: '', 
+        location: '',
+        current_phase: 0,
+        phase1_max_bookings: 3,
+        phase2_max_bookings: 6,
+        phase_mode: 'manual'
+      });
       await loadEvents();
       alert('✅ Event created successfully!');
     } catch (err: any) {
       alert('Error creating event: ' + err.message);
+    }
+  };
+
+  const handleToggleActive = async (eventId: string, currentStatus: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('events')
+        .update({ is_active: !currentStatus })
+        .eq('id', eventId);
+
+      if (error) throw error;
+      await loadEvents();
+    } catch (err: any) {
+      alert('Error toggling event status: ' + err.message);
+    }
+  };
+
+  const handleDeleteEvent = async (eventId: string, eventName: string) => {
+    if (!confirm(`Are you sure you want to delete "${eventName}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('events')
+        .delete()
+        .eq('id', eventId);
+
+      if (error) throw error;
+      await loadEvents();
+      alert('✅ Event deleted successfully!');
+    } catch (err: any) {
+      alert('Error deleting event: ' + err.message);
     }
   };
 
@@ -158,6 +204,55 @@ export default function AdminEvents() {
                   placeholder="Event description..."
                 />
               </div>
+
+              {/* Phase Configuration */}
+              <div className="border-t border-border pt-4 mt-4">
+                <h3 className="text-lg font-semibold text-foreground mb-3">Phase Configuration</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">
+                      Initial Phase
+                    </label>
+                    <select
+                      value={formData.current_phase}
+                      onChange={(e) => setFormData({ ...formData, current_phase: parseInt(e.target.value) })}
+                      className="w-full px-3 py-2 bg-background border border-border rounded-md focus:ring-2 focus:ring-primary"
+                    >
+                      <option value={0}>Phase 0 - Closed</option>
+                      <option value={1}>Phase 1 - Priority</option>
+                      <option value={2}>Phase 2 - Open</option>
+                    </select>
+                    <p className="text-xs text-muted-foreground mt-1">Starting phase for bookings</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">
+                      Phase 1 Max Bookings
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={formData.phase1_max_bookings}
+                      onChange={(e) => setFormData({ ...formData, phase1_max_bookings: parseInt(e.target.value) })}
+                      className="w-full px-3 py-2 bg-background border border-border rounded-md focus:ring-2 focus:ring-primary"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">Max interviews per student</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">
+                      Phase 2 Max Bookings
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={formData.phase2_max_bookings}
+                      onChange={(e) => setFormData({ ...formData, phase2_max_bookings: parseInt(e.target.value) })}
+                      className="w-full px-3 py-2 bg-background border border-border rounded-md focus:ring-2 focus:ring-primary"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">Should be ≥ Phase 1 limit</p>
+                  </div>
+                </div>
+              </div>
+
               <button
                 type="submit"
                 className="bg-success text-white px-6 py-2 rounded-lg hover:bg-success/90 transition font-medium"
@@ -195,13 +290,29 @@ export default function AdminEvents() {
                       </p>
                     </div>
                   </div>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    event.is_active
-                      ? 'bg-success/10 text-success'
-                      : 'bg-muted text-muted-foreground'
-                  }`}>
-                    {event.is_active ? 'Active' : 'Inactive'}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                      event.is_active
+                        ? 'bg-success/10 text-success'
+                        : 'bg-muted text-muted-foreground'
+                    }`}>
+                      {event.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                    <button
+                      onClick={() => handleToggleActive(event.id, event.is_active)}
+                      className="p-2 hover:bg-muted rounded-lg transition-colors"
+                      title={event.is_active ? 'Deactivate event' : 'Activate event'}
+                    >
+                      <Power className={`w-5 h-5 ${event.is_active ? 'text-success' : 'text-muted-foreground'}`} />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteEvent(event.id, event.name)}
+                      className="p-2 hover:bg-destructive/10 rounded-lg transition-colors"
+                      title="Delete event"
+                    >
+                      <Trash2 className="w-5 h-5 text-destructive" />
+                    </button>
+                  </div>
                 </div>
                 
                 {event.description && (

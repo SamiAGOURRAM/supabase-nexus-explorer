@@ -37,33 +37,34 @@ export default function Signup() {
       // Determine role based on email domain
       const role = isGmail ? 'test_student' : 'student';
 
-      // Instead of signUp, use signInWithOtp with createUser option
-      // This forces OTP flow and creates the user
-      const { data, error: otpError } = await supabase.auth.signInWithOtp({
+      // Use signUp with email confirmation instead of OTP
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email: formData.email,
+        password: formData.password,
         options: {
-          shouldCreateUser: true,
+          emailRedirectTo: `${window.location.origin}/verify-email`,
           data: {
             full_name: formData.full_name,
             role: role,
             phone: formData.phone || null,
             is_deprioritized: formData.is_deprioritized,
-            // Store password for later (after OTP verification)
-            temp_password: formData.password,
           },
         },
       });
 
-      if (otpError) throw otpError;
+      if (signUpError) throw signUpError;
 
-      console.log('✅ OTP sent to:', formData.email);
-      console.log('📧 Check your email for 6-digit code');
+      // Log signup status for debugging
+      console.log('✅ Signup successful for:', formData.email);
+      console.log('📧 Email confirmation required - Check your inbox');
       
-      // Pass both email and password to verification page
+      // Important: Sign out immediately to prevent auto-login
+      await supabase.auth.signOut();
+      
+      // Redirect to verification page with email
       navigate('/verify-email', { 
         state: { 
           email: formData.email,
-          password: formData.password,
           isNewUser: true,
         } 
       });

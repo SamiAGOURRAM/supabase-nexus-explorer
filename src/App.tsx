@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Suspense, lazy } from "react";
 import LoadingScreen from "./components/shared/LoadingScreen";
+import ProtectedRoute from "./components/shared/ProtectedRoute";
 import VerifyEmail from '@/pages/VerifyEmail';
 
 // Lazy load pages for better performance
@@ -66,13 +67,13 @@ function App() {
           <Route path="/admin/events/:id/students" element={<EventStudents />} />
           <Route path="/admin/companies" element={<AdminCompanies />} />
           
-          {/* Student Routes */}
-          <Route path="/student" element={<StudentDashboard />} />
-          <Route path="/student/offers" element={<StudentOffers />} />
-          <Route path="/student/offers/:id" element={<StudentOfferDetail />} />
-          <Route path="/student/companies/:companyId" element={<StudentCompanyProfile />} />
-          <Route path="/student/bookings" element={<StudentBookings />} />
-          <Route path="/student/profile" element={<StudentProfile />} />
+          {/* Student Routes - Protected & Require Email Verification */}
+          <Route path="/student" element={<ProtectedRoute><StudentDashboard /></ProtectedRoute>} />
+          <Route path="/student/offers" element={<ProtectedRoute><StudentOffers /></ProtectedRoute>} />
+          <Route path="/student/offers/:id" element={<ProtectedRoute><StudentOfferDetail /></ProtectedRoute>} />
+          <Route path="/student/companies/:companyId" element={<ProtectedRoute><StudentCompanyProfile /></ProtectedRoute>} />
+          <Route path="/student/bookings" element={<ProtectedRoute><StudentBookings /></ProtectedRoute>} />
+          <Route path="/student/profile" element={<ProtectedRoute><StudentProfile /></ProtectedRoute>} />
           <Route path="/verify-email" element={<VerifyEmail />} />
           
           {/* Company Routes */}
