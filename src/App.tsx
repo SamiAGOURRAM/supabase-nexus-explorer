@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Suspense, lazy } from "react";
 import LoadingScreen from "./components/shared/LoadingScreen";
 import ProtectedRoute from "./components/shared/ProtectedRoute";
+import ErrorBoundary from "./components/shared/ErrorBoundary";
 import VerifyEmail from '@/pages/VerifyEmail';
 
 // Lazy load pages for better performance
@@ -14,6 +15,9 @@ const Offers = lazy(() => import("./pages/Offers"));
 const AdminDashboard = lazy(() => import("./pages/admin/Dashboard"));
 const AdminEvents = lazy(() => import("./pages/admin/Events"));
 const AdminCompanies = lazy(() => import("./pages/admin/Companies"));
+const AdminStudents = lazy(() => import("./pages/admin/Students"));
+const AdminOffers = lazy(() => import("./pages/admin/Offers"));
+const AdminBookings = lazy(() => import("./pages/admin/Bookings"));
 const QuickInvite = lazy(() => import("./pages/admin/events/QuickInvite"));
 const Participants = lazy(() => import("./pages/admin/events/Participants"));
 const Sessions = lazy(() => import("./pages/admin/events/Sessions"));
@@ -42,9 +46,10 @@ const StudentProfileView = lazy(() => import("./pages/company/students/StudentPr
 
 function App() {
   return (
-    <BrowserRouter>
-      <Suspense fallback={<LoadingScreen />}>
-        <Routes>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <Suspense fallback={<LoadingScreen />}>
+          <Routes>
           {/* Public Routes */}
           <Route path="/" element={<Navigate to="/offers" replace />} />
         <Route path="/login" element={<Login />} />
@@ -66,6 +71,9 @@ function App() {
           <Route path="/admin/events/:id/companies/:companyId" element={<CompanyDetail />} />
           <Route path="/admin/events/:id/students" element={<EventStudents />} />
           <Route path="/admin/companies" element={<AdminCompanies />} />
+          <Route path="/admin/students" element={<AdminStudents />} />
+          <Route path="/admin/offers" element={<AdminOffers />} />
+          <Route path="/admin/bookings" element={<AdminBookings />} />
           
           {/* Student Routes - Protected & Require Email Verification */}
           <Route path="/student" element={<ProtectedRoute><StudentDashboard /></ProtectedRoute>} />
@@ -91,9 +99,10 @@ function App() {
           
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/offers" replace />} />
-        </Routes>
-      </Suspense>
-    </BrowserRouter>
+          </Routes>
+        </Suspense>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }
 

@@ -48,11 +48,17 @@ export default function StudentDashboard() {
       return;
     }
 
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', user.id)
-      .single();
+      .maybeSingle(); // Use maybeSingle() to avoid 406 errors
+
+    if (profileError) {
+      console.error('Profile fetch error:', profileError);
+      navigate('/offers');
+      return;
+    }
 
     if (!profile || profile.role !== 'student') {
       navigate('/offers');

@@ -90,31 +90,46 @@ export function useCompanyStats(companyId: string | null, eventId: string | null
         .eq('event_id', eventId)
         .eq('is_active', true);
 
-      // Get students scheduled for this event
-      const { count: studentsScheduled } = await supabase
-        .from('bookings')
-        .select('*, event_slots!inner(company_id, event_id)', { count: 'exact', head: true })
-        .eq('event_slots.company_id', companyId)
-        .eq('event_slots.event_id', eventId)
-        .eq('status', 'confirmed');
+      // First get slot IDs for this event and company
+      const { data: companyEventSlots } = await supabase
+        .from('event_slots')
+        .select('id')
+        .eq('event_id', eventId)
+        .eq('company_id', companyId)
+        .eq('is_active', true);
+
+      const slotIds = companyEventSlots?.map(s => s.id) || [];
+
+      // Get students scheduled for this event - only if we have slots
+      let studentsScheduled = 0;
+      let bookings: any[] = [];
+      if (slotIds.length > 0) {
+        const { count } = await supabase
+          .from('bookings')
+          .select('*', { count: 'exact', head: true })
+          .in('slot_id', slotIds)
+          .eq('status', 'confirmed');
+        studentsScheduled = count || 0;
+
+        // Get scheduled students for this event
+        const { data } = await supabase
+          .from('bookings')
+          .select(`
+            id,
+            student_id,
+            slot_id,
+            event_slots!inner(start_time, end_time, location, company_id, event_id, offer_id),
+            profiles!inner(full_name, email, phone, cv_url)
+          `)
+          .in('slot_id', slotIds)
+          .eq('status', 'confirmed');
+        bookings = data || [];
+      }
 
       // Calculate utilization rate
       const utilizationRate = totalSlots && totalSlots > 0 
-        ? Math.round((studentsScheduled || 0) / totalSlots * 100) 
+        ? Math.round(studentsScheduled / totalSlots * 100) 
         : 0;
-
-      // Get scheduled students for this event
-      const { data: bookings } = await supabase
-        .from('bookings')
-        .select(`
-          id,
-          student_id,
-          event_slots!inner(start_time, end_time, location, company_id, event_id, offer_id),
-          profiles!inner(full_name, email, phone, cv_url)
-        `)
-        .eq('event_slots.company_id', companyId)
-        .eq('event_slots.event_id', eventId)
-        .eq('status', 'confirmed');
 
       const offerIds = [...new Set(bookings?.map((b: any) => b.event_slots?.offer_id).filter(Boolean))];
       const { data: offers } = await supabase

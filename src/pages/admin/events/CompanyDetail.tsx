@@ -54,11 +54,17 @@ export default function CompanyDetail() {
         return
       }
 
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', user.id)
-        .single()
+        .maybeSingle(); // Use maybeSingle() to avoid 406 errors
+
+      if (profileError) {
+        console.error('Profile fetch error:', profileError);
+        navigate('/login');
+        return;
+      }
 
       if (!profile || profile.role !== 'admin') {
         navigate('/offers')
@@ -98,32 +104,46 @@ export default function CompanyDetail() {
       .eq('event_id', eventId)
       .eq('company_id', companyId)
 
-    const { data: bookingsData } = await supabase
-      .from('interview_bookings')
-      .select(`
-        id,
-        student_id,
-        slot_id,
-        profiles!inner (
-          id,
-          full_name,
-          email,
-          specialization,
-          graduation_year
-        ),
-        event_slots!inner (
-          start_time,
-          end_time,
-          speed_recruiting_sessions!inner (
-            name
-          )
-        )
-      `)
-      .eq('event_slots.event_id', eventId)
-      .eq('event_slots.company_id', companyId)
-      .eq('status', 'confirmed')
+    // First get slot IDs for this event and company
+    const { data: eventSlots } = await supabase
+      .from('event_slots')
+      .select('id')
+      .eq('event_id', eventId)
+      .eq('company_id', companyId)
+      .eq('is_active', true);
 
-    if (bookingsData) {
+    const slotIds = eventSlots?.map(s => s.id) || [];
+
+    // Then query bookings using slot IDs - only if we have slots
+    let bookingsData: any[] = [];
+    if (slotIds.length > 0) {
+      const { data } = await supabase
+        .from('interview_bookings')
+        .select(`
+          id,
+          student_id,
+          slot_id,
+          profiles!inner (
+            id,
+            full_name,
+            email,
+            specialization,
+            graduation_year
+          ),
+          event_slots!inner (
+            start_time,
+            end_time,
+            speed_recruiting_sessions!inner (
+              name
+            )
+          )
+        `)
+        .in('slot_id', slotIds)
+        .eq('status', 'confirmed');
+      bookingsData = data || [];
+    }
+
+    if (bookingsData && bookingsData.length > 0) {
       const formattedBookings = bookingsData.map((b: any) => ({
         student_id: b.profiles.id,
         student_name: b.profiles.full_name,
@@ -142,6 +162,14 @@ export default function CompanyDetail() {
         total_slots: totalSlots || 0,
         booked_slots: formattedBookings.length,
         unique_students: uniqueStudents
+      })
+    } else {
+      // No bookings found - set empty arrays
+      setBookings([])
+      setStats({
+        total_slots: totalSlots || 0,
+        booked_slots: 0,
+        unique_students: 0
       })
     }
   }

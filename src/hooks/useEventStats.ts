@@ -51,33 +51,77 @@ export function useEventStats(eventId: string | null) {
         supabase.from('event_slots').select('*', { count: 'exact', head: true }).eq('event_id', eventId).eq('is_active', true)
       ]);
 
-      // Get bookings count
-      const { count: eventBookings } = await supabase
-        .from('bookings')
-        .select('*, event_slots!inner(event_id)', { count: 'exact', head: true })
-        .eq('event_slots.event_id', eventId)
-        .eq('status', 'confirmed');
+      // First, get all slot IDs for this event
+      const { data: eventSlots } = await supabase
+        .from('event_slots')
+        .select('id')
+        .eq('event_id', eventId)
+        .eq('is_active', true);
 
-      // Get unique students who have bookings for this event
-      const { data: studentBookings } = await supabase
-        .from('bookings')
-        .select('student_id, event_slots!inner(event_id)')
-        .eq('event_slots.event_id', eventId)
-        .eq('status', 'confirmed');
+      const slotIds = eventSlots?.map(s => s.id) || [];
 
-      const uniqueStudents = new Set(studentBookings?.map(b => b.student_id) || []).size;
+      // Get bookings count - query by slot IDs instead of nested relation
+      // Skip if no slots exist
+      let eventBookings = 0;
+      let studentBookings: any[] = [];
+      if (slotIds.length > 0) {
+        const { count } = await supabase
+          .from('bookings')
+          .select('*', { count: 'exact', head: true })
+          .in('slot_id', slotIds)
+          .eq('status', 'confirmed');
+        eventBookings = count || 0;
 
-      // Get top company by bookings - reversed query to avoid 400 error
-      const { data: confirmedBookings } = await supabase
-        .from('bookings')
-        .select('event_slots!inner(company_id, event_id, companies!inner(company_name))')
-        .eq('event_slots.event_id', eventId)
-        .eq('status', 'confirmed');
+        // Get unique students who have bookings for this event
+        const { data } = await supabase
+          .from('bookings')
+          .select('student_id')
+          .in('slot_id', slotIds)
+          .eq('status', 'confirmed');
+        studentBookings = data || [];
+      }
 
+      const uniqueStudents = new Set(studentBookings.map(b => b.student_id)).size;
+
+      // Get top company by bookings - query slots first, then bookings
+      // Skip if no slots exist
+      let confirmedBookings: any[] = [];
+      if (slotIds.length > 0) {
+        const { data } = await supabase
+          .from('bookings')
+          .select('slot_id')
+          .in('slot_id', slotIds)
+          .eq('status', 'confirmed');
+        confirmedBookings = data || [];
+      }
+
+      // Get slot details with company info - only if we have bookings
+      const bookingSlotIds = confirmedBookings.map(b => b.slot_id);
+      let slotsWithCompanies: any[] = [];
+      if (bookingSlotIds.length > 0) {
+        const { data } = await supabase
+          .from('event_slots')
+          .select(`
+            id,
+            company_id,
+            companies!inner (
+              company_name
+            )
+          `)
+          .in('id', bookingSlotIds);
+        slotsWithCompanies = data || [];
+      }
+
+      // Count bookings per company
       const companyCounts: Record<string, { name: string; count: number }> = {};
-      confirmedBookings?.forEach((booking: any) => {
-        const companyId = booking.event_slots?.company_id;
-        const companyName = booking.event_slots?.companies?.company_name || 'Unknown';
+      const slotCompanyMap = new Map(slotsWithCompanies.map(s => [s.id, s]));
+      
+      confirmedBookings.forEach((booking: any) => {
+        const slot = slotCompanyMap.get(booking.slot_id);
+        if (!slot) return;
+        
+        const companyId = slot.company_id;
+        const companyName = (slot.companies as any)?.company_name || 'Unknown';
         if (!companyCounts[companyId]) {
           companyCounts[companyId] = { name: companyName, count: 0 };
         }
@@ -85,7 +129,7 @@ export function useEventStats(eventId: string | null) {
       });
 
       const topCompanyEntry = Object.values(companyCounts).sort((a, b) => b.count - a.count)[0];
-      const availableSlots = (totalSlots || 0) - (eventBookings || 0);
+      const availableSlots = (totalSlots || 0) - eventBookings;
 
       setStats({
         event_companies: eventCompanies || 0,

@@ -35,31 +35,37 @@ export default function Signup() {
       }
 
       // Determine role based on email domain
-      const role = isGmail ? 'test_student' : 'student';
+      // Note: Database enum only supports 'student', 'company', 'admin'
+      // We use 'student' for both UM6P and Gmail accounts
+      const role = 'student';
 
-      // Instead of signUp, use signInWithOtp with createUser option
-      // This forces OTP flow and creates the user
-      const { data, error: otpError } = await supabase.auth.signInWithOtp({
+      // Use signUp to create new user and send OTP code
+      // This will create the user and send a 6-digit OTP code to their email
+      const { data, error: signUpError } = await supabase.auth.signUp({
         email: formData.email,
+        password: formData.password,
         options: {
-          shouldCreateUser: true,
+          emailRedirectTo: `${window.location.origin}/verify-email`,
           data: {
             full_name: formData.full_name,
             role: role,
             phone: formData.phone || null,
             is_deprioritized: formData.is_deprioritized,
-            // Store password for later (after OTP verification)
-            temp_password: formData.password,
           },
         },
       });
 
-      if (otpError) throw otpError;
+      if (signUpError) throw signUpError;
 
-      console.log('✅ OTP sent to:', formData.email);
-      console.log('📧 Check your email for 6-digit code');
+      // Check if user was created and OTP was sent
+      if (!data.user) {
+        throw new Error('Failed to create user account');
+      }
+
+      console.log('✅ User created, OTP sent to:', formData.email);
+      console.log('📧 Check your email for 6-digit verification code');
       
-      // Pass both email and password to verification page
+      // Navigate to verification page
       navigate('/verify-email', { 
         state: { 
           email: formData.email,
@@ -96,7 +102,7 @@ export default function Signup() {
                 Companies: Registration is by invitation only. Contact the event administrator.
               </p>
               <p className="text-xs text-orange-600 mt-1 font-medium">
-                🧪 Testing: Gmail accounts allowed with test_student role
+                🧪 Testing: Gmail accounts allowed for testing purposes
               </p>
             </div>
           </div>

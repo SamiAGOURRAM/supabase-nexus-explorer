@@ -34,11 +34,17 @@ export function useAuth(requiredRole?: 'admin' | 'company' | 'student') {
         return;
       }
 
-      const { data: userProfile } = await supabase
+      const { data: userProfile, error: profileError } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', currentUser.id)
-        .single();
+        .maybeSingle(); // Use maybeSingle() to avoid 406 errors if profile doesn't exist
+
+      if (profileError) {
+        console.error('Profile fetch error:', profileError);
+        navigate('/login');
+        return;
+      }
 
       if (!userProfile) {
         navigate('/login');

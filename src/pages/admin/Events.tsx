@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { Calendar, Users, ArrowLeft, Clock, Target, Trash2, Power } from 'lucide-react';
+import { Calendar, Users, Clock, Target, Trash2, Power } from 'lucide-react';
 import type { Event } from '@/types/database';
+import AdminLayout from '@/components/admin/AdminLayout';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function AdminEvents() {
+  const { signOut } = useAuth('admin');
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -31,11 +34,17 @@ export default function AdminEvents() {
       return;
     }
 
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', user.id)
-      .single();
+      .maybeSingle(); // Use maybeSingle() to avoid 406 errors
+
+    if (profileError) {
+      console.error('Profile fetch error:', profileError);
+      navigate('/login');
+      return;
+    }
 
     if (!profile || profile.role !== 'admin') {
       navigate('/offers');
@@ -120,36 +129,25 @@ export default function AdminEvents() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="bg-card border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link to="/admin" className="text-muted-foreground hover:text-foreground">
-                <ArrowLeft className="w-5 h-5" />
-              </Link>
-              <div>
-                <h1 className="text-2xl font-bold text-foreground">Events Management</h1>
-                <p className="text-sm text-muted-foreground mt-1">Manage speed recruiting events</p>
-              </div>
+    <AdminLayout onSignOut={signOut}>
+      <div className="p-8">
+        <div className="max-w-7xl mx-auto">
+          {/* Header */}
+          <div className="mb-8 flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-foreground mb-2">Events Management</h1>
+              <p className="text-muted-foreground">Create and manage recruitment events</p>
             </div>
+            <button
+              onClick={() => setShowCreateForm(!showCreateForm)}
+              className="bg-primary text-primary-foreground px-6 py-3 rounded-lg hover:bg-primary/90 transition font-medium"
+            >
+              {showCreateForm ? '✕ Cancel' : '+ Create New Event'}
+            </button>
           </div>
-        </div>
-      </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Create Event Button */}
-        <div className="mb-6">
-          <button
-            onClick={() => setShowCreateForm(!showCreateForm)}
-            className="bg-primary text-primary-foreground px-6 py-3 rounded-lg hover:bg-primary/90 transition font-medium"
-          >
-            {showCreateForm ? '✕ Cancel' : '+ Create New Event'}
-          </button>
-        </div>
-
-        {/* Create Event Form */}
-        {showCreateForm && (
+          {/* Create Event Form */}
+          {showCreateForm && (
           <div className="bg-card rounded-xl border border-border p-6 mb-8">
             <h2 className="text-xl font-semibold text-foreground mb-4">Create New Event</h2>
             <form onSubmit={handleCreateEvent} className="space-y-4">
@@ -375,7 +373,8 @@ export default function AdminEvents() {
             ))}
           </div>
         )}
-      </main>
-    </div>
+        </div>
+      </div>
+    </AdminLayout>
   );
 }

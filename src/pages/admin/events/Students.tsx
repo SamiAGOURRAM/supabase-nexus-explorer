@@ -46,11 +46,17 @@ export default function EventStudents() {
         return
       }
 
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', user.id)
-        .single()
+        .maybeSingle(); // Use maybeSingle() to avoid 406 errors
+
+      if (profileError) {
+        console.error('Profile fetch error:', profileError);
+        navigate('/login');
+        return;
+      }
 
       if (!profile || profile.role !== 'admin') {
         navigate('/offers')
@@ -93,32 +99,47 @@ export default function EventStudents() {
       setCompanies(uniqueCompanies)
     }
 
-    const { data: bookingsData } = await supabase
-      .from('interview_bookings')
-      .select(`
-        student_id,
-        profiles!inner (
-          id,
-          full_name,
-          email,
-          specialization,
-          graduation_year
-        ),
-        event_slots!inner (
-          company_id,
-          companies!inner (
-            id,
-            company_name
-          ),
-          speed_recruiting_sessions!inner (
-            name
-          )
-        )
-      `)
-      .eq('event_slots.event_id', eventId)
-      .eq('status', 'confirmed')
+    // First get slot IDs for this event
+    const { data: eventSlots } = await supabase
+      .from('event_slots')
+      .select('id')
+      .eq('event_id', eventId)
+      .eq('is_active', true);
 
-    if (bookingsData) {
+    const slotIds = eventSlots?.map(s => s.id) || [];
+
+    // Then query bookings using slot IDs - only if we have slots
+    let bookingsData: any[] = [];
+    if (slotIds.length > 0) {
+      const { data } = await supabase
+        .from('interview_bookings')
+        .select(`
+          student_id,
+          slot_id,
+          profiles!inner (
+            id,
+            full_name,
+            email,
+            specialization,
+            graduation_year
+          ),
+          event_slots!inner (
+            company_id,
+            companies!inner (
+              id,
+              company_name
+            ),
+            speed_recruiting_sessions!inner (
+              name
+            )
+          )
+        `)
+        .in('slot_id', slotIds)
+        .eq('status', 'confirmed');
+      bookingsData = data || [];
+    }
+
+    if (bookingsData && bookingsData.length > 0) {
       const studentMap = new Map<string, StudentWithBookings>()
 
       bookingsData.forEach((booking: any) => {
@@ -153,6 +174,9 @@ export default function EventStudents() {
       })
 
       setStudents(Array.from(studentMap.values()))
+    } else {
+      // No bookings found - set empty array
+      setStudents([])
     }
   }
 

@@ -71,11 +71,17 @@ export default function StudentOffers() {
       return;
     }
 
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', user.id)
-      .single();
+      .maybeSingle(); // Use maybeSingle() to avoid 406 errors
+
+    if (profileError) {
+      console.error('Profile fetch error:', profileError);
+      navigate('/login');
+      return;
+    }
 
     if (!profile || profile.role !== 'student') {
       navigate('/offers');
@@ -168,12 +174,14 @@ export default function StudentOffers() {
       setBookingLimit(limitData[0]);
     }
 
-    // Get all slots for this company for the selected event
+    // Get all slots for this company and offer for the selected event
+    // Slots are linked to offers via offer_id
     const { data: slotsData } = await supabase
       .from('event_slots')
-      .select('id, start_time, end_time, location, capacity')
+      .select('id, start_time, end_time, location, capacity, offer_id')
       .eq('company_id', offer.company_id)
       .eq('event_id', selectedEventId)
+      .eq('offer_id', offer.id)  // Only show slots for this specific offer
       .eq('is_active', true)
       .gte('start_time', new Date().toISOString())
       .order('start_time', { ascending: true });

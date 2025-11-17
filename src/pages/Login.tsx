@@ -17,30 +17,47 @@
     }, []);
 
     const checkUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single();
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user && user.email_confirmed_at) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .maybeSingle(); // Use maybeSingle() to avoid 406 errors if profile doesn't exist
 
-        if (profile) {
-          redirectUser(profile.role);
+          if (profile && profile.role) {
+            redirectUser(profile.role);
+          } else {
+            // If no profile, redirect to offers
+            navigate('/offers', { replace: true });
+          }
         }
+      } catch (error) {
+        console.error('Error checking user:', error);
+        // Don't redirect on error, let user login manually
       }
     };
 
     const redirectUser = (role: string) => {
       const redirect = searchParams.get('redirect');
+      
+      // If there's a redirect parameter, use it
       if (redirect) {
-        navigate(redirect);
-      } else if (role === 'admin') {
-        navigate('/admin');
+        navigate(redirect, { replace: true });
+        return;
+      }
+      
+      // Otherwise, redirect based on role
+      if (role === 'admin') {
+        navigate('/admin', { replace: true });
       } else if (role === 'company') {
-        navigate('/company');
+        navigate('/company', { replace: true });
+      } else if (role === 'student') {
+        navigate('/student', { replace: true });
       } else {
-        navigate('/student');
+        // Fallback to offers page if role is unknown
+        navigate('/offers', { replace: true });
       }
     };
 
@@ -50,12 +67,19 @@
       setLoading(true);
 
       try {
-        const { data, error } = await supabase.auth.signInWithPassword({
+        // Sign in with email and password
+        const { data, error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
 
-        if (error) throw error;
+        if (signInError) {
+          throw signInError;
+        }
+
+        if (!data.user) {
+          throw new Error('Login failed. Please try again.');
+        }
 
         // CRITICAL: Check if email is verified before allowing login
         if (!data.user.email_confirmed_at) {
@@ -72,33 +96,77 @@
           return;
         }
 
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', data.user.id)
-          .single();
+        // Wait for profile to be created by database trigger
+        // Retry up to 5 times with increasing delays
+        let profile = null;
+        let retries = 0;
+        const maxRetries = 5;
+        
+        while (retries < maxRetries && !profile) {
+          // Wait before checking (exponential backoff)
+          if (retries > 0) {
+            await new Promise(resolve => setTimeout(resolve, 500 * retries));
+          }
+          
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', data.user.id)
+            .maybeSingle(); // Use maybeSingle() to avoid 406 errors
 
-        if (profile) {
+          if (profileError) {
+            console.warn(`Profile check attempt ${retries + 1} error:`, profileError);
+          } else if (profileData) {
+            profile = profileData;
+            break;
+          }
+          
+          retries++;
+        }
+
+        // If profile still doesn't exist after retries, redirect to offers
+        // The profile should be created by the database trigger when email is confirmed
+        // If it doesn't exist, the user can still browse offers and complete their profile later
+        if (!profile) {
+          console.warn('Profile not found after retries. Profile should be created by database trigger.');
+          console.log('Redirecting to offers page - user can complete profile setup later');
+          navigate('/offers', { replace: true });
+          return;
+        }
+
+        // If profile exists, redirect based on role
+        if (profile && profile.role) {
+          console.log('✅ Login successful, user role:', profile.role);
+          
+          // Check role matches login type
           if (profile.role === 'admin') {
+            console.log('Redirecting admin to dashboard');
             redirectUser(profile.role);
             return;
           }
 
-          // Allow both real students and test_student accounts to sign in as students
-          if (loginAs === 'student' && !(profile.role === 'student' || profile.role === 'test_student')) {
+          // Allow students to sign in
+          if (loginAs === 'student' && profile.role !== 'student') {
             await supabase.auth.signOut();
             throw new Error('This account is not a student account. Please use Company Login.');
           }
+          
           if (loginAs === 'company' && profile.role !== 'company') {
             await supabase.auth.signOut();
             throw new Error('This account is not a company account. Please use Student Login.');
           }
           
+          // Redirect based on role
+          console.log('Redirecting user to role-based dashboard');
           redirectUser(profile.role);
+        } else {
+          // No profile found - redirect to offers page as fallback
+          console.warn('Profile not found after all attempts, redirecting to offers page');
+          navigate('/offers', { replace: true });
         }
       } catch (err: any) {
-        setError(err.message);
-      } finally {
+        console.error('Login error:', err);
+        setError(err.message || 'An error occurred during login. Please try again.');
         setLoading(false);
       }
     };

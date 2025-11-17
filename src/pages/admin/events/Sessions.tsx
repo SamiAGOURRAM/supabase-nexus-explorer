@@ -47,11 +47,17 @@ export default function SessionManagement() {
         return;
       }
 
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', user.id)
-        .single();
+        .maybeSingle(); // Use maybeSingle() to avoid 406 errors
+
+      if (profileError) {
+        console.error('Profile fetch error:', profileError);
+        navigate('/login');
+        return;
+      }
 
       if (!profile || profile.role !== 'admin') {
         navigate('/offers');
@@ -165,7 +171,7 @@ export default function SessionManagement() {
           });
 
         if (error) throw error;
-        alert('Session created successfully!');
+        alert('✅ Session created successfully!\n\n📊 Slots are being auto-generated for all participating companies.\n💡 You can use "Regenerate Slots" if needed.');
       }
 
       resetForm();

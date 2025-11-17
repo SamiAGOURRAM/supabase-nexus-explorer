@@ -15,3 +15,4 @@ export type { Event } from '@/hooks/useEvents';
 export type { CompanyEvent } from '@/hooks/useCompanyEvents';
 
 
+

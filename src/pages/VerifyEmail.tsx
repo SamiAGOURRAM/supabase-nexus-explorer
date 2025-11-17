@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { AlertCircle, Mail, ArrowLeft } from 'lucide-react';
+import { AlertCircle, Mail, ArrowLeft, CheckCircle2 } from 'lucide-react';
 
 export default function VerifyEmail() {
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [resending, setResending] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
@@ -26,33 +27,76 @@ export default function VerifyEmail() {
     setLoading(true);
 
     try {
-      // Verify the OTP
+      // Verify the OTP code
       const { data, error: verifyError } = await supabase.auth.verifyOtp({
         email: email,
         token: otp,
         type: 'email',
       });
 
-      if (verifyError) throw verifyError;
-      
-      // If this is a new user and we have a password, update it
-      if (isNewUser && password && data.session) {
-        const { error: updateError } = await supabase.auth.updateUser({
-          password: password,
-        });
-        
-        if (updateError) {
-          console.error('Password update error:', updateError);
-          // Don't throw - user is verified, just password update failed
-        }
+      if (verifyError) {
+        throw verifyError;
       }
-      
+
+      if (!data.session) {
+        throw new Error('Verification failed - no session created');
+      }
+
       console.log('✅ Email verified successfully');
-      navigate('/login', { state: { verified: true } });
+      
+      // Wait for profile to be created by database trigger
+      // Retry up to 5 times with increasing delays
+      let profile = null;
+      let retries = 0;
+      const maxRetries = 5;
+      
+      while (retries < maxRetries && !profile) {
+        // Wait before checking (exponential backoff)
+        if (retries > 0) {
+          await new Promise(resolve => setTimeout(resolve, 500 * retries));
+        }
+        
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', data.user.id)
+          .maybeSingle(); // Use maybeSingle() instead of single() to avoid 406 errors
+
+        if (profileError) {
+          console.warn(`Profile check attempt ${retries + 1} error:`, profileError);
+        } else if (profileData) {
+          profile = profileData;
+          break;
+        }
+        
+        retries++;
+      }
+
+      // Redirect based on user role
+      if (profile && profile.role) {
+        if (profile.role === 'admin') {
+          navigate('/admin');
+        } else if (profile.role === 'company') {
+          navigate('/company');
+        } else {
+          navigate('/student');
+        }
+      } else {
+        // If profile doesn't exist yet after retries, redirect to login
+        // The user can log in and the profile should be created by then
+        console.warn('Profile not found after verification, redirecting to login');
+        navigate('/login', { 
+          state: { 
+            verified: true, 
+            email: email,
+            message: 'Email verified! Please sign in to continue.'
+          } 
+        });
+      }
       
     } catch (err: any) {
       console.error('❌ Verification error:', err);
-      setError(err.message || 'Invalid verification code');
+      setError(err.message || 'Invalid verification code. Please check the code and try again.');
     } finally {
       setLoading(false);
     }
@@ -61,20 +105,38 @@ export default function VerifyEmail() {
   const handleResend = async () => {
     setResending(true);
     setError('');
+    setSuccess(''); // Clear any previous success message
     
     try {
+      // For new users, resend OTP using signInWithOtp
+      // For existing users trying to verify, also use signInWithOtp
       const { error: resendError } = await supabase.auth.signInWithOtp({
         email: email,
         options: {
-          shouldCreateUser: false,
+          shouldCreateUser: false, // Don't create new user, just resend OTP
         },
       });
       
-      if (resendError) throw resendError;
-      alert('New verification code sent to your email!');
+      if (resendError) {
+        // If signInWithOtp fails (user doesn't exist), try resending via resend endpoint
+        // This handles the case where user was created but needs OTP resent
+        const { error: resendError2 } = await supabase.auth.resend({
+          type: 'signup',
+          email: email,
+        });
+        
+        if (resendError2) throw resendError2;
+      }
+      
+      // Show success message
+      setError('');
+      setSuccess('New verification code sent to your email!');
+      // Clear success message after 5 seconds
+      setTimeout(() => setSuccess(''), 5000);
       
     } catch (err: any) {
-      setError('Failed to resend code: ' + err.message);
+      console.error('Resend error:', err);
+      setError('Failed to resend code: ' + (err.message || 'Unknown error'));
     } finally {
       setResending(false);
     }
@@ -106,7 +168,19 @@ export default function VerifyEmail() {
           We sent a 6-digit code to
           <br />
           <span className="font-mono text-foreground">{email}</span>
+          <br />
+          <span className="text-xs text-muted-foreground mt-2 block">
+            Check your inbox and spam folder. The code expires in 10 minutes.
+          </span>
         </p>
+
+        {/* Success Message */}
+        {success && (
+          <div className="mb-4 bg-success/10 border border-success/20 text-success px-4 py-3 rounded-lg flex items-start gap-3">
+            <CheckCircle2 className="w-5 h-5 flex-shrink-0 mt-0.5" />
+            <span className="text-sm">{success}</span>
+          </div>
+        )}
 
         {/* Error Message */}
         {error && (

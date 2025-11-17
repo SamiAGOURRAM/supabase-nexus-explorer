@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useEvents } from '@/hooks/useEvents';
 import { useEventStats } from '@/hooks/useEventStats';
 import LoadingScreen from '@/components/shared/LoadingScreen';
-import AdminHeader from '@/components/admin/dashboard/AdminHeader';
+import AdminLayout from '@/components/admin/AdminLayout';
 import EmptyState from '@/components/admin/dashboard/EmptyState';
 import EventSelector from '@/components/admin/dashboard/EventSelector';
 import EventHeader from '@/components/admin/dashboard/EventHeader';
@@ -42,10 +42,11 @@ export default function AdminDashboard() {
   // Show empty state if no events
   if (!selectedEvent) {
     return (
-      <div className="min-h-screen bg-background">
-        <AdminHeader onSignOut={signOut} />
-        <EmptyState />
-      </div>
+      <AdminLayout onSignOut={signOut}>
+        <div className="p-8">
+          <EmptyState />
+        </div>
+      </AdminLayout>
     );
   }
 
@@ -57,10 +58,9 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <AdminHeader onSignOut={signOut} />
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <AdminLayout onSignOut={signOut}>
+      <div className="p-8">
+        <div className="max-w-7xl mx-auto">
         <EventSelector
           events={events}
           selectedEventId={selectedEventId}
@@ -112,7 +112,8 @@ export default function AdminDashboard() {
             onSuccess={handleBulkImportSuccess}
           />
         )}
-      </main>
-    </div>
+        </div>
+      </div>
+    </AdminLayout>
   );
 }

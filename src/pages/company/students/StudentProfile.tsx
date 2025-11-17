@@ -57,9 +57,16 @@ export default function StudentProfile() {
       .from('profiles')
       .select('*')
       .eq('id', id)
-      .single();
+      .maybeSingle(); // Use maybeSingle() to avoid 406 errors
 
-    if (profileError || !profile) {
+    if (profileError) {
+      console.error('Profile fetch error:', profileError);
+      alert('Student not found');
+      navigate('/company/students');
+      return;
+    }
+
+    if (!profile) {
       alert('Student not found');
       navigate('/company/students');
       return;

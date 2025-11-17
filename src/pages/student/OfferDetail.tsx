@@ -174,12 +174,14 @@ export default function OfferDetail() {
       setBookingLimit(limitData[0]);
     }
 
-    // Get slots
+    // Get slots for this specific offer
+    // Slots are linked to offers via offer_id
     const { data: slotsData } = await supabase
       .from('event_slots')
-      .select('id, start_time, end_time, capacity')
+      .select('id, start_time, end_time, capacity, offer_id')
       .eq('company_id', offer.company_id)
       .eq('event_id', eventId)
+      .eq('offer_id', offer.id)  // Only show slots for this specific offer
       .eq('is_active', true)
       .gte('start_time', new Date().toISOString())
       .order('start_time', { ascending: true });

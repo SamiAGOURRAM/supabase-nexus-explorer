@@ -65,11 +65,15 @@ export default function SetPassword() {
       if (!user) throw new Error('User not found');
 
       // Check if profile exists
-      const { data: existingProfile } = await supabase
+      const { data: existingProfile, error: profileError } = await supabase
         .from('profiles')
         .select('id')
         .eq('id', user.id)
-        .single();
+        .maybeSingle(); // Use maybeSingle() to avoid 406 errors
+
+      if (profileError && profileError.code !== 'PGRST116') {
+        console.error('Profile check error:', profileError);
+      }
 
       if (!existingProfile) {
         // Create profile

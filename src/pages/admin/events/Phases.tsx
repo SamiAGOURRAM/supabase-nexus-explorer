@@ -48,11 +48,17 @@ export default function EventPhaseManagement() {
         return;
       }
 
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', user.id)
-        .single();
+        .maybeSingle(); // Use maybeSingle() to avoid 406 errors
+
+      if (profileError) {
+        console.error('Profile fetch error:', profileError);
+        navigate('/login');
+        return;
+      }
 
       if (!profile || profile.role !== 'admin') {
         navigate('/offers');
@@ -82,11 +88,30 @@ export default function EventPhaseManagement() {
     }
 
     setEvent(data);
+    
+    // Helper function to convert ISO timestamp to datetime-local format
+    const toDateTimeLocal = (timestamp: string | null | undefined): string => {
+      if (!timestamp) return '';
+      try {
+        const date = new Date(timestamp);
+        if (isNaN(date.getTime())) return '';
+        // Format as YYYY-MM-DDTHH:mm for datetime-local input
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
+      } catch {
+        return '';
+      }
+    };
+    
     setFormData({
-      phase1_start: data.phase1_start_date || '',
-      phase1_end: data.phase1_end_date || '',
-      phase2_start: data.phase2_start_date || '',
-      phase2_end: data.phase2_end_date || '',
+      phase1_start: toDateTimeLocal(data.phase1_start_date),
+      phase1_end: toDateTimeLocal(data.phase1_end_date),
+      phase2_start: toDateTimeLocal(data.phase2_start_date),
+      phase2_end: toDateTimeLocal(data.phase2_end_date),
       current_phase: data.current_phase || 0,
       phase1_max_bookings: data.phase1_max_bookings || 3,
       phase2_max_bookings: data.phase2_max_bookings || 6,
@@ -98,42 +123,62 @@ export default function EventPhaseManagement() {
     try {
       setSaving(true);
 
-      if (new Date(formData.phase1_start) >= new Date(formData.phase1_end)) {
-        alert('Phase 1 start must be before Phase 1 end');
-        return;
+      // Validate dates if they are provided
+      if (formData.phase1_start && formData.phase1_end) {
+        if (new Date(formData.phase1_start) >= new Date(formData.phase1_end)) {
+          alert('Phase 1 start must be before Phase 1 end');
+          setSaving(false);
+          return;
+        }
       }
 
-      if (new Date(formData.phase2_start) >= new Date(formData.phase2_end)) {
-        alert('Phase 2 start must be before Phase 2 end');
-        return;
+      if (formData.phase2_start && formData.phase2_end) {
+        if (new Date(formData.phase2_start) >= new Date(formData.phase2_end)) {
+          alert('Phase 2 start must be before Phase 2 end');
+          setSaving(false);
+          return;
+        }
       }
 
       if (formData.phase2_max_bookings < formData.phase1_max_bookings) {
         alert('Phase 2 limit must be ≥ Phase 1 limit');
+        setSaving(false);
         return;
       }
 
+      // Helper function to convert datetime-local to ISO string or null
+      const toTimestampOrNull = (value: string): string | null => {
+        if (!value || value.trim() === '') return null;
+        // Convert datetime-local format (YYYY-MM-DDTHH:mm) to ISO string
+        const date = new Date(value);
+        return isNaN(date.getTime()) ? null : date.toISOString();
+      };
+
+      const updateData: any = {
+        current_phase: formData.current_phase,
+        phase1_max_bookings: formData.phase1_max_bookings,
+        phase2_max_bookings: formData.phase2_max_bookings,
+        phase_mode: formData.phase_mode
+      };
+
+      // Only include date fields if they have values, otherwise set to null
+      updateData.phase1_start_date = toTimestampOrNull(formData.phase1_start);
+      updateData.phase1_end_date = toTimestampOrNull(formData.phase1_end);
+      updateData.phase2_start_date = toTimestampOrNull(formData.phase2_start);
+      updateData.phase2_end_date = toTimestampOrNull(formData.phase2_end);
+
       const { error } = await supabase
         .from('events')
-        .update({
-          phase1_start_date: formData.phase1_start,
-          phase1_end_date: formData.phase1_end,
-          phase2_start_date: formData.phase2_start,
-          phase2_end_date: formData.phase2_end,
-          current_phase: formData.current_phase,
-          phase1_max_bookings: formData.phase1_max_bookings,
-          phase2_max_bookings: formData.phase2_max_bookings,
-          phase_mode: formData.phase_mode
-        })
+        .update(updateData)
         .eq('id', eventId);
 
       if (error) throw error;
 
       alert('Phase configuration updated successfully!');
       await loadEvent();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error saving:', err);
-      alert('Error saving phase configuration');
+      alert('Error saving phase configuration: ' + (err.message || 'Unknown error'));
     } finally {
       setSaving(false);
     }
@@ -141,18 +186,28 @@ export default function EventPhaseManagement() {
 
   const getPhaseStatus = () => {
     const now = new Date();
-    const phase1Start = new Date(formData.phase1_start);
-    const phase1End = new Date(formData.phase1_end);
-    const phase2Start = new Date(formData.phase2_start);
-    const phase2End = new Date(formData.phase2_end);
+    
+    // Only parse dates if they exist and are valid
+    const phase1Start = formData.phase1_start ? new Date(formData.phase1_start) : null;
+    const phase1End = formData.phase1_end ? new Date(formData.phase1_end) : null;
+    const phase2Start = formData.phase2_start ? new Date(formData.phase2_start) : null;
+    const phase2End = formData.phase2_end ? new Date(formData.phase2_end) : null;
 
-    if (now < phase1Start) {
+    // Check if dates are valid
+    const hasValidPhase1 = phase1Start && phase1End && !isNaN(phase1Start.getTime()) && !isNaN(phase1End.getTime());
+    const hasValidPhase2 = phase2Start && phase2End && !isNaN(phase2Start.getTime()) && !isNaN(phase2End.getTime());
+
+    if (!hasValidPhase1 && !hasValidPhase2) {
+      return { status: 'not_configured', message: 'Phase dates not configured yet' };
+    }
+
+    if (hasValidPhase1 && now < phase1Start!) {
       return { status: 'upcoming', message: 'Booking has not started yet' };
-    } else if (now >= phase1Start && now < phase1End) {
+    } else if (hasValidPhase1 && now >= phase1Start! && now < phase1End!) {
       return { status: 'phase1', message: 'Currently in Phase 1 (Priority Booking)' };
-    } else if (now >= phase2Start && now < phase2End) {
+    } else if (hasValidPhase2 && now >= phase2Start! && now < phase2End!) {
       return { status: 'phase2', message: 'Currently in Phase 2 (Open Booking)' };
-    } else if (now >= phase2End) {
+    } else if (hasValidPhase2 && now >= phase2End!) {
       return { status: 'ended', message: 'Booking period has ended' };
     } else {
       return { status: 'between', message: 'Between phases' };
