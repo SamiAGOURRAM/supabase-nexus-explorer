@@ -181,6 +181,9 @@ export async function checkRateLimitDirect(
   maxAttempts: number = 5,
   windowMinutes: number = 15
 ): Promise<RateLimitResponse> {
+  // TEMPORARY: Bypass rate limiting for development
+  return { allowed: true, message: 'Rate limit check disabled for development' };
+  
   try {
     const ipAddress = await getClientIP();
 
