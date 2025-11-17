@@ -104,25 +104,65 @@ export default function EventCompanies() {
             .eq('event_id', eventId)
             .eq('company_id', company.id)
 
-          const { data: bookedSlotsData } = await supabase
+          // Get slots with bookings (using left join, not inner)
+          // Use bookings table (interview_bookings was deprecated)
+          // Query bookings separately to avoid relationship issues
+          const { data: eventSlotsData } = await supabase
             .from('event_slots')
-            .select(`
-              id,
-              interview_bookings!inner (
-                id,
-                student_id
-              )
-            `)
+            .select('id')
             .eq('event_id', eventId)
             .eq('company_id', company.id)
+            .eq('is_active', true);
 
-          const bookedSlots = bookedSlotsData?.length || 0
+          const slotIds = eventSlotsData?.map(s => s.id) || [];
           
-          const uniqueStudents = new Set(
-            bookedSlotsData?.flatMap((slot: any) => 
-              slot.interview_bookings.map((b: any) => b.student_id)
-            ) || []
-          ).size
+          let bookedSlotsData: any[] = [];
+          if (slotIds.length > 0) {
+            // Get bookings for these slots
+            const { data: bookingsData } = await supabase
+              .from('bookings')
+              .select('id, student_id, slot_id')
+              .in('slot_id', slotIds)
+              .eq('status', 'confirmed');
+            
+            // Group bookings by slot_id
+            const bookingsBySlot = new Map<string, any[]>();
+            bookingsData?.forEach(booking => {
+              const slotId = booking.slot_id;
+              if (!bookingsBySlot.has(slotId)) {
+                bookingsBySlot.set(slotId, []);
+              }
+              bookingsBySlot.get(slotId)!.push(booking);
+            });
+            
+            // Create slot data structure with bookings
+            bookedSlotsData = eventSlotsData?.map(slot => ({
+              id: slot.id,
+              bookings: bookingsBySlot.get(slot.id) || []
+            })) || [];
+          }
+          
+          const slotsError = null; // No error since we're querying directly
+          
+          let bookedSlots = 0;
+          let uniqueStudents = 0;
+          
+          if (slotsError) {
+            console.error(`Error fetching slots for company ${company.id}:`, slotsError);
+            // Continue with zero values if query fails
+          } else if (bookedSlotsData) {
+            // Count slots that have at least one booking
+            bookedSlots = bookedSlotsData.filter((slot: any) => 
+              slot.bookings && slot.bookings.length > 0
+            ).length;
+            
+            // Get unique students from all bookings
+            uniqueStudents = new Set(
+              bookedSlotsData.flatMap((slot: any) => 
+                (slot.bookings || []).map((b: any) => b.student_id)
+              )
+            ).size;
+          }
 
           return {
             ...company,
@@ -130,7 +170,7 @@ export default function EventCompanies() {
             total_slots: totalSlots || 0,
             booked_slots: bookedSlots,
             unique_students: uniqueStudents
-          }
+          };
         })
       )
 

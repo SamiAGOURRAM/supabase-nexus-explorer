@@ -5,12 +5,8 @@ import {
   Building2, 
   Users, 
   Briefcase, 
-  Settings,
   LogOut,
-  FileText,
-  Clock,
-  Target,
-  UserCheck
+  Clock
 } from 'lucide-react';
 
 interface AdminSidebarProps {
@@ -58,7 +54,7 @@ export default function AdminSidebar({ onSignOut }: AdminSidebarProps) {
   ];
 
   return (
-    <aside className="w-64 bg-card border-r border-border min-h-screen flex flex-col">
+    <aside className="w-64 bg-card border-r border-border min-h-screen flex flex-col sticky top-0">
       {/* Logo/Header */}
       <div className="p-6 border-b border-border">
         <h2 className="text-xl font-bold text-foreground">Admin Panel</h2>
@@ -66,7 +62,7 @@ export default function AdminSidebar({ onSignOut }: AdminSidebarProps) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-1">
+      <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto">
         {navItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.path);
@@ -74,13 +70,13 @@ export default function AdminSidebar({ onSignOut }: AdminSidebarProps) {
             <Link
               key={item.path}
               to={item.path}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
                 active
                   ? 'bg-primary text-primary-foreground shadow-soft'
                   : 'text-muted-foreground hover:bg-muted hover:text-foreground'
               }`}
             >
-              <Icon className="w-5 h-5" />
+              <Icon className="w-5 h-5 flex-shrink-0" />
               <span className="font-medium">{item.title}</span>
             </Link>
           );
@@ -91,9 +87,9 @@ export default function AdminSidebar({ onSignOut }: AdminSidebarProps) {
       <div className="p-4 border-t border-border">
         <button
           onClick={onSignOut}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground transition-all duration-200"
         >
-          <LogOut className="w-5 h-5" />
+          <LogOut className="w-5 h-5 flex-shrink-0" />
           <span className="font-medium">Sign Out</span>
         </button>
       </div>

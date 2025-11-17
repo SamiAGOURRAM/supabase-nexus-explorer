@@ -100,49 +100,109 @@ export default function EventStudents() {
     }
 
     // First get slot IDs for this event
-    const { data: eventSlots } = await supabase
+    const { data: eventSlots, error: slotsError } = await supabase
       .from('event_slots')
-      .select('id')
+      .select('id, company_id, session_id')
       .eq('event_id', eventId)
       .eq('is_active', true);
 
+    if (slotsError) {
+      console.error('Error fetching event slots:', slotsError);
+    }
+
     const slotIds = eventSlots?.map(s => s.id) || [];
+    console.log(`Found ${slotIds.length} active slots for event ${eventId}`);
 
     // Then query bookings using slot IDs - only if we have slots
+    // Use the bookings table (interview_bookings was deprecated)
+    // Query bookings separately to avoid complex nested relationship issues
     let bookingsData: any[] = [];
     if (slotIds.length > 0) {
-      const { data } = await supabase
-        .from('interview_bookings')
-        .select(`
-          student_id,
-          slot_id,
-          profiles!inner (
-            id,
-            full_name,
-            email,
-            specialization,
-            graduation_year
-          ),
-          event_slots!inner (
-            company_id,
-            companies!inner (
-              id,
-              company_name
-            ),
-            speed_recruiting_sessions!inner (
-              name
-            )
-          )
-        `)
+      // Get bookings with student info
+      const { data: bookings, error: bookingsError } = await supabase
+        .from('bookings')
+        .select('id, student_id, slot_id')
         .in('slot_id', slotIds)
         .eq('status', 'confirmed');
-      bookingsData = data || [];
+      
+      if (bookingsError) {
+        console.error('Error fetching bookings:', bookingsError);
+        bookingsData = [];
+      } else {
+        console.log(`Found ${bookings?.length || 0} confirmed bookings for ${slotIds.length} slots`);
+        if (bookings && bookings.length > 0) {
+          // Get unique student IDs
+          const studentIds = [...new Set(bookings.map(b => b.student_id))];
+          
+          // Get student profiles
+          const { data: studentProfiles } = await supabase
+            .from('profiles')
+            .select('id, full_name, email, specialization, graduation_year')
+            .in('id', studentIds);
+          
+          // Get slot details with company info
+          const uniqueSlotIds = [...new Set(bookings.map(b => b.slot_id))];
+          const { data: slotsWithDetails } = await supabase
+            .from('event_slots')
+            .select(`
+              id,
+              company_id,
+              session_id,
+              companies!inner (
+                id,
+                company_name
+              )
+            `)
+            .in('id', uniqueSlotIds);
+          
+          // Get session names if any slots have sessions
+          const sessionIds = [...new Set(slotsWithDetails?.map(s => s.session_id).filter(Boolean) || [])];
+          let sessionsMap = new Map<string, string>();
+          if (sessionIds.length > 0) {
+            const { data: sessions } = await supabase
+              .from('speed_recruiting_sessions')
+              .select('id, name')
+              .in('id', sessionIds);
+            
+            sessions?.forEach(s => sessionsMap.set(s.id, s.name));
+          }
+          
+          // Create a map for quick lookups
+          const profilesMap = new Map(studentProfiles?.map(p => [p.id, p]) || []);
+          const slotsMap = new Map(slotsWithDetails?.map(s => [s.id, s]) || []);
+          
+          // Combine data
+          bookingsData = bookings.map(booking => {
+            const profile = profilesMap.get(booking.student_id);
+            const slot = slotsMap.get(booking.slot_id);
+            const sessionName = slot?.session_id ? sessionsMap.get(slot.session_id) : null;
+            
+            return {
+              student_id: booking.student_id,
+              slot_id: booking.slot_id,
+              profiles: profile || null,
+              event_slots: slot ? {
+                company_id: slot.company_id,
+                event_id: eventId,
+                companies: slot.companies,
+                speed_recruiting_sessions: sessionName ? { name: sessionName } : null
+              } : null
+            };
+          }).filter(b => b.profiles && b.event_slots); // Filter out any incomplete data
+        }
+      }
     }
 
     if (bookingsData && bookingsData.length > 0) {
       const studentMap = new Map<string, StudentWithBookings>()
 
       bookingsData.forEach((booking: any) => {
+        // Skip if data is incomplete
+        if (!booking.profiles || !booking.event_slots) {
+          console.warn('Skipping booking with incomplete data:', booking);
+          return;
+        }
+        
         const studentId = booking.profiles.id
         
         if (!studentMap.has(studentId)) {
@@ -167,15 +227,19 @@ export default function EventStudents() {
           student.companies.push({ company_id: companyId, company_name: companyName })
         }
 
-        const sessionName = booking.event_slots.speed_recruiting_sessions.name
-        if (!student.sessions.includes(sessionName)) {
+        // Handle session name (might be null)
+        const sessionName = booking.event_slots.speed_recruiting_sessions?.name
+        if (sessionName && !student.sessions.includes(sessionName)) {
           student.sessions.push(sessionName)
         }
       })
 
-      setStudents(Array.from(studentMap.values()))
+      const studentsArray = Array.from(studentMap.values());
+      console.log('Loaded students:', studentsArray.length);
+      setStudents(studentsArray);
     } else {
       // No bookings found - set empty array
+      console.log('No bookings found for event:', eventId);
       setStudents([])
     }
   }

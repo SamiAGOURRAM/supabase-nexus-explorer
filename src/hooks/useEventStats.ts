@@ -51,14 +51,15 @@ export function useEventStats(eventId: string | null) {
         supabase.from('event_slots').select('*', { count: 'exact', head: true }).eq('event_id', eventId).eq('is_active', true)
       ]);
 
-      // First, get all slot IDs for this event
+      // First, get all slot IDs and capacities for this event
       const { data: eventSlots } = await supabase
         .from('event_slots')
-        .select('id')
+        .select('id, capacity')
         .eq('event_id', eventId)
         .eq('is_active', true);
 
       const slotIds = eventSlots?.map(s => s.id) || [];
+      const totalCapacity = eventSlots?.reduce((sum, slot) => sum + (slot.capacity || 1), 0) || 0;
 
       // Get bookings count - query by slot IDs instead of nested relation
       // Skip if no slots exist
@@ -81,7 +82,13 @@ export function useEventStats(eventId: string | null) {
         studentBookings = data || [];
       }
 
-      const uniqueStudents = new Set(studentBookings.map(b => b.student_id)).size;
+      const uniqueStudentsWithBookings = new Set(studentBookings.map(b => b.student_id)).size;
+
+      // Get ALL registered students (not just those with bookings)
+      const { count: totalRegisteredStudents } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .eq('role', 'student');
 
       // Get top company by bookings - query slots first, then bookings
       // Skip if no slots exist
@@ -129,13 +136,16 @@ export function useEventStats(eventId: string | null) {
       });
 
       const topCompanyEntry = Object.values(companyCounts).sort((a, b) => b.count - a.count)[0];
-      const availableSlots = (totalSlots || 0) - eventBookings;
+      
+      // Calculate available slots based on capacity (not just slot count)
+      // Available = Total capacity - Bookings
+      const availableSlots = Math.max(0, totalCapacity - eventBookings);
 
       setStats({
         event_companies: eventCompanies || 0,
-        event_students: uniqueStudents,
+        event_students: uniqueStudentsWithBookings, // Students with bookings for this event
         event_bookings: eventBookings || 0,
-        total_students: uniqueStudents,
+        total_students: totalRegisteredStudents || 0, // ALL registered students in the system
         total_slots: totalSlots || 0,
         available_slots: availableSlots,
         top_company_name: topCompanyEntry?.name || 'N/A',

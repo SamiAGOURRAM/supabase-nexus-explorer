@@ -21,9 +21,11 @@ export default function SessionManagement() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [generatingINF, setGeneratingINF] = useState(false);
   const [event, setEvent] = useState<any>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showINFGenerator, setShowINFGenerator] = useState(false);
   const [editingSession, setEditingSession] = useState<Session | null>(null);
 
   const [formData, setFormData] = useState({
@@ -33,6 +35,13 @@ export default function SessionManagement() {
     interview_duration_minutes: 15,
     buffer_minutes: 5,
     slots_per_time: 2
+  });
+
+  const [infFormData, setInfFormData] = useState({
+    session1_start: '',
+    session1_end: '',
+    session2_start: '',
+    session2_end: ''
   });
 
   useEffect(() => {
@@ -241,6 +250,45 @@ export default function SessionManagement() {
     }
   };
 
+  const generateINFSlots = async () => {
+    if (!infFormData.session1_start || !infFormData.session1_end || 
+        !infFormData.session2_start || !infFormData.session2_end) {
+      alert('Please fill in all session times');
+      return;
+    }
+
+    if (!confirm(`Generate INF-compliant slots for this event?\n\nThis will:\n✓ Create 2 interview sessions\n✓ Generate exactly 15 slots per company (8 in first session, 7 in second)\n✓ 10 minutes per slot, 5 minutes buffer\n✓ Capacity: 2 students per slot\n✓ Delete existing sessions and slots\n\n⚠️ This action cannot be undone!`)) {
+      return;
+    }
+
+    try {
+      setGeneratingINF(true);
+
+      const { data, error } = await supabase
+        .rpc('fn_generate_inf_slots', {
+          p_event_id: eventId,
+          p_session1_start: infFormData.session1_start,
+          p_session1_end: infFormData.session1_end,
+          p_session2_start: infFormData.session2_start,
+          p_session2_end: infFormData.session2_end
+        });
+
+      if (error) throw error;
+
+      const result = data?.[0];
+      if (result) {
+        alert(`✅ INF Slot Generation Complete!\n\n📊 ${result.total_slots_created} total slots created\n🏢 ${result.companies_processed} companies processed\n📅 Session 1: ${result.session1_slots} slots\n📅 Session 2: ${result.session2_slots} slots\n\n${result.message}`);
+        setShowINFGenerator(false);
+        await loadData();
+      }
+    } catch (err) {
+      console.error('Error generating INF slots:', err);
+      alert('❌ Error generating INF slots: ' + (err as any).message);
+    } finally {
+      setGeneratingINF(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -282,6 +330,119 @@ export default function SessionManagement() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* INF Slot Generator */}
+        <div className="bg-gradient-to-r from-primary/10 to-primary/5 rounded-xl border-2 border-primary/20 p-6 mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">INF Event Slot Generator</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Generate INF-compliant slots: 15 slots per company (8+7), 10min slots, 5min buffer, capacity 2
+              </p>
+            </div>
+            <button
+              onClick={() => setShowINFGenerator(!showINFGenerator)}
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition"
+            >
+              {showINFGenerator ? 'Hide Generator' : 'Generate INF Slots'}
+            </button>
+          </div>
+
+          {showINFGenerator && (
+            <div className="mt-4 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-card rounded-lg border border-border p-4">
+                  <h3 className="font-semibold text-foreground mb-3">First Interview Session</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-1">
+                        Start Time *
+                      </label>
+                      <input
+                        type="datetime-local"
+                        value={infFormData.session1_start}
+                        onChange={(e) => setInfFormData({ ...infFormData, session1_start: e.target.value })}
+                        className="w-full px-3 py-2 bg-background border border-border rounded-md focus:ring-2 focus:ring-primary"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-1">
+                        End Time *
+                      </label>
+                      <input
+                        type="datetime-local"
+                        value={infFormData.session1_end}
+                        onChange={(e) => setInfFormData({ ...infFormData, session1_end: e.target.value })}
+                        className="w-full px-3 py-2 bg-background border border-border rounded-md focus:ring-2 focus:ring-primary"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Will generate 8 slots per company
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-card rounded-lg border border-border p-4">
+                  <h3 className="font-semibold text-foreground mb-3">Second Interview Session</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-1">
+                        Start Time *
+                      </label>
+                      <input
+                        type="datetime-local"
+                        value={infFormData.session2_start}
+                        onChange={(e) => setInfFormData({ ...infFormData, session2_start: e.target.value })}
+                        className="w-full px-3 py-2 bg-background border border-border rounded-md focus:ring-2 focus:ring-primary"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-1">
+                        End Time *
+                      </label>
+                      <input
+                        type="datetime-local"
+                        value={infFormData.session2_end}
+                        onChange={(e) => setInfFormData({ ...infFormData, session2_end: e.target.value })}
+                        className="w-full px-3 py-2 bg-background border border-border rounded-md focus:ring-2 focus:ring-primary"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Will generate 7 slots per company (15 total)
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">INF Requirements:</h4>
+                <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1 list-disc list-inside">
+                  <li>15 slots per company (8 in first session, 7 in second)</li>
+                  <li>10 minutes per interview slot</li>
+                  <li>5 minutes buffer between slots</li>
+                  <li>Capacity: 2 students per slot</li>
+                  <li>Total time per session: ~110 minutes (8 slots) and ~100 minutes (7 slots)</li>
+                </ul>
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setShowINFGenerator(false)}
+                  className="px-6 py-2 border border-border rounded-lg hover:bg-muted transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={generateINFSlots}
+                  disabled={generatingINF}
+                  className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition disabled:opacity-50"
+                >
+                  {generatingINF ? 'Generating...' : 'Generate INF Slots'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
         <div className="bg-card rounded-xl border border-border p-6 mb-8">
           <div className="flex items-center justify-between mb-4">
             <div>

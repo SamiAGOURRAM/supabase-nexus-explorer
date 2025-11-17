@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { Briefcase, Building2, Search, Eye, EyeOff, Trash2 } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
@@ -25,7 +24,6 @@ export default function AdminOffers() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterActive, setFilterActive] = useState<'all' | 'active' | 'inactive'>('all');
-  const navigate = useNavigate();
 
   useEffect(() => {
     loadOffers();

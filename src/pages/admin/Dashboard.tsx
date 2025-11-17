@@ -7,7 +7,6 @@ import LoadingScreen from '@/components/shared/LoadingScreen';
 import AdminLayout from '@/components/admin/AdminLayout';
 import EmptyState from '@/components/admin/dashboard/EmptyState';
 import EventSelector from '@/components/admin/dashboard/EventSelector';
-import EventHeader from '@/components/admin/dashboard/EventHeader';
 import PhaseStatusCard from '@/components/admin/dashboard/PhaseStatusCard';
 import StatsGrid from '@/components/admin/dashboard/StatsGrid';
 import BulkImportModal from '@/components/admin/BulkImportModal';
@@ -59,50 +58,45 @@ export default function AdminDashboard() {
 
   return (
     <AdminLayout onSignOut={signOut}>
-      <div className="p-8">
-        <div className="max-w-7xl mx-auto">
-        <EventSelector
-          events={events}
-          selectedEventId={selectedEventId}
-          onEventChange={setSelectedEventId}
-        />
+      <div className="p-6 md:p-8">
+        <div className="max-w-7xl mx-auto space-y-6">
+          <EventSelector
+            events={events}
+            selectedEventId={selectedEventId}
+            onEventChange={setSelectedEventId}
+          />
 
-        <EventHeader
-          event={selectedEvent}
-          onBulkImportClick={() => setShowBulkImport(true)}
-        />
+          <PhaseStatusCard event={selectedEvent} />
 
-        <PhaseStatusCard event={selectedEvent} />
+          {statsLoading ? (
+            <div className="text-center py-16">
+              <div className="animate-spin rounded-full h-12 w-12 border-[3px] border-primary border-t-transparent mx-auto"></div>
+              <p className="mt-4 text-muted-foreground font-medium">Loading statistics...</p>
+            </div>
+          ) : (
+            <StatsGrid stats={stats} eventId={selectedEvent.id} />
+          )}
 
-        {statsLoading ? (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-            <p className="mt-4 text-muted-foreground">Loading statistics...</p>
+          {/* Footer Navigation */}
+          <div className="pt-6 border-t border-border">
+            <div className="flex flex-wrap gap-4 justify-center text-sm">
+              <Link to={`/admin/events/${selectedEvent.id}/sessions`} className="text-muted-foreground hover:text-primary transition-colors duration-200 font-medium">
+                Sessions
+              </Link>
+              <Link to={`/admin/events/${selectedEvent.id}/phases`} className="text-muted-foreground hover:text-primary transition-colors duration-200 font-medium">
+                Phases
+              </Link>
+              <Link to={`/admin/events/${selectedEvent.id}/schedule`} className="text-muted-foreground hover:text-primary transition-colors duration-200 font-medium">
+                Schedule
+              </Link>
+              <Link to="/admin/events" className="text-muted-foreground hover:text-primary transition-colors duration-200 font-medium">
+                All Events
+              </Link>
+              <Link to="/admin/companies" className="text-muted-foreground hover:text-primary transition-colors duration-200 font-medium">
+                All Companies
+              </Link>
+            </div>
           </div>
-        ) : (
-          <StatsGrid stats={stats} eventId={selectedEvent.id} />
-        )}
-
-        {/* Footer Navigation */}
-        <div className="pt-6 border-t border-border">
-          <div className="flex flex-wrap gap-4 justify-center text-sm">
-            <Link to={`/admin/events/${selectedEvent.id}/sessions`} className="text-muted-foreground hover:text-foreground transition-colors">
-              Sessions
-            </Link>
-            <Link to={`/admin/events/${selectedEvent.id}/phases`} className="text-muted-foreground hover:text-foreground transition-colors">
-              Phases
-            </Link>
-            <Link to={`/admin/events/${selectedEvent.id}/schedule`} className="text-muted-foreground hover:text-foreground transition-colors">
-              Schedule
-            </Link>
-            <Link to="/admin/events" className="text-muted-foreground hover:text-foreground transition-colors">
-              All Events
-            </Link>
-            <Link to="/admin/companies" className="text-muted-foreground hover:text-foreground transition-colors">
-              All Companies
-            </Link>
-          </div>
-        </div>
 
         {/* Bulk Import Modal */}
         {showBulkImport && selectedEvent && (

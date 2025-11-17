@@ -1,7 +1,18 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { AlertCircle, Info, Eye, EyeOff, CheckCircle2, XCircle, Shield } from 'lucide-react';
+import {
+  AlertCircle,
+  Info,
+  Eye,
+  EyeOff,
+  CheckCircle2,
+  XCircle,
+  Shield,
+  Sparkles,
+  ArrowLeft,
+  ArrowRight,
+} from 'lucide-react';
 import { checkRateLimitDirect, recordFailedAttempt, clearRateLimit } from '@/hooks/useRateLimit';
 import { useCaptcha, getCaptchaConfig } from '@/hooks/useCaptcha';
 
@@ -252,29 +263,85 @@ export default function Signup() {
 
   // Signup form
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-muted flex items-center justify-center p-4">
-      <div className="max-w-md w-full">
-        <div className="bg-card rounded-2xl shadow-elegant p-8 border border-border">
-          {/* Header */}
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-foreground mb-2">Create Account</h1>
-            <p className="text-muted-foreground">INF Platform 2.0 - Student Registration</p>
-          </div>
+    <div className="relative min-h-screen bg-background">
+      <div
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(21,94,239,0.08),_transparent_60%)]"
+        aria-hidden="true"
+      />
+      <div className="relative z-10 mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
+        <Link
+          to="/login"
+          className="inline-flex w-fit items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Already registered? Sign in
+        </Link>
+
+        <div className="mt-6 grid gap-8 lg:grid-cols-[1.1fr,0.9fr]">
+          <section className="hidden rounded-3xl border border-white/15 bg-gradient-to-br from-primary via-[hsl(var(--brand-secondary))] to-slate-900 p-10 text-white shadow-elegant lg:flex lg:flex-col">
+            <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.4em] text-white/70">
+              <Sparkles className="h-4 w-4" />
+              Student onboarding
+            </p>
+            <h1 className="mt-5 text-4xl font-bold leading-tight">
+              Your Nexus profile starts here.
+            </h1>
+            <p className="mt-4 text-white/80">
+              Complete the secure signup once to unlock priority booking, personalized schedules, and curated employer updates for each Nexus hiring sprint.
+            </p>
+            <ul className="mt-8 space-y-4 text-sm text-white/85">
+              <li className="flex items-start gap-3">
+                <div className="mt-1 h-2 w-2 rounded-full bg-white/80" />
+                Email verification + reCAPTCHA guard every account.
+              </li>
+              <li className="flex items-start gap-3">
+                <div className="mt-1 h-2 w-2 rounded-full bg-white/80" />
+                Gmail is allowed for official testing cohorts.
+              </li>
+              <li className="flex items-start gap-3">
+                <div className="mt-1 h-2 w-2 rounded-full bg-white/80" />
+                Update your booking priority any time inside the portal.
+              </li>
+            </ul>
+
+            <div className="mt-auto flex items-center gap-3 pt-8">
+              <div>
+                <p className="text-xs uppercase tracking-[0.3em] text-white/70">Need help?</p>
+                <p className="text-base font-semibold">nexus@um6p.ma</p>
+              </div>
+              <ArrowRight className="h-5 w-5 text-white/70" />
+            </div>
+          </section>
+
+          <section className="rounded-3xl border border-border/60 bg-card/95 p-8 shadow-elegant backdrop-blur">
+            {/* Header */}
+            <div className="text-center mb-8">
+              <h1 className="text-3xl font-bold text-foreground mb-2">Create Account</h1>
+              <p className="text-muted-foreground">INF Platform 2.0 - Student Registration</p>
+            </div>
 
           {/* Info Banner */}
-          <div className="bg-primary/10 border border-primary/20 p-4 rounded-lg mb-6 flex gap-3">
-            <Info className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm text-primary font-medium">UM6P Students Only</p>
-              <p className="text-xs text-primary/80 mt-1">
-                Companies: Registration is by invitation only. Contact the event administrator.
-              </p>
-              <p className="text-xs text-green-600 mt-1 font-medium">
-                🔒 Enhanced Security: Email verification {captchaConfig.enabled && '+ reCAPTCHA'} required
-              </p>
-              <p className="text-xs text-orange-600 mt-1 font-medium">
-                🧪 Testing: Gmail accounts allowed for testing purposes
-              </p>
+          <div className="mb-6 rounded-2xl border border-primary/25 bg-primary/5 p-5">
+            <div className="flex gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10">
+                <Info className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-primary">UM6P students only</p>
+                <p className="text-xs text-primary/80">
+                  Companies join by invitation—contact the Nexus administrator for partner access.
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 flex flex-wrap items-center gap-4 text-xs font-medium text-primary/90">
+              <span className="flex items-center gap-2">
+                <Shield className="h-3.5 w-3.5" />
+                Enhanced security: email verification {captchaConfig.enabled && '+ reCAPTCHA'}
+              </span>
+              <span className="flex items-center gap-2">
+                <Sparkles className="h-3.5 w-3.5" />
+                Gmail accounts are accepted for official testing cohorts
+              </span>
             </div>
           </div>
 
@@ -482,11 +549,11 @@ export default function Signup() {
                 <Shield className="w-3 h-3" />
                 Protected by reCAPTCHA
               </p>
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-xs text-muted-foreground mt-1 flex items-center justify-center gap-2">
                 <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" className="hover:underline">
                   Privacy
                 </a>
-                {' · '}
+                <span className="text-border">|</span>
                 <a href="https://policies.google.com/terms" target="_blank" rel="noopener noreferrer" className="hover:underline">
                   Terms
                 </a>
@@ -503,8 +570,9 @@ export default function Signup() {
               Already have an account? Sign in
             </Link>
           </div>
-        </div>
+        </section>
       </div>
     </div>
+  </div>
   );
 }

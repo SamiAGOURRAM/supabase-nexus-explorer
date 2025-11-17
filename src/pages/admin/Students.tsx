@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { Users, GraduationCap, Mail, Phone, Search, UserX } from 'lucide-react';
+import { Users, GraduationCap, Phone, Search, UserX } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -188,130 +188,136 @@ export default function AdminStudents() {
 
   return (
     <AdminLayout onSignOut={signOut}>
-      <div className="p-8">
-        <div className="max-w-7xl mx-auto">
+      <div className="p-6 md:p-8">
+        <div className="max-w-7xl mx-auto space-y-6">
           {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-foreground mb-2">Students Management</h1>
-            <p className="text-muted-foreground">View and manage all student accounts</p>
+          <div className="space-y-2">
+            <h1 className="text-3xl md:text-4xl font-bold text-foreground">Students Management</h1>
+            <p className="text-muted-foreground text-sm md:text-base">View and manage all student accounts</p>
           </div>
 
           {/* Search */}
-          <div className="mb-6">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Search by name, email, or student number..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-            </div>
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Search by name, email, or student number..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-12 pr-4 py-3.5 bg-background border border-input rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-soft"
+            />
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div className="bg-card border border-border rounded-lg p-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6">
+            <div className="bg-card border border-border rounded-xl p-5 shadow-soft hover:shadow-elegant transition-all duration-200">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Students</p>
-                  <p className="text-2xl font-bold text-foreground mt-1">{students.length}</p>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">Total Students</p>
+                  <p className="text-3xl font-bold text-foreground">{students.length}</p>
                 </div>
-                <Users className="w-8 h-8 text-primary" />
+                <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
+                  <Users className="w-6 h-6 text-primary" />
+                </div>
               </div>
             </div>
-            <div className="bg-card border border-border rounded-lg p-4">
+            <div className="bg-card border border-border rounded-xl p-5 shadow-soft hover:shadow-elegant transition-all duration-200">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Deprioritized</p>
-                  <p className="text-2xl font-bold text-foreground mt-1">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">Deprioritized</p>
+                  <p className="text-3xl font-bold text-foreground">
                     {students.filter(s => s.is_deprioritized).length}
                   </p>
                 </div>
-                <UserX className="w-8 h-8 text-warning" />
+                <div className="w-12 h-12 bg-warning/10 rounded-xl flex items-center justify-center">
+                  <UserX className="w-6 h-6 text-warning" />
+                </div>
               </div>
             </div>
-            <div className="bg-card border border-border rounded-lg p-4">
+            <div className="bg-card border border-border rounded-xl p-5 shadow-soft hover:shadow-elegant transition-all duration-200">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">With Profile</p>
-                  <p className="text-2xl font-bold text-foreground mt-1">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">Complete Profiles</p>
+                  <p className="text-3xl font-bold text-foreground">
                     {students.filter(s => s.student_number && s.specialization).length}
                   </p>
                 </div>
-                <GraduationCap className="w-8 h-8 text-success" />
+                <div className="w-12 h-12 bg-success/10 rounded-xl flex items-center justify-center">
+                  <GraduationCap className="w-6 h-6 text-success" />
+                </div>
               </div>
             </div>
           </div>
 
           {/* Students List */}
           {loading ? (
-            <div className="text-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-              <p className="mt-4 text-muted-foreground">Loading students...</p>
+            <div className="text-center py-16">
+              <div className="animate-spin rounded-full h-12 w-12 border-[3px] border-primary border-t-transparent mx-auto"></div>
+              <p className="mt-4 text-muted-foreground font-medium">Loading students...</p>
             </div>
           ) : filteredStudents.length === 0 ? (
-            <div className="text-center py-12 bg-card rounded-xl border border-border">
-              <Users className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-foreground mb-2">No Students Found</h3>
+            <div className="text-center py-16 bg-card rounded-xl border border-border shadow-soft">
+              <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                <Users className="w-10 h-10 text-muted-foreground" />
+              </div>
+              <h3 className="text-xl font-semibold text-foreground mb-2">No Students Found</h3>
               <p className="text-muted-foreground">
                 {searchQuery ? 'Try a different search term' : 'No students registered yet'}
               </p>
             </div>
           ) : (
-            <div className="bg-card border border-border rounded-xl overflow-hidden">
+            <div className="bg-card border border-border rounded-xl overflow-hidden shadow-elegant">
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-muted">
+                  <thead className="bg-muted/50 border-b border-border">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                         Student
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                         Contact
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                         Academic Info
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                         Status
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                         Actions
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border">
+                  <tbody className="divide-y divide-border/50">
                     {filteredStudents.map((student) => (
-                      <tr key={student.id} className="hover:bg-muted/50">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center mr-3">
+                      <tr key={student.id} className="hover:bg-muted/30 transition-colors duration-150">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-11 h-11 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
                               <GraduationCap className="w-5 h-5 text-primary" />
                             </div>
-                            <div>
-                              <div className="text-sm font-medium text-foreground">{student.full_name}</div>
-                              <div className="text-xs text-muted-foreground">{student.email}</div>
+                            <div className="min-w-0">
+                              <div className="text-sm font-semibold text-foreground truncate">{student.full_name}</div>
+                              <div className="text-xs text-muted-foreground truncate">{student.email}</div>
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4">
                           <div className="text-sm text-foreground">
                             {student.phone ? (
-                              <div className="flex items-center gap-1">
-                                <Phone className="w-3 h-3" />
-                                {student.phone}
+                              <div className="flex items-center gap-2">
+                                <Phone className="w-4 h-4 text-muted-foreground" />
+                                <span>{student.phone}</span>
                               </div>
                             ) : (
-                              <span className="text-muted-foreground">No phone</span>
+                              <span className="text-muted-foreground italic">No phone</span>
                             )}
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-foreground">
+                        <td className="px-6 py-4">
+                          <div className="text-sm space-y-1">
                             {student.student_number && (
-                              <div className="mb-1">#{student.student_number}</div>
+                              <div className="font-medium text-foreground">#{student.student_number}</div>
                             )}
                             {student.specialization && (
                               <div className="text-xs text-muted-foreground">{student.specialization}</div>
@@ -320,26 +326,28 @@ export default function AdminStudents() {
                               <div className="text-xs text-muted-foreground">Grad: {student.graduation_year}</div>
                             )}
                             {!student.student_number && !student.specialization && (
-                              <span className="text-muted-foreground text-xs">Incomplete profile</span>
+                              <span className="inline-flex items-center px-2 py-1 rounded-md bg-muted/50 text-xs text-muted-foreground">
+                                Incomplete profile
+                              </span>
                             )}
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                        <td className="px-6 py-4">
+                          <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold ${
                             student.is_deprioritized
-                              ? 'bg-warning/10 text-warning'
-                              : 'bg-success/10 text-success'
+                              ? 'bg-warning/10 text-warning border border-warning/20'
+                              : 'bg-success/10 text-success border border-success/20'
                           }`}>
                             {student.is_deprioritized ? 'Deprioritized' : 'Active'}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <td className="px-6 py-4">
                           <button
                             onClick={() => handleToggleDeprioritized(student.id, student.is_deprioritized)}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                            className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-200 ${
                               student.is_deprioritized
-                                ? 'bg-success/10 text-success hover:bg-success/20'
-                                : 'bg-warning/10 text-warning hover:bg-warning/20'
+                                ? 'bg-success/10 text-success hover:bg-success/20 border border-success/20'
+                                : 'bg-warning/10 text-warning hover:bg-warning/20 border border-warning/20'
                             }`}
                           >
                             {student.is_deprioritized ? 'Prioritize' : 'Deprioritize'}

@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { Clock, Calendar, User, Building2, Search, X } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
@@ -29,7 +28,6 @@ export default function AdminBookings() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const navigate = useNavigate();
 
   useEffect(() => {
     loadBookings();

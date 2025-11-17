@@ -12,8 +12,6 @@ export default function VerifyEmail() {
   const navigate = useNavigate();
   const location = useLocation();
   const email = location.state?.email;
-  const password = location.state?.password;
-  const isNewUser = location.state?.isNewUser;
 
   useEffect(() => {
     if (!email) {
@@ -56,6 +54,10 @@ export default function VerifyEmail() {
           await new Promise(resolve => setTimeout(resolve, 500 * retries));
         }
         
+        if (!data.user) {
+          throw new Error('User not found after verification');
+        }
+
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('role')

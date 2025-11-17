@@ -117,8 +117,8 @@ export default function CompanyDetail() {
     // Then query bookings using slot IDs - only if we have slots
     let bookingsData: any[] = [];
     if (slotIds.length > 0) {
-      const { data } = await supabase
-        .from('interview_bookings')
+      const { data, error: bookingsError } = await supabase
+        .from('bookings')
         .select(`
           id,
           student_id,
@@ -133,14 +133,21 @@ export default function CompanyDetail() {
           event_slots!inner (
             start_time,
             end_time,
-            speed_recruiting_sessions!inner (
+            speed_recruiting_sessions (
               name
             )
           )
         `)
         .in('slot_id', slotIds)
         .eq('status', 'confirmed');
-      bookingsData = data || [];
+      
+      if (bookingsError) {
+        console.error('Error fetching bookings:', bookingsError);
+        // Continue with empty array if query fails
+        bookingsData = [];
+      } else {
+        bookingsData = data || [];
+      }
     }
 
     if (bookingsData && bookingsData.length > 0) {

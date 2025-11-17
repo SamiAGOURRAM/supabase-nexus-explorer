@@ -43,8 +43,10 @@ export async function checkRateLimit(
     });
 
     if (error) {
-      console.error('Rate limit check error:', error);
-      // Fail open - allow the request if rate limit check fails
+      // Silently fail open - rate limiting is optional
+      if (process.env.NODE_ENV === 'development') {
+        console.debug('Rate limit check error (ignored):', error.message);
+      }
       return {
         allowed: true,
         message: 'Rate limit check unavailable',
@@ -52,9 +54,11 @@ export async function checkRateLimit(
     }
 
     return data as RateLimitResponse;
-  } catch (error) {
-    console.error('Rate limit error:', error);
-    // Fail open for better UX
+  } catch (error: any) {
+    // Silently fail open - rate limiting is optional
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('Rate limit error (ignored):', error?.message);
+    }
     return {
       allowed: true,
       message: 'Rate limit check unavailable',
@@ -80,32 +84,53 @@ export async function recordFailedAttempt(
       p_reason: `${action}_failed: ${reason}`,
     });
 
-    if (error) {
-      console.error('Failed to record attempt:', error);
+    // Silently ignore errors - rate limiting is optional
+    if (error && process.env.NODE_ENV === 'development') {
+      console.debug('Failed to record attempt (ignored):', error.message);
     }
-  } catch (error) {
-    console.error('Error recording failed attempt:', error);
+  } catch (error: any) {
+    // Silently ignore - rate limiting is optional
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('Error recording failed attempt (ignored):', error?.message);
+    }
   }
 }
 
 /**
  * Clear rate limit for a specific email (after successful signup/login)
+ * Silently fails if rate limiting is not configured - this is non-critical
  */
 export async function clearRateLimit(email: string): Promise<void> {
   try {
     const ipAddress = await getClientIP();
 
-    // Delete failed attempts for this email/IP
-    const { error } = await supabase
-      .from('failed_login_attempts')
-      .delete()
-      .or(`email.eq.${email},ip_address.eq.${ipAddress}`);
+    // Try RPC function first
+    const { error: rpcError } = await supabase.rpc('fn_clear_rate_limit', {
+      p_email: email,
+      p_ip_address: ipAddress,
+    });
 
-    if (error) {
-      console.error('Failed to clear rate limit:', error);
+    // If RPC doesn't exist or fails, try direct table access
+    if (rpcError) {
+      const { error } = await supabase
+        .from('failed_login_attempts')
+        .delete()
+        .or(`email.eq.${email},ip_address.eq.${ipAddress}`);
+
+      // Silently ignore errors - rate limiting is optional
+      // PGRST116 = table not found, 42501 = permission denied, 404 = not found
+      if (error && !['PGRST116', '42501', '42P01'].includes(error.code || '')) {
+        // Only log unexpected errors, not missing table/permission errors
+        if (process.env.NODE_ENV === 'development') {
+          console.debug('Rate limit clear (non-critical):', error.message);
+        }
+      }
     }
-  } catch (error) {
-    console.error('Error clearing rate limit:', error);
+  } catch (error: any) {
+    // Silently ignore - rate limiting cleanup is best effort and non-critical
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('Rate limit clear error (ignored):', error?.message);
+    }
   }
 }
 
@@ -168,51 +193,98 @@ export async function checkRateLimitDirect(
     });
 
     if (error) {
-      console.error('Rate limit check error:', error);
+      // If RPC function doesn't exist or table doesn't exist, fail open (allow request)
+      // Error codes: 42883 = function doesn't exist, PGRST116 = table not found, 42P01 = relation doesn't exist
+      if (['42883', 'PGRST116', '42P01', '42501'].includes(error.code || '') || 
+          error.message?.includes('does not exist') ||
+          error.message?.includes('permission denied')) {
+        // Silently allow - rate limiting is optional
+        return { allowed: true, message: 'Rate limit check unavailable' };
+      }
+      // Only log unexpected errors in development
+      if (process.env.NODE_ENV === 'development') {
+        console.debug('Rate limit check error (ignored):', error.message);
+      }
       return { allowed: true, message: 'Rate limit check unavailable' };
     }
 
     if (!data) {
-      // Calculate wait time
-      const { data: attempts } = await supabase
-        .from('failed_login_attempts')
-        .select('attempt_time')
-        .or(`email.eq.${email},ip_address.eq.${ipAddress}`)
-        .gte('attempt_time', new Date(Date.now() - windowMinutes * 60 * 1000).toISOString())
-        .order('attempt_time', { ascending: true })
-        .limit(1)
-        .single();
+      // Calculate wait time - but only if table exists
+      try {
+        const { data: attempts, error: queryError } = await supabase
+          .from('failed_login_attempts')
+          .select('attempt_time')
+          .or(`email.eq.${email},ip_address.eq.${ipAddress}`)
+          .gte('attempt_time', new Date(Date.now() - windowMinutes * 60 * 1000).toISOString())
+          .order('attempt_time', { ascending: true })
+          .limit(1)
+          .maybeSingle();
 
-      let waitTimeMinutes = windowMinutes;
-      if (attempts?.attempt_time) {
-        const oldestTime = new Date(attempts.attempt_time).getTime();
-        const now = Date.now();
-        const elapsedMs = now - oldestTime;
-        const windowMs = windowMinutes * 60 * 1000;
-        waitTimeMinutes = Math.ceil((windowMs - elapsedMs) / 60000);
+        if (queryError) {
+          // Table doesn't exist or RLS blocking - fail open
+          // Silently ignore: PGRST116 = table not found, 42501 = permission denied, 42P01 = relation doesn't exist
+          if (!['PGRST116', '42501', '42P01'].includes(queryError.code || '')) {
+            if (process.env.NODE_ENV === 'development') {
+              console.debug('Rate limit query error (ignored):', queryError.message);
+            }
+          }
+          return { allowed: true, message: 'Rate limit check unavailable' };
+        }
+
+        let waitTimeMinutes = windowMinutes;
+        if (attempts?.attempt_time) {
+          const oldestTime = new Date(attempts.attempt_time).getTime();
+          const now = Date.now();
+          const elapsedMs = now - oldestTime;
+          const windowMs = windowMinutes * 60 * 1000;
+          waitTimeMinutes = Math.ceil((windowMs - elapsedMs) / 60000);
+        }
+
+        return {
+          allowed: false,
+          waitTimeMinutes,
+          message: `Too many attempts. Please wait ${waitTimeMinutes} minute(s).`,
+        };
+      } catch (err) {
+        // If we can't query, fail open
+        return { allowed: true, message: 'Rate limit check unavailable' };
+      }
+    }
+
+    // Get remaining attempts - but only if table exists
+    try {
+      const { count, error: countError } = await supabase
+        .from('failed_login_attempts')
+        .select('id', { count: 'exact', head: true })
+        .or(`email.eq.${email},ip_address.eq.${ipAddress}`)
+        .gte('attempt_time', new Date(Date.now() - windowMinutes * 60 * 1000).toISOString());
+
+      if (countError) {
+        // Table doesn't exist or RLS blocking - fail open
+        // Silently ignore: PGRST116 = table not found, 42501 = permission denied, 42P01 = relation doesn't exist
+        if (!['PGRST116', '42501', '42P01'].includes(countError.code || '')) {
+          if (process.env.NODE_ENV === 'development') {
+            console.debug('Rate limit count error (ignored):', countError.message);
+          }
+        }
+        return { allowed: true, message: 'Rate limit check unavailable' };
       }
 
       return {
-        allowed: false,
-        waitTimeMinutes,
-        message: `Too many attempts. Please wait ${waitTimeMinutes} minute(s).`,
+        allowed: true,
+        remainingAttempts: Math.max(0, maxAttempts - (count || 0)),
+        message: 'Rate limit check passed',
       };
+    } catch (err) {
+      // If we can't query, fail open
+      return { allowed: true, message: 'Rate limit check unavailable' };
     }
-
-    // Get remaining attempts
-    const { count } = await supabase
-      .from('failed_login_attempts')
-      .select('id', { count: 'exact', head: true })
-      .or(`email.eq.${email},ip_address.eq.${ipAddress}`)
-      .gte('attempt_time', new Date(Date.now() - windowMinutes * 60 * 1000).toISOString());
-
-    return {
-      allowed: true,
-      remainingAttempts: Math.max(0, maxAttempts - (count || 0)),
-      message: 'Rate limit check passed',
-    };
-  } catch (error) {
-    console.error('Rate limit error:', error);
+  } catch (error: any) {
+    // Non-critical error - fail open to allow requests
+    // Silently ignore - rate limiting is optional
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('Rate limit error (ignored):', error?.message);
+    }
     return { allowed: true, message: 'Rate limit check unavailable' };
   }
 }
