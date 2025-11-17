@@ -1,7 +1,9 @@
   import { useState, useEffect } from 'react';
   import { useNavigate, useSearchParams, Link } from 'react-router-dom';
   import { supabase } from '@/lib/supabase';
-  import { Building2, GraduationCap, AlertCircle } from 'lucide-react';
+  import { Building2, GraduationCap, AlertCircle, Shield } from 'lucide-react';
+  import { checkRateLimitDirect, recordFailedAttempt, clearRateLimit } from '@/hooks/useRateLimit';
+  import { useCaptcha, getCaptchaConfig } from '@/hooks/useCaptcha';
 
   export default function Login() {
     const [email, setEmail] = useState('');
@@ -11,6 +13,10 @@
     const [loginAs, setLoginAs] = useState<'student' | 'company'>('student');
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
+    
+    // CAPTCHA integration
+    const { verifyCaptcha } = useCaptcha();
+    const captchaConfig = getCaptchaConfig();
 
     useEffect(() => {
       checkUser();
@@ -50,28 +56,39 @@
       setLoading(true);
 
       try {
+        // CAPTCHA verification (if enabled)
+        if (captchaConfig.enabled) {
+          const captchaResult = await verifyCaptcha('login');
+          if (!captchaResult || !captchaResult.token) {
+            await recordFailedAttempt(email, 'CAPTCHA verification failed', 'login');
+            throw new Error('Security verification failed. Please try again.');
+          }
+          console.log('✅ CAPTCHA verified');
+        }
+
+        // Check server-side rate limiting
+        const rateLimitCheck = await checkRateLimitDirect(email, 5, 15);
+        if (!rateLimitCheck.allowed) {
+          setError(rateLimitCheck.message || 'Too many login attempts. Please try again later.');
+          setLoading(false);
+          return;
+        }
+
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
 
-        if (error) throw error;
-
-        // CRITICAL: Check if email is verified before allowing login
-        if (!data.user.email_confirmed_at) {
-          // Sign out immediately to prevent access
-          await supabase.auth.signOut();
-          
-          // Redirect to verification page with email for easy resend
-          navigate('/verify-email', {
-            state: {
-              email: email,
-              message: 'Please verify your email address before signing in. Check your inbox for the confirmation link.'
-            }
-          });
-          return;
+        if (error) {
+          // Record failed attempt
+          await recordFailedAttempt(email, error.message, 'login');
+          throw error;
         }
 
+        // Clear rate limit on successful login
+        await clearRateLimit(email);
+
+        // Email verification disabled - proceed directly to profile check
         const { data: profile } = await supabase
           .from('profiles')
           .select('role')
@@ -87,10 +104,12 @@
           // Allow both real students and test_student accounts to sign in as students
           if (loginAs === 'student' && !(profile.role === 'student' || profile.role === 'test_student')) {
             await supabase.auth.signOut();
+            await recordFailedAttempt(email, 'Wrong account type', 'login');
             throw new Error('This account is not a student account. Please use Company Login.');
           }
           if (loginAs === 'company' && profile.role !== 'company') {
             await supabase.auth.signOut();
+            await recordFailedAttempt(email, 'Wrong account type', 'login');
             throw new Error('This account is not a company account. Please use Student Login.');
           }
           
@@ -188,6 +207,25 @@
                 {loading ? 'Signing In...' : 'Sign In'}
               </button>
             </form>
+
+            {/* reCAPTCHA Badge Info */}
+            {captchaConfig.enabled && (
+              <div className="mt-4 text-center">
+                <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                  <Shield className="w-3 h-3" />
+                  Protected by reCAPTCHA
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" className="hover:underline">
+                    Privacy
+                  </a>
+                  {' · '}
+                  <a href="https://policies.google.com/terms" target="_blank" rel="noopener noreferrer" className="hover:underline">
+                    Terms
+                  </a>
+                </p>
+              </div>
+            )}
 
             {/* Additional Links */}
             <div className="mt-6 text-center space-y-3">

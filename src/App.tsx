@@ -1,8 +1,13 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Suspense, lazy } from "react";
+import { GoogleReCaptchaProvider } from 'react-google-recaptcha-v3';
 import LoadingScreen from "./components/shared/LoadingScreen";
 import ProtectedRoute from "./components/shared/ProtectedRoute";
 import VerifyEmail from '@/pages/VerifyEmail';
+
+// Get reCAPTCHA site key from environment
+const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || '';
+const RECAPTCHA_ENABLED = !!RECAPTCHA_SITE_KEY;
 
 // Lazy load pages for better performance
 const SetPassword = lazy(() => import("./pages/auth/SetPassword"));
@@ -41,7 +46,8 @@ const CompanyStudents = lazy(() => import("./pages/company/Students"));
 const StudentProfileView = lazy(() => import("./pages/company/students/StudentProfile"));
 
 function App() {
-  return (
+  // Wrap application with CAPTCHA provider if enabled
+  const AppContent = (
     <BrowserRouter>
       <Suspense fallback={<LoadingScreen />}>
         <Routes>
@@ -95,6 +101,27 @@ function App() {
       </Suspense>
     </BrowserRouter>
   );
+
+  // Return app wrapped with CAPTCHA provider if enabled
+  if (RECAPTCHA_ENABLED) {
+    return (
+      <GoogleReCaptchaProvider
+        reCaptchaKey={RECAPTCHA_SITE_KEY}
+        language="en"
+        useRecaptchaNet={false}
+        useEnterprise={false}
+        scriptProps={{
+          async: true,
+          defer: true,
+          appendTo: 'head',
+        }}
+      >
+        {AppContent}
+      </GoogleReCaptchaProvider>
+    );
+  }
+
+  return AppContent;
 }
 
 export default App;

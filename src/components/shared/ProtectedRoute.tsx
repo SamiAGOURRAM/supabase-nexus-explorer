@@ -41,20 +41,7 @@ export default function ProtectedRoute({
       setIsAuthenticated(true);
       setUserEmail(user.email || '');
 
-      // Check email verification if required
-      if (requireEmailVerification) {
-        if (!user.email_confirmed_at) {
-          console.warn('🚫 Access denied: Email not verified for', user.email);
-          
-          // Sign out unverified user
-          await supabase.auth.signOut();
-          
-          setIsEmailVerified(false);
-          setLoading(false);
-          return;
-        }
-      }
-
+      // Email verification disabled - allow all authenticated users
       setIsEmailVerified(true);
       setLoading(false);
     } catch (error) {
