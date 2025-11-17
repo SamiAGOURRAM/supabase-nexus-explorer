@@ -36,7 +36,7 @@ export default function StatsGrid({
           iconColor="bg-success/10 text-success"
           href={`/admin/events/${eventId}/companies`}
         />
-        <EventStatsCard
+                <EventStatsCard
           icon={Users}
           value={stats.total_students || 0}
           label="Students"

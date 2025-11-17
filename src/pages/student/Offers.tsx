@@ -174,9 +174,16 @@ export default function StudentOffers() {
       setBookingLimit(limitData[0]);
     }
 
+    console.log('🔵 Fetching slots with filters:', {
+      company_id: offer.company_id,
+      event_id: selectedEventId,
+      offer_id: offer.id,
+      current_time: new Date().toISOString()
+    });
+
     // Get all slots for this company and offer for the selected event
     // Slots are linked to offers via offer_id
-    const { data: slotsData } = await supabase
+    const { data: slotsData, error: slotsError } = await supabase
       .from('event_slots')
       .select('id, start_time, end_time, location, capacity, offer_id')
       .eq('company_id', offer.company_id)
@@ -185,6 +192,12 @@ export default function StudentOffers() {
       .eq('is_active', true)
       .gte('start_time', new Date().toISOString())
       .order('start_time', { ascending: true });
+
+    if (slotsError) {
+      console.error('🔴 Error fetching slots:', slotsError);
+    }
+
+    console.log('🔵 Slots fetched:', slotsData?.length || 0, slotsData);
 
     if (slotsData) {
       // Count bookings for each slot
@@ -207,6 +220,9 @@ export default function StudentOffers() {
       const available = slotsWithCounts.filter(
         (slot) => slot.bookings_count < slot.capacity
       );
+
+      console.log('🔵 Available slots after filtering:', available.length, available);
+      console.log('🔵 Slots filtered out (full):', slotsWithCounts.length - available.length);
 
       setAvailableSlots(available);
     }
