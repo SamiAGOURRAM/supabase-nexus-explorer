@@ -178,36 +178,71 @@ export default function StudentOffers() {
       company_id: offer.company_id,
       event_id: selectedEventId,
       offer_id: offer.id,
+      company_name: offer.company_name,
+      offer_title: offer.title,
       current_time: new Date().toISOString()
     });
 
-    // Get all slots for this company and offer for the selected event
-    // Slots are linked to offers via offer_id
+    // CRITICAL DEBUG: Log the exact values being used
+    console.log('🔵 EXACT FILTER VALUES:', {
+      'company_id (from offer)': offer.company_id,
+      'event_id (selected)': selectedEventId,
+      'Are they truthy?': {
+        company_id: !!offer.company_id,
+        event_id: !!selectedEventId
+      }
+    });
+
+    console.log('🔵 About to execute query...');
+
+    // Get all slots for this company for the selected event
+    // Note: Slots are generated per company, not per offer
+    // When admin creates sessions, slots are linked to companies, not specific offers
     const { data: slotsData, error: slotsError } = await supabase
       .from('event_slots')
-      .select('id, start_time, end_time, location, capacity, offer_id')
+      .select('id, start_time, end_time, location, capacity, offer_id, company_id, event_id, is_active')
       .eq('company_id', offer.company_id)
       .eq('event_id', selectedEventId)
-      .eq('offer_id', offer.id)  // Only show slots for this specific offer
+      // Removed .eq('offer_id', offer.id) - slots are per company, not per offer
       .eq('is_active', true)
       .gte('start_time', new Date().toISOString())
       .order('start_time', { ascending: true });
 
+    console.log('🔵 Query completed!');
+    console.log('🔵 RAW QUERY RESULT:', {
+      error: slotsError,
+      data: slotsData,
+      count: slotsData?.length || 0,
+      dataType: typeof slotsData,
+      isArray: Array.isArray(slotsData),
+      dataKeys: slotsData ? Object.keys(slotsData) : 'null'
+    });
+
     if (slotsError) {
       console.error('🔴 Error fetching slots:', slotsError);
+      alert(`Error fetching slots: ${slotsError.message}`);
     }
 
     console.log('🔵 Slots fetched:', slotsData?.length || 0, slotsData);
 
     if (slotsData) {
+      console.log('🔵 Processing', slotsData.length, 'slots to check capacity...');
+      
       // Count bookings for each slot
       const slotsWithCounts = await Promise.all(
         slotsData.map(async (slot) => {
-          const { count } = await supabase
+          const { count, error: countError } = await supabase
             .from('bookings')
             .select('*', { count: 'exact', head: true })
             .eq('slot_id', slot.id)
             .eq('status', 'confirmed');
+
+          console.log(`🔵 Slot ${slot.id.slice(0, 8)}... at ${new Date(slot.start_time).toLocaleTimeString()}:`, {
+            capacity: slot.capacity,
+            bookings: count || 0,
+            available: (slot.capacity || 0) - (count || 0),
+            countError
+          });
 
           return {
             ...slot,
@@ -216,13 +251,25 @@ export default function StudentOffers() {
         })
       );
 
+      console.log('🔵 All slots with booking counts:', slotsWithCounts.map(s => ({
+        time: new Date(s.start_time).toLocaleTimeString(),
+        capacity: s.capacity,
+        booked: s.bookings_count,
+        available: (s.capacity || 0) - s.bookings_count
+      })));
+
       // Filter out full slots
+      // Default capacity to 1 if null/undefined (single interview slot)
       const available = slotsWithCounts.filter(
-        (slot) => slot.bookings_count < slot.capacity
+        (slot) => slot.bookings_count < (slot.capacity || 1)
       );
 
       console.log('🔵 Available slots after filtering:', available.length, available);
       console.log('🔵 Slots filtered out (full):', slotsWithCounts.length - available.length);
+
+      if (available.length === 0 && slotsWithCounts.length > 0) {
+        console.error('🔴 ALL SLOTS ARE FULL! All', slotsWithCounts.length, 'slots have reached capacity');
+      }
 
       setAvailableSlots(available);
     }
@@ -594,7 +641,8 @@ export default function StudentOffers() {
                 <>
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 mb-4 animate-fade-in">
                     {availableSlots.map((slot) => {
-                      const spotsLeft = slot.capacity - slot.bookings_count;
+                      const capacity = slot.capacity || 1; // Default to 1 if null
+                      const spotsLeft = capacity - slot.bookings_count;
                       const isLowCapacity = spotsLeft <= 2;
                       const isSelected = selectedSlotId === slot.id;
 

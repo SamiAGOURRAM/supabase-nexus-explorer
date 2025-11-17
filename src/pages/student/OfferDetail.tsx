@@ -176,15 +176,32 @@ export default function OfferDetail() {
 
     // Get slots for this specific offer
     // Slots are linked to offers via offer_id
-    const { data: slotsData } = await supabase
+    console.log('🔵 [OfferDetail] Fetching slots with filters:', {
+      company_id: offer.company_id,
+      event_id: eventId,
+      current_time: new Date().toISOString()
+    });
+
+    const { data: slotsData, error: slotsError } = await supabase
       .from('event_slots')
-      .select('id, start_time, end_time, capacity, offer_id')
+      .select('id, start_time, end_time, capacity, offer_id, company_id, event_id, is_active')
       .eq('company_id', offer.company_id)
       .eq('event_id', eventId)
-      .eq('offer_id', offer.id)  // Only show slots for this specific offer
+      // Removed .eq('offer_id', offer.id) - slots are per company, not per offer
       .eq('is_active', true)
       .gte('start_time', new Date().toISOString())
       .order('start_time', { ascending: true });
+
+    console.log('🔵 [OfferDetail] RAW QUERY RESULT:', {
+      error: slotsError,
+      data: slotsData,
+      count: slotsData?.length || 0
+    });
+
+    if (slotsError) {
+      console.error('🔴 [OfferDetail] Error fetching slots:', slotsError);
+      alert(`Error fetching slots: ${slotsError.message}`);
+    }
 
     if (slotsData) {
       const slotsWithCounts = await Promise.all(
@@ -203,8 +220,10 @@ export default function OfferDetail() {
       );
 
       const available = slotsWithCounts.filter(
-        (slot) => slot.bookings_count < slot.capacity
+        (slot) => slot.bookings_count < (slot.capacity || 1) // Default capacity to 1 if null
       );
+
+      console.log('🔵 [OfferDetail] Available slots after filtering:', available.length);
 
       setAvailableSlots(available);
     }
@@ -545,7 +564,8 @@ export default function OfferDetail() {
                 <>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 mb-4">
                     {availableSlots.map((slot) => {
-                      const spotsLeft = slot.capacity - slot.bookings_count;
+                      const capacity = slot.capacity || 1; // Default to 1 if null
+                      const spotsLeft = capacity - slot.bookings_count;
                       const isLowCapacity = spotsLeft <= 2;
                       const isSelected = selectedSlotId === slot.id;
 
