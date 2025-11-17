@@ -1,9 +1,14 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Suspense, lazy } from "react";
+import { GoogleReCaptchaProvider } from 'react-google-recaptcha-v3';
 import LoadingScreen from "./components/shared/LoadingScreen";
 import ProtectedRoute from "./components/shared/ProtectedRoute";
 import ErrorBoundary from "./components/shared/ErrorBoundary";
 import VerifyEmail from '@/pages/VerifyEmail';
+
+// Get reCAPTCHA site key from environment
+const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || '';
+const RECAPTCHA_ENABLED = !!RECAPTCHA_SITE_KEY;
 
 // Lazy load pages for better performance
 const SetPassword = lazy(() => import("./pages/auth/SetPassword"));
@@ -45,18 +50,18 @@ const CompanyStudents = lazy(() => import("./pages/company/Students"));
 const StudentProfileView = lazy(() => import("./pages/company/students/StudentProfile"));
 
 function App() {
-  return (
-    <ErrorBoundary>
-      <BrowserRouter>
-        <Suspense fallback={<LoadingScreen />}>
-          <Routes>
+  // Wrap application with CAPTCHA provider if enabled
+  const AppContent = (
+    <BrowserRouter>
+      <Suspense fallback={<LoadingScreen />}>
+        <Routes>
           {/* Public Routes */}
           <Route path="/" element={<Navigate to="/offers" replace />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
-        <Route path="/offers" element={<Offers />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/offers" element={<Offers />} />
           
           {/* Admin Routes */}
           <Route path="/admin" element={<AdminDashboard />} />
@@ -99,9 +104,31 @@ function App() {
           
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/offers" replace />} />
-          </Routes>
-        </Suspense>
-      </BrowserRouter>
+        </Routes>
+      </Suspense>
+    </BrowserRouter>
+  );
+
+  // Wrap with ErrorBoundary and optionally with CAPTCHA provider
+  const WrappedApp = RECAPTCHA_ENABLED ? (
+    <GoogleReCaptchaProvider
+      reCaptchaKey={RECAPTCHA_SITE_KEY}
+      language="en"
+      useRecaptchaNet={false}
+      useEnterprise={false}
+      scriptProps={{
+        async: true,
+        defer: true,
+        appendTo: 'head',
+      }}
+    >
+      {AppContent}
+    </GoogleReCaptchaProvider>
+  ) : AppContent;
+
+  return (
+    <ErrorBoundary>
+      {WrappedApp}
     </ErrorBoundary>
   );
 }

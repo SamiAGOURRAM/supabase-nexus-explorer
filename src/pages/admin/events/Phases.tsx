@@ -324,14 +324,27 @@ export default function EventPhaseManagement() {
           <div className="flex items-center gap-3 mb-2">
             <Target className="w-5 h-5 text-primary" />
             <h2 className="text-lg font-semibold text-foreground">
-              {formData.phase_mode === 'date-based' ? 'Detected Phase Status' : 'Current Manual Phase'}
+              {formData.phase_mode === 'date-based' ? 'Auto-Detected Phase Status' : 'Current Phase Status'}
             </h2>
           </div>
-          <p className="text-foreground">{phaseStatus.message}</p>
-          {formData.phase_mode === 'date-based' && (
-            <p className="text-sm text-muted-foreground mt-2">
-              Based on current date and configured phase date ranges
-            </p>
+          {formData.phase_mode === 'manual' ? (
+            <div>
+              <p className="text-foreground font-semibold text-lg">
+                {formData.current_phase === 0 && '🔒 Phase 0 - Booking Closed'}
+                {formData.current_phase === 1 && '⭐ Phase 1 - Priority Booking Active'}
+                {formData.current_phase === 2 && '🌐 Phase 2 - Open Booking Active'}
+              </p>
+              <p className="text-sm text-muted-foreground mt-2">
+                Controlled manually via Start/Stop buttons below
+              </p>
+            </div>
+          ) : (
+            <div>
+              <p className="text-foreground">{phaseStatus.message}</p>
+              <p className="text-sm text-muted-foreground mt-2">
+                Based on current date and configured phase date ranges
+              </p>
+            </div>
           )}
         </div>
 
@@ -339,97 +352,130 @@ export default function EventPhaseManagement() {
         {formData.phase_mode === 'manual' && (
           <div className="bg-card rounded-xl border border-border p-6 mb-8 animate-fade-in">
           <h2 className="text-lg font-semibold text-foreground mb-4">Manual Phase Control</h2>
-          <p className="text-sm text-muted-foreground mb-4">
-            Manually set the active booking phase. This setting is only used when Manual Control mode is selected above.
+          <p className="text-sm text-muted-foreground mb-6">
+            Use the Start/Stop buttons below to manually control which booking phase is active. Changes take effect immediately.
           </p>
-          <div className="space-y-3">
-            <label className="flex items-center p-4 border-2 rounded-lg cursor-pointer hover:bg-muted/50 transition"
-                   style={{ borderColor: formData.current_phase === 0 ? 'hsl(var(--primary))' : 'hsl(var(--border))' }}>
-              <input
-                type="radio"
-                name="current_phase"
-                value={0}
-                checked={formData.current_phase === 0}
-                onChange={() => setFormData({ ...formData, current_phase: 0 })}
-                className="mr-3"
-              />
-              <div>
-                <p className="font-semibold text-foreground">Phase 0 - Closed</p>
-                <p className="text-sm text-muted-foreground">Booking is closed.</p>
-              </div>
-            </label>
+          
+          {/* Current Active Phase Display */}
+          <div className="mb-6 p-4 rounded-lg bg-muted/50 border-2 border-primary/50">
+            <p className="text-sm font-medium text-muted-foreground mb-1">Currently Active:</p>
+            <p className="text-2xl font-bold text-foreground">
+              {formData.current_phase === 0 && '🔒 Phase 0 - Closed'}
+              {formData.current_phase === 1 && '⭐ Phase 1 - Priority Booking'}
+              {formData.current_phase === 2 && '🌐 Phase 2 - Open to All'}
+            </p>
+          </div>
 
-            <label className="flex items-center p-4 border-2 rounded-lg cursor-pointer hover:bg-muted/50 transition"
-                   style={{ borderColor: formData.current_phase === 1 ? 'hsl(var(--primary))' : 'hsl(var(--border))' }}>
-              <input
-                type="radio"
-                name="current_phase"
-                value={1}
-                checked={formData.current_phase === 1}
-                onChange={() => setFormData({ ...formData, current_phase: 1 })}
-                className="mr-3"
-              />
-              <div>
-                <p className="font-semibold text-foreground">Phase 1 - Priority Booking</p>
-                <p className="text-sm text-muted-foreground">
-                  Max {formData.phase1_max_bookings} interviews
+          {/* Phase Control Buttons */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Phase 0 - Closed */}
+            <div className={`p-5 rounded-lg border-2 transition-all ${
+              formData.current_phase === 0 
+                ? 'border-destructive bg-destructive/10' 
+                : 'border-border bg-card'
+            }`}>
+              <div className="mb-3">
+                <h3 className="font-semibold text-foreground mb-1">Phase 0</h3>
+                <p className="text-sm text-muted-foreground">Booking Closed</p>
+              </div>
+              {formData.current_phase === 0 ? (
+                <div className="px-4 py-2 bg-destructive/20 text-destructive rounded-lg text-center font-medium text-sm">
+                  ● Active
+                </div>
+              ) : (
+                <button
+                  onClick={() => setFormData({ ...formData, current_phase: 0 })}
+                  className="w-full px-4 py-2 bg-destructive/10 text-destructive hover:bg-destructive/20 rounded-lg font-medium text-sm transition-colors"
+                >
+                  Close Booking
+                </button>
+              )}
+            </div>
+
+            {/* Phase 1 - Priority */}
+            <div className={`p-5 rounded-lg border-2 transition-all ${
+              formData.current_phase === 1 
+                ? 'border-primary bg-primary/10' 
+                : 'border-border bg-card'
+            }`}>
+              <div className="mb-3">
+                <h3 className="font-semibold text-foreground mb-1">Phase 1</h3>
+                <p className="text-sm text-muted-foreground">Priority Booking</p>
+                <p className="text-xs text-muted-foreground mt-1">Max {formData.phase1_max_bookings} interviews</p>
+              </div>
+              {formData.current_phase === 1 ? (
+                <button
+                  onClick={() => setFormData({ ...formData, current_phase: 0 })}
+                  className="w-full px-4 py-2 bg-destructive/10 text-destructive hover:bg-destructive/20 rounded-lg font-medium text-sm transition-colors"
+                >
+                  Stop Phase 1
+                </button>
+              ) : (
+                <button
+                  onClick={() => setFormData({ ...formData, current_phase: 1 })}
+                  className="w-full px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg font-medium text-sm transition-colors"
+                >
+                  Start Phase 1
+                </button>
+              )}
+            </div>
+
+            {/* Phase 2 - Open */}
+            <div className={`p-5 rounded-lg border-2 transition-all ${
+              formData.current_phase === 2 
+                ? 'border-green-500 bg-green-500/10' 
+                : 'border-border bg-card'
+            }`}>
+              <div className="mb-3">
+                <h3 className="font-semibold text-foreground mb-1">Phase 2</h3>
+                <p className="text-sm text-muted-foreground">Open to All</p>
+                <p className="text-xs text-muted-foreground mt-1">Max {formData.phase2_max_bookings} interviews</p>
+              </div>
+              {formData.current_phase === 2 ? (
+                <button
+                  onClick={() => setFormData({ ...formData, current_phase: 0 })}
+                  className="w-full px-4 py-2 bg-destructive/10 text-destructive hover:bg-destructive/20 rounded-lg font-medium text-sm transition-colors"
+                >
+                  Stop Phase 2
+                </button>
+              ) : (
+                <button
+                  onClick={() => setFormData({ ...formData, current_phase: 2 })}
+                  className="w-full px-4 py-2 bg-green-600 text-white hover:bg-green-700 rounded-lg font-medium text-sm transition-colors"
+                >
+                  Start Phase 2
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+              <div className="text-sm text-blue-900 dark:text-blue-100">
+                <p className="font-medium mb-1">Manual Control Active</p>
+                <p className="text-blue-700 dark:text-blue-300">
+                  Phase changes happen immediately when you click Start/Stop. Don't forget to click "Save Configuration" at the bottom to persist changes.
                 </p>
               </div>
-            </label>
-
-            <label className="flex items-center p-4 border-2 rounded-lg cursor-pointer hover:bg-muted/50 transition"
-                   style={{ borderColor: formData.current_phase === 2 ? 'hsl(var(--primary))' : 'hsl(var(--border))' }}>
-              <input
-                type="radio"
-                name="current_phase"
-                value={2}
-                checked={formData.current_phase === 2}
-                onChange={() => setFormData({ ...formData, current_phase: 2 })}
-                className="mr-3"
-              />
-              <div>
-                <p className="font-semibold text-foreground">Phase 2 - Open to All</p>
-                <p className="text-sm text-muted-foreground">
-                  Max {formData.phase2_max_bookings} interviews
-                </p>
-              </div>
-            </label>
+            </div>
           </div>
         </div>
         )}
 
-        {/* Phase 1 Configuration */}
+        {/* Booking Limits Configuration (Always Visible) */}
         <div className="bg-card rounded-xl border border-border p-6 mb-8 animate-fade-in">
           <div className="flex items-center gap-3 mb-4">
-            <Calendar className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-semibold text-foreground">Phase 1 - Priority Booking</h2>
+            <Target className="w-5 h-5 text-primary" />
+            <h2 className="text-lg font-semibold text-foreground">Booking Limits</h2>
           </div>
+          <p className="text-sm text-muted-foreground mb-6">
+            Set the maximum number of interviews a student can book during each phase.
+          </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-foreground mb-2">
-                Start Date & Time
-              </label>
-              <input
-                type="datetime-local"
-                value={formData.phase1_start?.substring(0, 16) || ''}
-                onChange={(e) => setFormData({ ...formData, phase1_start: e.target.value })}
-                className="w-full px-3 py-2 bg-background border border-border rounded-md focus:ring-2 focus:ring-primary"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
-                End Date & Time
-              </label>
-              <input
-                type="datetime-local"
-                value={formData.phase1_end?.substring(0, 16) || ''}
-                onChange={(e) => setFormData({ ...formData, phase1_end: e.target.value })}
-                className="w-full px-3 py-2 bg-background border border-border rounded-md focus:ring-2 focus:ring-primary"
-              />
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-foreground mb-2">
-                Booking Limit (interviews per student)
+                Phase 1 - Booking Limit
               </label>
               <input
                 type="number"
@@ -438,42 +484,11 @@ export default function EventPhaseManagement() {
                 onChange={(e) => setFormData({ ...formData, phase1_max_bookings: parseInt(e.target.value) })}
                 className="w-full px-3 py-2 bg-background border border-border rounded-md focus:ring-2 focus:ring-primary"
               />
-            </div>
-          </div>
-        </div>
-
-        {/* Phase 2 Configuration */}
-        <div className="bg-card rounded-xl border border-border p-6 mb-8 animate-fade-in">
-          <div className="flex items-center gap-3 mb-4">
-            <Calendar className="w-5 h-5 text-success" />
-            <h2 className="text-lg font-semibold text-foreground">Phase 2 - Open Booking</h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
-                Start Date & Time
-              </label>
-              <input
-                type="datetime-local"
-                value={formData.phase2_start?.substring(0, 16) || ''}
-                onChange={(e) => setFormData({ ...formData, phase2_start: e.target.value })}
-                className="w-full px-3 py-2 bg-background border border-border rounded-md focus:ring-2 focus:ring-primary"
-              />
+              <p className="text-xs text-muted-foreground mt-1">interviews per student</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-foreground mb-2">
-                End Date & Time
-              </label>
-              <input
-                type="datetime-local"
-                value={formData.phase2_end?.substring(0, 16) || ''}
-                onChange={(e) => setFormData({ ...formData, phase2_end: e.target.value })}
-                className="w-full px-3 py-2 bg-background border border-border rounded-md focus:ring-2 focus:ring-primary"
-              />
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-foreground mb-2">
-                Booking Limit (interviews per student)
+                Phase 2 - Booking Limit
               </label>
               <input
                 type="number"
@@ -482,12 +497,87 @@ export default function EventPhaseManagement() {
                 onChange={(e) => setFormData({ ...formData, phase2_max_bookings: parseInt(e.target.value) })}
                 className="w-full px-3 py-2 bg-background border border-border rounded-md focus:ring-2 focus:ring-primary"
               />
-              <p className="text-sm text-muted-foreground mt-1">
+              <p className="text-xs text-muted-foreground mt-1">
                 Must be ≥ Phase 1 limit ({formData.phase1_max_bookings})
               </p>
             </div>
           </div>
         </div>
+
+        {/* Date/Time Configuration (Only for Automatic Mode) */}
+        {formData.phase_mode === 'date-based' && (
+          <>
+            {/* Phase 1 Date Configuration */}
+            <div className="bg-card rounded-xl border border-border p-6 mb-8 animate-fade-in">
+              <div className="flex items-center gap-3 mb-4">
+                <Calendar className="w-5 h-5 text-primary" />
+                <h2 className="text-lg font-semibold text-foreground">Phase 1 - Schedule</h2>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">
+                Set when Phase 1 (Priority Booking) should automatically start and end.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Start Date & Time
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={formData.phase1_start?.substring(0, 16) || ''}
+                    onChange={(e) => setFormData({ ...formData, phase1_start: e.target.value })}
+                    className="w-full px-3 py-2 bg-background border border-border rounded-md focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    End Date & Time
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={formData.phase1_end?.substring(0, 16) || ''}
+                    onChange={(e) => setFormData({ ...formData, phase1_end: e.target.value })}
+                    className="w-full px-3 py-2 bg-background border border-border rounded-md focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Phase 2 Date Configuration */}
+            <div className="bg-card rounded-xl border border-border p-6 mb-8 animate-fade-in">
+              <div className="flex items-center gap-3 mb-4">
+                <Calendar className="w-5 h-5 text-success" />
+                <h2 className="text-lg font-semibold text-foreground">Phase 2 - Schedule</h2>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">
+                Set when Phase 2 (Open Booking) should automatically start and end.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Start Date & Time
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={formData.phase2_start?.substring(0, 16) || ''}
+                    onChange={(e) => setFormData({ ...formData, phase2_start: e.target.value })}
+                    className="w-full px-3 py-2 bg-background border border-border rounded-md focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    End Date & Time
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={formData.phase2_end?.substring(0, 16) || ''}
+                    onChange={(e) => setFormData({ ...formData, phase2_end: e.target.value })}
+                    className="w-full px-3 py-2 bg-background border border-border rounded-md focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+              </div>
+            </div>
+          </>
+        )}
 
         {/* Save Button */}
         <div className="flex justify-end gap-4">

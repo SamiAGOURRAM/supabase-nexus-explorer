@@ -110,19 +110,32 @@ export default function AdminEvents() {
   };
 
   const handleDeleteEvent = async (eventId: string, eventName: string) => {
-    if (!confirm(`Are you sure you want to delete "${eventName}"? This action cannot be undone.`)) {
+    if (!confirm(`Are you sure you want to delete "${eventName}"? This will also delete all related sessions, slots, bookings, and registrations. This action cannot be undone.`)) {
       return;
     }
 
     try {
-      const { error } = await supabase
-        .from('events')
-        .delete()
-        .eq('id', eventId);
+      const { data, error } = await supabase
+        .rpc('fn_delete_event', { p_event_id: eventId });
 
       if (error) throw error;
+      
       await loadEvents();
-      alert('✅ Event deleted successfully!');
+      
+      // Show detailed deletion summary
+      if (data) {
+        alert(
+          `✅ Event deleted successfully!\n\n` +
+          `Deleted/Updated:\n` +
+          `• ${data.offers_updated} offer(s) unlinked\n` +
+          `• ${data.slots_deleted} slot(s) deleted\n` +
+          `• ${data.bookings_deleted} booking(s) deleted\n` +
+          `• ${data.registrations_deleted} registration(s) deleted\n` +
+          `• ${data.sessions_deleted} session(s) deleted`
+        );
+      } else {
+        alert('✅ Event deleted successfully!');
+      }
     } catch (err: any) {
       alert('Error deleting event: ' + err.message);
     }
