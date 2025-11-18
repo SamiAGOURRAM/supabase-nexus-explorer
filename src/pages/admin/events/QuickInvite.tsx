@@ -78,9 +78,13 @@ export default function QuickInvitePage() {
     // First check if a company with this email already exists and is already invited
     const { data: existingCompany } = await supabase
       .from('companies')
-      .select('id, company_name, email')
-      .eq('email', email.trim().toLowerCase())
-      .single();
+      .select(`
+        id, 
+        company_name,
+        profiles!inner(email)
+      `)
+      .eq('profiles.email', email.trim().toLowerCase())
+      .maybeSingle();
     
     if (existingCompany) {
       // Check if already invited to THIS event
