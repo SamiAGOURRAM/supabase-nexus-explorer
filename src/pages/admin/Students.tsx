@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { useToast } from '@/contexts/ToastContext';
 import { Users, GraduationCap, Phone, Search, UserX } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { useAuth } from '@/hooks/useAuth';
+import ErrorDisplay from '@/components/shared/ErrorDisplay';
+import EmptyState from '@/components/shared/EmptyState';
+import LoadingTable from '@/components/shared/LoadingTable';
 
 type Student = {
   id: string;
@@ -15,14 +19,20 @@ type Student = {
   graduation_year: number | null;
   is_deprioritized: boolean;
   created_at: string;
+  profile_photo_url?: string | null;
+  languages_spoken?: string[] | null;
+  program?: string | null;
+  year_of_study?: number | null;
 };
 
 export default function AdminStudents() {
   const { signOut } = useAuth('admin');
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
+  const { showError } = useToast();
 
   useEffect(() => {
     checkAdminAndLoadStudents();
@@ -61,7 +71,9 @@ export default function AdminStudents() {
       await loadStudents();
     } catch (err: any) {
       console.error('Error:', err);
-      alert('Error: ' + err.message);
+      const errorMessage = err instanceof Error ? err : new Error('Failed to load students');
+      setError(errorMessage);
+      showError('Failed to load students. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -86,7 +98,7 @@ export default function AdminStudents() {
         
         // If RLS is blocking, try a different approach
         if (allError.code === '42501' || allError.message?.includes('permission')) {
-          alert('Permission denied. Please check RLS policies allow admins to view profiles.');
+          showError('Permission denied. Please check RLS policies allow admins to view profiles.');
         }
         throw allError;
       }
@@ -139,7 +151,7 @@ export default function AdminStudents() {
       const studentIds = studentProfiles.map((p: any) => p.id);
       const { data: fullStudentProfiles, error: fullError } = await supabase
         .from('profiles')
-        .select('*')
+        .select('id, email, full_name, phone, student_number, specialization, graduation_year, cv_url, is_deprioritized, created_at, profile_photo_url, languages_spoken, program, biography, linkedin_url, resume_url, year_of_study')
         .in('id', studentIds)
         .order('created_at', { ascending: false });
       
@@ -157,10 +169,30 @@ export default function AdminStudents() {
         })));
       }
       
-      setStudents(fullStudentProfiles || []);
+      // Map to Student type, ensuring all required fields are present
+      const mappedStudents: Student[] = (fullStudentProfiles || []).map((s: any) => ({
+        id: s.id,
+        email: s.email,
+        full_name: s.full_name,
+        phone: s.phone || null,
+        student_number: s.student_number || null,
+        specialization: s.specialization || null,
+        graduation_year: s.graduation_year || null,
+        is_deprioritized: s.is_deprioritized || false,
+        created_at: s.created_at,
+        profile_photo_url: s.profile_photo_url || null,
+        languages_spoken: s.languages_spoken || null,
+        program: s.program || null,
+        year_of_study: s.year_of_study || null,
+      }));
+      
+      setStudents(mappedStudents);
+      setError(null);
     } catch (err: any) {
       console.error('❌ Error loading students:', err);
-      alert('Error loading students: ' + (err.message || 'Unknown error'));
+      const errorMessage = err instanceof Error ? err : new Error('Failed to load students');
+      setError(errorMessage);
+      showError('Failed to load students. Please try again.');
       setStudents([]);
     }
   };
@@ -250,21 +282,21 @@ export default function AdminStudents() {
           </div>
 
           {/* Students List */}
-          {loading ? (
-            <div className="text-center py-16">
-              <div className="animate-spin rounded-full h-12 w-12 border-[3px] border-primary border-t-transparent mx-auto"></div>
-              <p className="mt-4 text-muted-foreground font-medium">Loading students...</p>
-            </div>
+          {error ? (
+            <ErrorDisplay error={error} onRetry={loadStudents} />
+          ) : loading ? (
+            <LoadingTable columns={6} rows={10} />
           ) : filteredStudents.length === 0 ? (
-            <div className="text-center py-16 bg-card rounded-xl border border-border shadow-soft">
-              <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-                <Users className="w-10 h-10 text-muted-foreground" />
-              </div>
-              <h3 className="text-xl font-semibold text-foreground mb-2">No Students Found</h3>
-              <p className="text-muted-foreground">
-                {searchQuery ? 'Try a different search term' : 'No students registered yet'}
-              </p>
-            </div>
+            <EmptyState
+              icon={Users}
+              title={searchQuery ? 'No students match your search' : 'No students registered yet'}
+              message={
+                searchQuery 
+                  ? 'Try a different search term or clear your filters to see all students.' 
+                  : 'Students will appear here once they register for the platform.'
+              }
+              className="bg-card rounded-xl border border-border p-12"
+            />
           ) : (
             <div className="bg-card border border-border rounded-xl overflow-hidden shadow-elegant">
               <div className="overflow-x-auto">
@@ -293,12 +325,23 @@ export default function AdminStudents() {
                       <tr key={student.id} className="hover:bg-muted/30 transition-colors duration-150">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-11 h-11 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
-                              <GraduationCap className="w-5 h-5 text-primary" />
-                            </div>
+                            {student.profile_photo_url ? (
+                              <img
+                                src={student.profile_photo_url}
+                                alt={student.full_name}
+                                className="w-11 h-11 rounded-xl object-cover flex-shrink-0 border border-border"
+                              />
+                            ) : (
+                              <div className="w-11 h-11 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                                <GraduationCap className="w-5 h-5 text-primary" />
+                              </div>
+                            )}
                             <div className="min-w-0">
                               <div className="text-sm font-semibold text-foreground truncate">{student.full_name}</div>
                               <div className="text-xs text-muted-foreground truncate">{student.email}</div>
+                              {student.program && (
+                                <div className="text-xs text-muted-foreground mt-0.5">{student.program}</div>
+                              )}
                             </div>
                           </div>
                         </td>
@@ -320,10 +363,25 @@ export default function AdminStudents() {
                               <div className="font-medium text-foreground">#{student.student_number}</div>
                             )}
                             {student.specialization && (
-                              <div className="text-xs text-muted-foreground">{student.specialization}</div>
+                              <div className="text-xs text-foreground">{student.specialization}</div>
+                            )}
+                            {student.year_of_study && (
+                              <div className="text-xs text-muted-foreground">Year {student.year_of_study}</div>
                             )}
                             {student.graduation_year && (
                               <div className="text-xs text-muted-foreground">Grad: {student.graduation_year}</div>
+                            )}
+                            {student.languages_spoken && Array.isArray(student.languages_spoken) && student.languages_spoken.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {student.languages_spoken.slice(0, 2).map((lang: string, idx: number) => (
+                                  <span key={idx} className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-primary/10 text-primary">
+                                    {lang}
+                                  </span>
+                                ))}
+                                {student.languages_spoken.length > 2 && (
+                                  <span className="text-xs text-muted-foreground">+{student.languages_spoken.length - 2}</span>
+                                )}
+                              </div>
                             )}
                             {!student.student_number && !student.specialization && (
                               <span className="inline-flex items-center px-2 py-1 rounded-md bg-muted/50 text-xs text-muted-foreground">

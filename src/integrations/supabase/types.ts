@@ -962,6 +962,13 @@ export type Database = {
           specialization: string | null
           student_number: string | null
           updated_at: string
+          profile_photo_url: string | null
+          languages_spoken: string[] | null
+          program: string | null
+          biography: string | null
+          linkedin_url: string | null
+          resume_url: string | null
+          year_of_study: number | null
         }
         Insert: {
           created_at?: string
@@ -976,6 +983,13 @@ export type Database = {
           specialization?: string | null
           student_number?: string | null
           updated_at?: string
+          profile_photo_url?: string | null
+          languages_spoken?: string[] | null
+          program?: string | null
+          biography?: string | null
+          linkedin_url?: string | null
+          resume_url?: string | null
+          year_of_study?: number | null
         }
         Update: {
           created_at?: string
@@ -990,8 +1004,56 @@ export type Database = {
           specialization?: string | null
           student_number?: string | null
           updated_at?: string
+          profile_photo_url?: string | null
+          languages_spoken?: string[] | null
+          program?: string | null
+          biography?: string | null
+          linkedin_url?: string | null
+          resume_url?: string | null
+          year_of_study?: number | null
         }
         Relationships: []
+      }
+      company_representatives: {
+        Row: {
+          id: string
+          company_id: string
+          full_name: string
+          title: string
+          phone: string | null
+          email: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          full_name: string
+          title: string
+          phone?: string | null
+          email: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          full_name?: string
+          title?: string
+          phone?: string | null
+          email?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_representatives_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       speed_recruiting_sessions: {
         Row: {
@@ -1064,6 +1126,30 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      failed_login_attempts: {
+        Row: {
+          id: string
+          email: string
+          ip_address: string
+          attempt_time: string
+          reason: string | null
+        }
+        Insert: {
+          id?: string
+          email: string
+          ip_address: string
+          attempt_time?: string
+          reason?: string | null
+        }
+        Update: {
+          id?: string
+          email?: string
+          ip_address?: string
+          attempt_time?: string
+          reason?: string | null
         }
         Relationships: []
       }
@@ -1423,6 +1509,71 @@ export type Database = {
         }[]
       }
       unaccent: { Args: { "": string }; Returns: string }
+      fn_record_failed_login: {
+        Args: {
+          p_email: string
+          p_ip_address: string
+          p_reason: string
+        }
+        Returns: undefined
+      }
+      fn_clear_rate_limit: {
+        Args: {
+          p_email: string
+          p_ip_address: string
+        }
+        Returns: undefined
+      }
+      fn_check_rate_limit: {
+        Args: {
+          p_email: string
+          p_ip_address: string
+          p_max_attempts?: number
+          p_window_minutes?: number
+        }
+        Returns: {
+          allowed: boolean
+          attempt_time: string | null
+          attempts: number
+        }[]
+      }
+      fn_delete_event: {
+        Args: {
+          p_event_id: string
+        }
+        Returns: {
+          bookings_deleted: number
+          companies_processed: number
+          message: string
+          offers_updated: number
+          registrations_deleted: number
+          sessions_deleted: number
+          slots_created: number
+          slots_deleted: number
+          time_ranges_processed: number
+        }[]
+      }
+      fn_generate_inf_slots: {
+        Args: {
+          p_event_id: string
+          p_session1_end: string
+          p_session1_start: string
+          p_session2_end: string
+          p_session2_start: string
+        }
+        Returns: {
+          message: string
+          success: boolean
+        }[]
+      }
+      create_profile_for_user: {
+        Args: {
+          p_email: string
+          p_full_name: string
+          p_role: Database["public"]["Enums"]["app_role"]
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "company" | "student"

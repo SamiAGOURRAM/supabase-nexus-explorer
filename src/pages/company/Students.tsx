@@ -1,7 +1,12 @@
-import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { ArrowLeft, Search, Users, FileText } from 'lucide-react';
+import { useToast } from '@/contexts/ToastContext';
+import LoadingScreen from '@/components/shared/LoadingScreen';
+import ErrorDisplay from '@/components/shared/ErrorDisplay';
+import EmptyState from '@/components/shared/EmptyState';
+import { useAuth } from '@/hooks/useAuth';
 
 type StudentBooking = {
   booking_id: string;
@@ -19,118 +24,167 @@ type StudentBooking = {
 };
 
 export default function CompanyStudents() {
+  const { user, loading: authLoading } = useAuth('company');
+  const { showError } = useToast();
   const [loading, setLoading] = useState(true);
   const [students, setStudents] = useState<StudentBooking[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const navigate = useNavigate();
+  const [error, setError] = useState<Error | null>(null);
+  const [profiles, setProfiles] = useState<any[]>([]);
+
+  const loadStudents = useCallback(async () => {
+    if (!user) return;
+    try {
+      setError(null);
+      setLoading(true);
+
+      const { data: company, error: companyError } = await supabase
+        .from('companies')
+        .select('id')
+        .eq('profile_id', user.id)
+        .maybeSingle();
+
+      if (companyError) {
+        throw new Error(`Failed to load company: ${companyError.message}`);
+      }
+
+      if (!company) {
+        setStudents([]);
+        return;
+      }
+
+      const { data: offers, error: offersError } = await supabase
+        .from('offers')
+        .select('id, title')
+        .eq('company_id', company.id);
+
+      if (offersError) {
+        throw new Error(`Failed to load offers: ${offersError.message}`);
+      }
+
+      if (!offers || offers.length === 0) {
+        setStudents([]);
+        return;
+      }
+
+      const offerIds = offers.map((o) => o.id);
+      const offerMap = new Map(offers.map((o) => [o.id, o.title]));
+
+      const { data: bookings, error: bookingsError } = await supabase
+        .from('bookings')
+        .select('id, student_id, slot_id, status, event_slots!inner(offer_id)')
+        .in('event_slots.offer_id', offerIds);
+
+      if (bookingsError) {
+        throw new Error(`Failed to load bookings: ${bookingsError.message}`);
+      }
+
+      if (!bookings || bookings.length === 0) {
+        setStudents([]);
+        return;
+      }
+
+      const studentIds = [...new Set(bookings.map((b) => b.student_id))];
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, phone, student_number, specialization, graduation_year, cv_url, profile_photo_url, languages_spoken, program, biography, linkedin_url, resume_url, year_of_study')
+        .in('id', studentIds);
+
+      if (profilesError) {
+        throw new Error(`Failed to load student profiles: ${profilesError.message}`);
+      }
+
+      const slotIds = bookings.map((b) => b.slot_id);
+      const { data: slots, error: slotsError } = await supabase
+        .from('event_slots')
+        .select('id, start_time')
+        .in('id', slotIds);
+
+      if (slotsError) {
+        throw new Error(`Failed to load slots: ${slotsError.message}`);
+      }
+
+      // Store profiles for later use in rendering
+      setProfiles(profiles || []);
+
+      const profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
+      const slotMap = new Map(slots?.map((s) => [s.id, s.start_time]) || []);
+
+      const studentsData: StudentBooking[] = bookings.map((booking) => {
+        const profile = profileMap.get(booking.student_id);
+        return {
+          booking_id: booking.id,
+          student_id: booking.student_id,
+          student_name: profile?.full_name || 'Unknown',
+          student_email: profile?.email || '',
+          student_phone: profile?.phone || null,
+          student_number: profile?.student_number || null,
+          specialization: profile?.specialization || null,
+          graduation_year: profile?.graduation_year || null,
+          cv_url: profile?.cv_url || null,
+          offer_title: offerMap.get((booking as any).event_slots?.offer_id) || 'Unknown',
+          slot_time: slotMap.get(booking.slot_id) || '',
+          status: booking.status,
+        };
+      });
+
+      studentsData.sort(
+        (a, b) => new Date(b.slot_time).getTime() - new Date(a.slot_time).getTime()
+      );
+
+      setStudents(studentsData);
+    } catch (err: any) {
+      console.error('Error loading students:', err);
+      const errorMessage = err instanceof Error ? err : new Error('Failed to load students');
+      setError(errorMessage);
+      showError('Failed to load students. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, [showError, user]);
 
   useEffect(() => {
-    loadStudents();
-  }, []);
-
-  const loadStudents = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      navigate('/login');
-      return;
+    if (!authLoading) {
+      loadStudents();
     }
+  }, [authLoading, loadStudents]);
 
-    const { data: company } = await supabase
-      .from('companies')
-      .select('id')
-      .eq('profile_id', user.id)
-      .single();
+  const filteredStudents = useMemo(() => {
+    const query = searchQuery.toLowerCase().trim();
+    if (!query) return students;
 
-    if (!company) {
-      setLoading(false);
-      return;
-    }
-
-    // Get all offers for this company
-    const { data: offers } = await supabase
-      .from('offers')
-      .select('id, title')
-      .eq('company_id', company.id);
-
-    if (!offers || offers.length === 0) {
-      setLoading(false);
-      return;
-    }
-
-    const offerIds = offers.map(o => o.id);
-    const offerMap = new Map(offers.map(o => [o.id, o.title]));
-
-    // Get all bookings for these offers
-    const { data: bookings } = await supabase
-      .from('bookings')
-      .select('id, student_id, slot_id, status, event_slots!inner(offer_id)')
-      .in('event_slots.offer_id', offerIds);
-
-    if (!bookings || bookings.length === 0) {
-      setLoading(false);
-      return;
-    }
-
-    // Get student profiles
-    const studentIds = [...new Set(bookings.map(b => b.student_id))];
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('id, full_name, email, phone, student_number, specialization, graduation_year, cv_url')
-      .in('id', studentIds);
-
-    // Get slot times
-    const slotIds = bookings.map(b => b.slot_id);
-    const { data: slots } = await supabase
-      .from('event_slots')
-      .select('id, start_time')
-      .in('id', slotIds);
-
-    const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
-    const slotMap = new Map(slots?.map(s => [s.id, s.start_time]) || []);
-
-    // Combine all data
-    const studentsData: StudentBooking[] = bookings.map(booking => {
-      const profile = profileMap.get(booking.student_id);
-      return {
-        booking_id: booking.id,
-        student_id: booking.student_id,
-        student_name: profile?.full_name || 'Unknown',
-        student_email: profile?.email || '',
-        student_phone: profile?.phone || null,
-        student_number: profile?.student_number || null,
-        specialization: profile?.specialization || null,
-        graduation_year: profile?.graduation_year || null,
-        cv_url: profile?.cv_url || null,
-        offer_title: offerMap.get((booking as any).event_slots?.offer_id) || 'Unknown',
-        slot_time: slotMap.get(booking.slot_id) || '',
-        status: booking.status,
-      };
+    return students.filter((student) => {
+      return (
+        student.student_name.toLowerCase().includes(query) ||
+        student.student_email.toLowerCase().includes(query) ||
+        student.offer_title.toLowerCase().includes(query) ||
+        (student.student_number && student.student_number.toLowerCase().includes(query))
+      );
     });
+  }, [searchQuery, students]);
 
-    // Sort by slot time
-    studentsData.sort((a, b) => new Date(b.slot_time).getTime() - new Date(a.slot_time).getTime());
+  const stats = useMemo(() => {
+    return {
+      unique: new Set(students.map((s) => s.student_id)).size,
+      confirmed: students.filter((s) => s.status === 'confirmed').length,
+      total: students.length,
+    };
+  }, [students]);
 
-    setStudents(studentsData);
-    setLoading(false);
-  };
-
-  const filteredStudents = students.filter(student =>
-    student.student_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    student.student_email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    student.offer_title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (student.student_number && student.student_number.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
-
-  const stats = {
-    unique: new Set(students.map(s => s.student_id)).size,
-    confirmed: students.filter(s => s.status === 'confirmed').length,
-    total: students.length,
-  };
+  if (authLoading) {
+    return <LoadingScreen message="Loading student data..." />;
+  }
 
   if (loading) {
+    return <LoadingScreen message="Loading student data..." />;
+  }
+
+  if (error) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <div className="w-full max-w-xl">
+          <ErrorDisplay error={error} onRetry={loadStudents} />
+        </div>
       </div>
     );
   }
@@ -184,15 +238,16 @@ export default function CompanyStudents() {
 
         {/* Students List */}
         {filteredStudents.length === 0 ? (
-          <div className="bg-card rounded-xl border border-border p-12 text-center">
-            <Users className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
-            <h3 className="text-lg font-semibold text-foreground mb-2">
-              {students.length === 0 ? 'No students yet' : 'No students match your search'}
-            </h3>
-            <p className="text-muted-foreground">
-              {students.length === 0 ? 'Students will appear here once they book interviews' : 'Try a different search term'}
-            </p>
-          </div>
+          <EmptyState
+            icon={Users}
+            title={students.length === 0 ? 'No students yet' : 'No students match your search'}
+            message={
+              students.length === 0
+                ? 'Students will appear here once they book interviews.'
+                : 'Try a different search term.'
+            }
+            className="bg-card rounded-xl border border-border"
+          />
         ) : (
           <div className="bg-card rounded-lg border border-border overflow-hidden">
             <div className="overflow-x-auto">
@@ -211,15 +266,29 @@ export default function CompanyStudents() {
                   {filteredStudents.map((student) => (
                     <tr key={student.booking_id} className="hover:bg-muted/30 transition-colors">
                       <td className="px-4 py-4">
-                        <Link
-                          to={`/company/students/${student.student_id}`}
-                          className="font-medium text-foreground hover:text-primary transition-colors"
-                        >
-                          {student.student_name}
-                        </Link>
-                        {student.student_number && (
-                          <p className="text-xs text-muted-foreground mt-1">{student.student_number}</p>
-                        )}
+                        <div className="flex items-center gap-2">
+                          {profiles.find((p: any) => p.id === student.student_id)?.profile_photo_url ? (
+                            <img
+                              src={profiles.find((p: any) => p.id === student.student_id)?.profile_photo_url}
+                              alt={student.student_name}
+                              className="w-8 h-8 rounded-lg object-cover flex-shrink-0 border border-border"
+                            />
+                          ) : null}
+                          <div>
+                            <Link
+                              to={`/company/students/${student.student_id}`}
+                              className="font-medium text-foreground hover:text-primary transition-colors"
+                            >
+                              {student.student_name}
+                            </Link>
+                            {student.student_number && (
+                              <p className="text-xs text-muted-foreground mt-0.5">{student.student_number}</p>
+                            )}
+                            {profiles.find((p: any) => p.id === student.student_id)?.program && (
+                              <p className="text-xs text-muted-foreground mt-0.5">{profiles.find((p: any) => p.id === student.student_id)?.program}</p>
+                            )}
+                          </div>
+                        </div>
                       </td>
                       <td className="px-4 py-4">
                         <p className="text-sm text-foreground">{student.student_email}</p>
