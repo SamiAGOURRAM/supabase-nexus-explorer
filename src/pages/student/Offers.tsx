@@ -317,7 +317,16 @@ export default function StudentOffers() {
     // Check for time conflicts with existing bookings
     const { data: existingBookings } = await supabase
       .from('bookings')
-      .select('event_slots!slot_id(start_time, end_time, companies(company_name))')
+      .select(`
+        slot_id,
+        event_slots!slot_id(
+          start_time,
+          slot_time,
+          end_time,
+          company_id,
+          companies(company_name)
+        )
+      `)
       .eq('student_id', user.id)
       .eq('status', 'confirmed');
 
@@ -329,15 +338,22 @@ export default function StudentOffers() {
       // Supabase nested queries require type assertions for proper typing
       for (const booking of existingBookings) {
         const eventSlot = assertSupabaseType<{ 
-          start_time: string; 
-          end_time: string; 
+          start_time: string | null;
+          slot_time: string | null;
+          end_time: string | null;
           companies: { company_name: string } | null;
         } | null>(booking.event_slots);
         
         if (!eventSlot) continue;
         
-        const bookingStart = new Date(eventSlot.start_time);
-        const bookingEnd = new Date(eventSlot.end_time);
+        // Use slot_time if start_time is null (for compatibility)
+        const startTime = eventSlot.start_time || eventSlot.slot_time;
+        const endTime = eventSlot.end_time;
+        
+        if (!startTime || !endTime) continue;
+        
+        const bookingStart = new Date(startTime);
+        const bookingEnd = new Date(endTime);
 
         // Check for time overlap
         if (slotStart < bookingEnd && slotEnd > bookingStart) {
