@@ -29,7 +29,7 @@ BEGIN
     FROM event_slots WHERE event_id = p_event_id;
     
     SELECT COUNT(*) INTO v_bookings_count 
-    FROM interview_bookings 
+    FROM bookings 
     WHERE slot_id IN (SELECT id FROM event_slots WHERE event_id = p_event_id);
     
     SELECT COUNT(*) INTO v_registrations_count 
@@ -40,8 +40,8 @@ BEGIN
 
     -- Delete in proper order to respect foreign keys
     
-    -- 1. Delete interview bookings (references event_slots)
-    DELETE FROM interview_bookings 
+    -- 1. Delete bookings (references event_slots)
+    DELETE FROM bookings 
     WHERE slot_id IN (SELECT id FROM event_slots WHERE event_id = p_event_id);
     
     -- 2. Delete event slots (references speed_recruiting_sessions and events)

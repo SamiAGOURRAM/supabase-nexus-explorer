@@ -175,13 +175,12 @@ export default function Signup() {
         return;
       }
 
-      // Validate email domain - allow UM6P or Gmail for testing
+      // Validate email domain - only allow UM6P
       const isUM6P = sanitizedEmail.endsWith('@um6p.ma');
-      const isGmail = sanitizedEmail.endsWith('@gmail.com');
       
-      if (!isUM6P && !isGmail) {
+      if (!isUM6P) {
         await recordFailedAttempt(sanitizedEmail, 'Invalid email domain', 'signup');
-        throw new Error('Email must be from UM6P (@um6p.ma) or Gmail (@gmail.com) for testing');
+        throw new Error('Email must be from UM6P (@um6p.ma). Students only.');
       }
 
       // Validate password strength
@@ -307,7 +306,7 @@ export default function Signup() {
               </li>
               <li className="flex items-start gap-3">
                 <div className="mt-1 h-2 w-2 rounded-full bg-white/80" />
-                Gmail is allowed for official testing cohorts.
+                Only @um6p.ma email addresses are accepted.
               </li>
               <li className="flex items-start gap-3">
                 <div className="mt-1 h-2 w-2 rounded-full bg-white/80" />
@@ -351,7 +350,7 @@ export default function Signup() {
               </span>
               <span className="flex items-center gap-2">
                 <Sparkles className="h-3.5 w-3.5" />
-                Gmail accounts are accepted for official testing cohorts
+                Only @um6p.ma email addresses accepted
               </span>
             </div>
           </div>
@@ -395,7 +394,7 @@ export default function Signup() {
                 className="w-full px-4 py-3 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring transition-shadow"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                @um6p.ma for students or @gmail.com for testing
+                Only @um6p.ma email addresses are allowed
               </p>
             </div>
 
