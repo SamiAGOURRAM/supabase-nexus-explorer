@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import LoadingScreen from './LoadingScreen';
+import { error as logError } from '@/utils/logger';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -34,6 +35,7 @@ export default function ProtectedRoute({
 
       if (!user) {
         setIsAuthenticated(false);
+        setIsEmailVerified(false);
         setLoading(false);
         return;
       }
@@ -41,12 +43,15 @@ export default function ProtectedRoute({
       setIsAuthenticated(true);
       setUserEmail(user.email || '');
 
-      // Email verification disabled - allow all authenticated users
-      setIsEmailVerified(true);
+      // Check email verification status
+      // email_confirmed_at is set by Supabase when user verifies their email
+      const verified = !!user.email_confirmed_at;
+      setIsEmailVerified(verified);
       setLoading(false);
     } catch (error) {
-      console.error('Auth check error:', error);
+      logError('Auth check error:', error);
       setIsAuthenticated(false);
+      setIsEmailVerified(false);
       setLoading(false);
     }
   };

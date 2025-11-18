@@ -60,7 +60,7 @@ export default function StudentProfile() {
       .maybeSingle(); // Use maybeSingle() to avoid 406 errors
 
     if (profileError) {
-      console.error('Profile fetch error:', profileError);
+      // Profile fetch error - log but continue gracefully
       alert('Student not found');
       navigate('/company/students');
       return;

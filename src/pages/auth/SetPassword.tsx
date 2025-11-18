@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { Eye, EyeOff, Lock, CheckCircle } from 'lucide-react';
+import { error as logError } from '@/utils/logger';
 
 export default function SetPassword() {
   const navigate = useNavigate();
@@ -72,7 +73,7 @@ export default function SetPassword() {
         .maybeSingle(); // Use maybeSingle() to avoid 406 errors
 
       if (profileError && profileError.code !== 'PGRST116') {
-        console.error('Profile check error:', profileError);
+        logError('Profile check error:', profileError);
       }
 
       if (!existingProfile) {
@@ -97,7 +98,7 @@ export default function SetPassword() {
           .eq('company_code', companyInfo.company_code);
 
         if (companyError) {
-          console.error('Error linking company:', companyError);
+          logError('Error linking company:', companyError);
         }
       }
 
@@ -107,7 +108,7 @@ export default function SetPassword() {
       }, 1500);
 
     } catch (error: any) {
-      console.error('Error setting password:', error);
+      logError('Error setting password:', error);
       setError(error.message || 'Failed to set password');
       setLoading(false);
     }

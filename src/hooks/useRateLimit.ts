@@ -78,6 +78,7 @@ export async function recordFailedAttempt(
     const ipAddress = await getClientIP();
 
     // Call the database function directly
+    // IP address is always a valid format (either real IP or '0.0.0.0' fallback)
     const { error } = await supabase.rpc('fn_record_failed_login', {
       p_email: email,
       p_ip_address: ipAddress,
@@ -85,8 +86,13 @@ export async function recordFailedAttempt(
     });
 
     // Silently ignore errors - rate limiting is optional
-    if (error && process.env.NODE_ENV === 'development') {
-      console.debug('Failed to record attempt (ignored):', error.message);
+    // Error codes: 42883 = function doesn't exist, PGRST116 = table not found, 42P01 = relation doesn't exist
+    if (error) {
+      // Only log in development, and only for unexpected errors
+      if (process.env.NODE_ENV === 'development' && 
+          !['42883', 'PGRST116', '42P01', '42501'].includes(error.code || '')) {
+        console.debug('Failed to record attempt (ignored):', error.message);
+      }
     }
   } catch (error: any) {
     // Silently ignore - rate limiting is optional
@@ -136,18 +142,44 @@ export async function clearRateLimit(email: string): Promise<void> {
 
 /**
  * Get client IP address (best effort)
- * Note: This may not work in all environments
+ * Note: This may not work in all environments due to CORS
  */
 async function getClientIP(): Promise<string> {
-  try {
-    // Try to get IP from various sources
-    const response = await fetch('https://api.ipify.org?format=json');
-    const data = await response.json();
-    return data.ip || 'unknown';
-  } catch {
-    // Fallback to a placeholder if we can't get the real IP
-    return 'unknown';
+  // In browser environments, external IP services are blocked by CORS
+  // Skip the fetch entirely to avoid CORS errors in console
+  // Rate limiting will still work using the fallback IP
+  if (typeof window !== 'undefined') {
+    // Browser environment - return fallback immediately
+    // This prevents CORS errors from appearing in console
+    return '0.0.0.0';
   }
+  
+  // Server-side only: try to get real IP (if this code runs on server)
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 1000); // 1 second timeout
+    
+    try {
+      const response = await fetch('https://api.ipify.org?format=json', {
+        signal: controller.signal,
+        mode: 'cors'
+      });
+      clearTimeout(timeoutId);
+      
+      if (response.ok) {
+        const data = await response.json();
+        return data.ip || '0.0.0.0';
+      }
+    } catch {
+      clearTimeout(timeoutId);
+      // Silently fall through to fallback
+    }
+  } catch {
+    // Fallback to placeholder
+  }
+  
+  // Fallback IP - valid INET format that database accepts
+  return '0.0.0.0';
 }
 
 /**

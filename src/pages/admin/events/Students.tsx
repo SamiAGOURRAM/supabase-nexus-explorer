@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { Users, Filter, Download } from 'lucide-react'
+import { error as logError } from '@/utils/logger'
 
 type StudentWithBookings = {
   student_id: string
@@ -53,7 +54,7 @@ export default function EventStudents() {
         .maybeSingle(); // Use maybeSingle() to avoid 406 errors
 
       if (profileError) {
-        console.error('Profile fetch error:', profileError);
+        logError('Profile fetch error:', profileError);
         navigate('/login');
         return;
       }
@@ -65,7 +66,7 @@ export default function EventStudents() {
 
       await loadData()
     } catch (err) {
-      console.error('Error:', err)
+      logError('Error:', err)
     } finally {
       setLoading(false)
     }
@@ -107,12 +108,10 @@ export default function EventStudents() {
       .order('full_name', { ascending: true });
 
     if (studentsError) {
-      console.error('Error fetching students:', studentsError);
+      logError('Error fetching students:', studentsError);
       setStudents([]);
       return;
     }
-
-    console.log(`Found ${allStudents?.length || 0} registered students`);
 
     if (!allStudents || allStudents.length === 0) {
       setStudents([]);
@@ -127,7 +126,6 @@ export default function EventStudents() {
       .eq('is_active', true);
 
     const slotIds = eventSlots?.map(s => s.id) || [];
-    console.log(`Found ${slotIds.length} active slots for event ${eventId}`);
 
     // Get bookings for these slots (if any)
     let bookingsData: any[] = [];
@@ -139,25 +137,45 @@ export default function EventStudents() {
         .eq('status', 'confirmed');
 
       bookingsData = bookings || [];
-      console.log(`Found ${bookingsData.length} confirmed bookings`);
     }
 
     // Get slot details with company info
+    // Query slots and companies separately to avoid inner join issues
     let slotsWithDetails: any[] = [];
     if (slotIds.length > 0) {
-      const { data } = await supabase
+      // Remove duplicates and ensure valid UUIDs
+      const uniqueSlotIds = [...new Set(slotIds.filter(id => id))];
+      
+      const { data: slotsData, error: slotsError } = await supabase
         .from('event_slots')
-        .select(`
-          id,
-          company_id,
-          session_id,
-          companies!inner (
-            id,
-            company_name
-          )
-        `)
-        .in('id', slotIds);
-      slotsWithDetails = data || [];
+        .select('id, company_id, session_id')
+        .in('id', uniqueSlotIds);
+      
+      if (slotsError) {
+        console.error('Error fetching slots:', slotsError);
+      } else if (slotsData && slotsData.length > 0) {
+        // Get unique company IDs
+        const companyIds = [...new Set(slotsData.map(s => s.company_id).filter(id => id))];
+        
+        if (companyIds.length > 0) {
+          // Fetch companies separately
+          const { data: companiesData } = await supabase
+            .from('companies')
+            .select('id, company_name')
+            .in('id', companyIds);
+          
+          // Create a map for quick lookup
+          const companiesMap = new Map(companiesData?.map(c => [c.id, c]) || []);
+          
+          // Combine slots with company info
+          slotsWithDetails = slotsData.map(slot => ({
+            id: slot.id,
+            company_id: slot.company_id,
+            session_id: slot.session_id,
+            companies: companiesMap.get(slot.company_id) || null
+          }));
+        }
+      }
     }
 
     // Get session names
@@ -217,7 +235,6 @@ export default function EventStudents() {
       };
     });
 
-    console.log('Loaded students:', studentsWithBookings.length);
     setStudents(studentsWithBookings);
   }
 

@@ -103,20 +103,40 @@ export function useEventStats(eventId: string | null) {
       }
 
       // Get slot details with company info - only if we have bookings
-      const bookingSlotIds = confirmedBookings.map(b => b.slot_id);
+      // Remove duplicates and ensure we have valid UUIDs
+      const bookingSlotIds = [...new Set(confirmedBookings.map(b => b.slot_id).filter(id => id))];
       let slotsWithCompanies: any[] = [];
       if (bookingSlotIds.length > 0) {
-        const { data } = await supabase
+        // Query slots first, then companies separately to avoid inner join issues
+        const { data: slotsData, error: slotsError } = await supabase
           .from('event_slots')
-          .select(`
-            id,
-            company_id,
-            companies!inner (
-              company_name
-            )
-          `)
+          .select('id, company_id')
           .in('id', bookingSlotIds);
-        slotsWithCompanies = data || [];
+        
+        if (slotsError) {
+          console.error('Error fetching slots:', slotsError);
+        } else if (slotsData && slotsData.length > 0) {
+          // Get unique company IDs
+          const companyIds = [...new Set(slotsData.map(s => s.company_id).filter(id => id))];
+          
+          if (companyIds.length > 0) {
+            // Fetch companies separately
+            const { data: companiesData } = await supabase
+              .from('companies')
+              .select('id, company_name')
+              .in('id', companyIds);
+            
+            // Create a map for quick lookup
+            const companiesMap = new Map(companiesData?.map(c => [c.id, c]) || []);
+            
+            // Combine slots with company info
+            slotsWithCompanies = slotsData.map(slot => ({
+              id: slot.id,
+              company_id: slot.company_id,
+              companies: companiesMap.get(slot.company_id) || null
+            }));
+          }
+        }
       }
 
       // Count bookings per company

@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useEmailVerification } from '@/hooks/useEmailVerification';
 import { Calendar, Briefcase, User, LogOut, Book, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { warn, error as logError } from '@/utils/logger';
 
 type EventPhaseInfo = {
   eventId: string;
@@ -40,7 +41,7 @@ export default function StudentDashboard() {
     
     // Double-check email verification
     if (!user.email_confirmed_at) {
-      console.warn('⚠️ Unverified user detected, signing out...');
+      warn('Unverified user detected, signing out...');
       await supabase.auth.signOut();
       navigate('/verify-email', {
         state: { email: user.email },
@@ -55,7 +56,7 @@ export default function StudentDashboard() {
       .maybeSingle(); // Use maybeSingle() to avoid 406 errors
 
     if (profileError) {
-      console.error('Profile fetch error:', profileError);
+      logError('Profile fetch error:', profileError);
       navigate('/offers');
       return;
     }

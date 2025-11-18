@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { ArrowLeft, Building2, Save } from 'lucide-react';
+import { validateEmail } from '@/utils/securityUtils';
+import { error as logError } from '@/utils/logger';
+import LoadingScreen from '@/components/shared/LoadingScreen';
 
 type CompanyProfile = {
   id: string;
@@ -20,6 +23,8 @@ export default function CompanyProfile() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState<CompanyProfile | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [successMessage, setSuccessMessage] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -27,56 +32,121 @@ export default function CompanyProfile() {
   }, []);
 
   const loadProfile = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      navigate('/login');
-      return;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        navigate('/login');
+        return;
+      }
+
+      const { data: company, error: companyError } = await supabase
+        .from('companies')
+        .select('*')
+        .eq('profile_id', user.id)
+        .single();
+
+      if (companyError) {
+        logError('Error loading company profile:', companyError);
+        alert('Error loading profile. Please try again.');
+        navigate('/company');
+        return;
+      }
+
+      if (company) {
+        setProfile(company);
+      } else {
+        alert('Company profile not found.');
+        navigate('/company');
+      }
+    } catch (err) {
+      logError('Unexpected error loading profile:', err);
+      alert('An unexpected error occurred. Please try again.');
+      navigate('/company');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const validateForm = (): boolean => {
+    if (!profile) return false;
+
+    const newErrors: Record<string, string> = {};
+
+    // Company name is required
+    if (!profile.company_name || profile.company_name.trim().length < 2) {
+      newErrors.company_name = 'Company name must be at least 2 characters';
     }
 
-    const { data: company } = await supabase
-      .from('companies')
-      .select('*')
-      .eq('profile_id', user.id)
-      .single();
-
-    if (company) {
-      setProfile(company);
+    // Website validation (optional but must be valid URL if provided)
+    if (profile.website && profile.website.trim().length > 0) {
+      try {
+        new URL(profile.website);
+      } catch {
+        newErrors.website = 'Please enter a valid URL (e.g., https://example.com)';
+      }
     }
-    setLoading(false);
+
+    // Contact email validation (optional but must be valid if provided)
+    if (profile.contact_email && profile.contact_email.trim().length > 0) {
+      const emailValidation = validateEmail(profile.contact_email);
+      if (!emailValidation.isValid) {
+        newErrors.contact_email = emailValidation.error || 'Invalid email format';
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleSave = async () => {
     if (!profile) return;
+
+    setErrors({});
+    setSuccessMessage('');
+
+    if (!validateForm()) {
+      return;
+    }
+
     setSaving(true);
 
-    const { error } = await supabase
-      .from('companies')
-      .update({
-        company_name: profile.company_name,
-        industry: profile.industry,
-        description: profile.description,
-        website: profile.website,
-        contact_email: profile.contact_email,
-        contact_phone: profile.contact_phone,
-        address: profile.address,
-        company_size: profile.company_size,
-      })
-      .eq('id', profile.id);
+    try {
+      const { error } = await supabase
+        .from('companies')
+        .update({
+          company_name: profile.company_name.trim(),
+          industry: profile.industry?.trim() || null,
+          description: profile.description?.trim() || null,
+          website: profile.website?.trim() || null,
+          contact_email: profile.contact_email?.trim() || null,
+          contact_phone: profile.contact_phone?.trim() || null,
+          address: profile.address?.trim() || null,
+          company_size: profile.company_size || null,
+        })
+        .eq('id', profile.id);
 
-    if (!error) {
-      alert('Profile updated successfully!');
-    } else {
-      alert('Error updating profile: ' + error.message);
+      if (error) {
+        logError('Error updating profile:', error);
+        alert('Error updating profile: ' + error.message);
+      } else {
+        setSuccessMessage('Profile updated successfully!');
+        // Clear success message after 3 seconds
+        setTimeout(() => setSuccessMessage(''), 3000);
+      }
+    } catch (err) {
+      logError('Unexpected error updating profile:', err);
+      alert('An unexpected error occurred. Please try again.');
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    );
+    return <LoadingScreen message="Loading profile..." />;
+  }
+
+  if (!profile) {
+    return null;
   }
 
   return (
@@ -96,6 +166,12 @@ export default function CompanyProfile() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {successMessage && (
+          <div className="mb-6 p-4 bg-success/10 border border-success/20 rounded-lg text-success">
+            {successMessage}
+          </div>
+        )}
+
         <div className="bg-card rounded-xl border border-border p-6">
           <div className="space-y-6">
             <div>
@@ -104,11 +180,16 @@ export default function CompanyProfile() {
               </label>
               <input
                 type="text"
-                value={profile?.company_name || ''}
-                onChange={(e) => setProfile(profile ? { ...profile, company_name: e.target.value } : null)}
-                className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
+                value={profile.company_name}
+                onChange={(e) => setProfile({ ...profile, company_name: e.target.value })}
+                className={`w-full px-4 py-2 bg-background border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground ${
+                  errors.company_name ? 'border-destructive' : 'border-border'
+                }`}
                 required
               />
+              {errors.company_name && (
+                <p className="mt-1 text-xs text-destructive">{errors.company_name}</p>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -118,8 +199,8 @@ export default function CompanyProfile() {
                 </label>
                 <input
                   type="text"
-                  value={profile?.industry || ''}
-                  onChange={(e) => setProfile(profile ? { ...profile, industry: e.target.value } : null)}
+                value={profile.industry || ''}
+                onChange={(e) => setProfile({ ...profile, industry: e.target.value })}
                   className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
                 />
               </div>
@@ -129,8 +210,8 @@ export default function CompanyProfile() {
                   Company Size
                 </label>
                 <select
-                  value={profile?.company_size || ''}
-                  onChange={(e) => setProfile(profile ? { ...profile, company_size: e.target.value } : null)}
+                  value={profile.company_size || ''}
+                  onChange={(e) => setProfile({ ...profile, company_size: e.target.value })}
                   className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
                 >
                   <option value="">Select size</option>
@@ -148,8 +229,8 @@ export default function CompanyProfile() {
                 Description
               </label>
               <textarea
-                value={profile?.description || ''}
-                onChange={(e) => setProfile(profile ? { ...profile, description: e.target.value } : null)}
+                value={profile.description || ''}
+                onChange={(e) => setProfile({ ...profile, description: e.target.value })}
                 rows={4}
                 className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
                 placeholder="Tell students about your company..."
@@ -163,11 +244,16 @@ export default function CompanyProfile() {
                 </label>
                 <input
                   type="url"
-                  value={profile?.website || ''}
-                  onChange={(e) => setProfile(profile ? { ...profile, website: e.target.value } : null)}
-                  className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
+                  value={profile.website || ''}
+                  onChange={(e) => setProfile({ ...profile, website: e.target.value })}
+                  className={`w-full px-4 py-2 bg-background border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground ${
+                    errors.website ? 'border-destructive' : 'border-border'
+                  }`}
                   placeholder="https://example.com"
                 />
+                {errors.website && (
+                  <p className="mt-1 text-xs text-destructive">{errors.website}</p>
+                )}
               </div>
 
               <div>
@@ -176,10 +262,15 @@ export default function CompanyProfile() {
                 </label>
                 <input
                   type="email"
-                  value={profile?.contact_email || ''}
-                  onChange={(e) => setProfile(profile ? { ...profile, contact_email: e.target.value } : null)}
-                  className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
+                  value={profile.contact_email || ''}
+                  onChange={(e) => setProfile({ ...profile, contact_email: e.target.value })}
+                  className={`w-full px-4 py-2 bg-background border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground ${
+                    errors.contact_email ? 'border-destructive' : 'border-border'
+                  }`}
                 />
+                {errors.contact_email && (
+                  <p className="mt-1 text-xs text-destructive">{errors.contact_email}</p>
+                )}
               </div>
             </div>
 
@@ -190,8 +281,8 @@ export default function CompanyProfile() {
                 </label>
                 <input
                   type="tel"
-                  value={profile?.contact_phone || ''}
-                  onChange={(e) => setProfile(profile ? { ...profile, contact_phone: e.target.value } : null)}
+                  value={profile.contact_phone || ''}
+                  onChange={(e) => setProfile({ ...profile, contact_phone: e.target.value })}
                   className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
                 />
               </div>
@@ -202,8 +293,8 @@ export default function CompanyProfile() {
                 </label>
                 <input
                   type="text"
-                  value={profile?.address || ''}
-                  onChange={(e) => setProfile(profile ? { ...profile, address: e.target.value } : null)}
+                  value={profile.address || ''}
+                  onChange={(e) => setProfile({ ...profile, address: e.target.value })}
                   className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
                 />
               </div>

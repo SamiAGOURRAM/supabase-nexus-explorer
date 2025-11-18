@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { ArrowLeft, Building2, MapPin, Clock, DollarSign, Tag, Briefcase, CheckCircle, Calendar, X } from 'lucide-react';
 import { extractNestedObject } from '@/utils/supabaseTypes';
+import { debug, error as logError } from '@/utils/logger';
 
 type Offer = {
   id: string;
@@ -64,7 +65,7 @@ export default function OfferDetail() {
     if (!showBookingModal) return;
 
     const interval = setInterval(() => {
-      console.log('🔄 [Auto-refresh] Refreshing slots...');
+      debug('[Auto-refresh] Refreshing slots...');
       fetchSlots();
     }, 10000); // Refresh every 10 seconds
 
@@ -195,7 +196,7 @@ export default function OfferDetail() {
     // Get slots for this specific offer
     // Slots are linked to offers via offer_id
     const currentTime = new Date().toISOString();
-    console.log('🔵 [OfferDetail] Fetching slots with filters:', {
+    debug('[OfferDetail] Fetching slots with filters:', {
       company_id: offer.company_id,
       event_id: eventId,
       current_time: currentTime,
@@ -208,7 +209,7 @@ export default function OfferDetail() {
       .select('*')
       .eq('company_id', offer.company_id);
     
-    console.log('🟡 [DEBUG] ALL SLOTS for company (no filters):', {
+    debug('[DEBUG] ALL SLOTS for company (no filters):', {
       total: allSlots?.length || 0,
       samples: allSlots?.slice(0, 3),
       breakdown: {
@@ -230,7 +231,7 @@ export default function OfferDetail() {
       .gte('start_time', currentTime)
       .order('start_time', { ascending: true });
 
-    console.log('🔵 [OfferDetail] FILTERED QUERY RESULT (future only):', {
+    debug('[OfferDetail] FILTERED QUERY RESULT (future only):', {
       error: slotsError,
       data: slotsData,
       count: slotsData?.length || 0,
@@ -240,7 +241,7 @@ export default function OfferDetail() {
     // If no future slots, get ALL active slots (including past ones)
     // This handles the case where slots were created but are now in the past
     if (!slotsError && (!slotsData || slotsData.length === 0)) {
-      console.log('⚠️ [OfferDetail] No future slots found, fetching ALL active slots including past...');
+      debug('[OfferDetail] No future slots found, fetching ALL active slots including past...');
       const { data: allActiveSlots, error: allSlotsError } = await supabase
         .from('event_slots')
         .select('id, start_time, end_time, location, capacity, offer_id, company_id, event_id, is_active')
@@ -251,14 +252,13 @@ export default function OfferDetail() {
       slotsData = allActiveSlots;
       slotsError = allSlotsError;
       
-      console.log('🟠 [OfferDetail] ALL ACTIVE SLOTS (including past):', {
+      debug('[OfferDetail] ALL ACTIVE SLOTS (including past):', {
         count: slotsData?.length || 0,
         samples: slotsData?.slice(0, 3)
       });
     }
-
     if (slotsError) {
-      console.error('🔴 [OfferDetail] Error fetching slots:', slotsError);
+      logError('[OfferDetail] Error fetching slots:', slotsError);
       alert(`Error fetching slots: ${slotsError.message}`);
     }
 
@@ -282,7 +282,7 @@ export default function OfferDetail() {
         (slot) => slot.bookings_count < (slot.capacity || 1) // Default capacity to 1 if null
       );
 
-      console.log('🔵 [OfferDetail] Available slots after filtering:', available.length);
+      debug('[OfferDetail] Available slots after filtering:', available.length);
 
       setAvailableSlots(available);
     }
@@ -305,7 +305,7 @@ export default function OfferDetail() {
       .eq('status', 'confirmed');
 
     if (error) {
-      console.error('Error checking conflicts:', error);
+      logError('Error checking conflicts:', error);
       return;
     }
 
@@ -318,7 +318,7 @@ export default function OfferDetail() {
         .in('id', slotIds);
 
       if (slotsError) {
-        console.error('Error fetching slots:', slotsError);
+        logError('Error fetching slots:', slotsError);
         return;
       }
 
@@ -363,13 +363,19 @@ export default function OfferDetail() {
         return;
       }
 
+      // Use the offer_id from the current offer (we're on the offer detail page)
+      if (!offer.id) {
+        throw new Error('Offer ID not found');
+      }
+
       const { data, error } = await supabase.rpc('fn_book_interview', {
         p_student_id: user.id,
-        p_slot_id: slotId
+        p_slot_id: slotId,
+        p_offer_id: offer.id
       });
 
       if (error) {
-        console.error('RPC Error:', error);
+        logError('RPC Error:', error);
         throw error;
       }
 
@@ -380,7 +386,7 @@ export default function OfferDetail() {
         throw new Error('No response from booking function');
       }
 
-      console.log('Booking result:', result);
+      debug('Booking result:', result);
 
       if (result.success) {
         alert(result.message || 'Interview booked successfully!');
@@ -390,7 +396,7 @@ export default function OfferDetail() {
         throw new Error(result.message || 'Failed to book interview');
       }
     } catch (error: any) {
-      console.error('Error booking interview:', error);
+      logError('Error booking interview:', error);
       alert(error.message || 'Failed to book interview.');
     }
   };

@@ -227,11 +227,22 @@ export default function Signup() {
         // Record failed attempt
         await recordFailedAttempt(sanitizedEmail, signupError.message, 'signup');
         
-        // Handle specific Supabase errors
-        if (signupError.message.includes('already registered')) {
+        // Handle specific Supabase errors with user-friendly messages
+        if (signupError.message.includes('already registered') || signupError.message.includes('already exists')) {
           throw new Error('This email is already registered. Please sign in instead.');
         }
-        throw signupError;
+        
+        if (signupError.message.includes('Database error') || signupError.message.includes('saving new user')) {
+          console.error('Database error during signup - trigger may have failed:', signupError);
+          throw new Error('Account creation failed. Please try again or contact support if the issue persists.');
+        }
+        
+        if (signupError.message.includes('Invalid login credentials')) {
+          throw new Error('Invalid credentials. Please check your email and password.');
+        }
+        
+        // Generic error fallback
+        throw new Error(signupError.message || 'An error occurred during signup. Please try again.');
       }
 
       // Check if user was created

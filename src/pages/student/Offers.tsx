@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { ArrowLeft, Briefcase, MapPin, Calendar, Clock, X, Search } from 'lucide-react';
-import { extractNestedObject, assertSupabaseType } from '@/utils/supabaseTypes';
+import { debug, error as logError } from '@/utils/logger';
 
 type Offer = {
   id: string;
@@ -98,7 +98,7 @@ export default function StudentOffers() {
       .maybeSingle(); // Use maybeSingle() to avoid 406 errors
 
     if (profileError) {
-      console.error('Profile fetch error:', profileError);
+      logError('Profile fetch error:', profileError);
       navigate('/login');
       return;
     }
@@ -195,7 +195,7 @@ export default function StudentOffers() {
       setBookingLimit(limitData[0]);
     }
 
-    console.log('🔵 Fetching slots with filters:', {
+    debug('Fetching slots with filters:', {
       company_id: offer.company_id,
       event_id: selectedEventId,
       offer_id: offer.id,
@@ -203,18 +203,6 @@ export default function StudentOffers() {
       offer_title: offer.title,
       current_time: new Date().toISOString()
     });
-
-    // CRITICAL DEBUG: Log the exact values being used
-    console.log('🔵 EXACT FILTER VALUES:', {
-      'company_id (from offer)': offer.company_id,
-      'event_id (selected)': selectedEventId,
-      'Are they truthy?': {
-        company_id: !!offer.company_id,
-        event_id: !!selectedEventId
-      }
-    });
-
-    console.log('🔵 About to execute query...');
 
     // Get all slots for this company for the selected event
     // Note: Slots are generated per company, not per offer
@@ -229,25 +217,15 @@ export default function StudentOffers() {
       .gte('start_time', new Date().toISOString())
       .order('start_time', { ascending: true });
 
-    console.log('🔵 Query completed!');
-    console.log('🔵 RAW QUERY RESULT:', {
-      error: slotsError,
-      data: slotsData,
-      count: slotsData?.length || 0,
-      dataType: typeof slotsData,
-      isArray: Array.isArray(slotsData),
-      dataKeys: slotsData ? Object.keys(slotsData) : 'null'
-    });
-
     if (slotsError) {
-      console.error('🔴 Error fetching slots:', slotsError);
+      logError('Error fetching slots:', slotsError);
       alert(`Error fetching slots: ${slotsError.message}`);
     }
 
-    console.log('🔵 Slots fetched:', slotsData?.length || 0, slotsData);
+    debug('Slots fetched:', slotsData?.length || 0);
 
     if (slotsData) {
-      console.log('🔵 Processing', slotsData.length, 'slots to check capacity...');
+      debug('Processing', slotsData.length, 'slots to check capacity...');
       
       // Count bookings for each slot
       const slotsWithCounts = await Promise.all(
@@ -258,12 +236,9 @@ export default function StudentOffers() {
             .eq('slot_id', slot.id)
             .eq('status', 'confirmed');
 
-          console.log(`🔵 Slot ${slot.id.slice(0, 8)}... at ${new Date(slot.start_time).toLocaleTimeString()}:`, {
-            capacity: slot.capacity,
-            bookings: count || 0,
-            available: (slot.capacity || 0) - (count || 0),
-            countError
-          });
+          if (countError) {
+            logError('Error counting bookings for slot:', countError);
+          }
 
           return {
             ...slot,
@@ -272,24 +247,16 @@ export default function StudentOffers() {
         })
       );
 
-      console.log('🔵 All slots with booking counts:', slotsWithCounts.map(s => ({
-        time: new Date(s.start_time).toLocaleTimeString(),
-        capacity: s.capacity,
-        booked: s.bookings_count,
-        available: (s.capacity || 0) - s.bookings_count
-      })));
-
       // Filter out full slots
       // Default capacity to 1 if null/undefined (single interview slot)
       const available = slotsWithCounts.filter(
         (slot) => slot.bookings_count < (slot.capacity || 1)
       );
 
-      console.log('🔵 Available slots after filtering:', available.length, available);
-      console.log('🔵 Slots filtered out (full):', slotsWithCounts.length - available.length);
+      debug('Available slots after filtering:', available.length, 'out of', slotsWithCounts.length);
 
       if (available.length === 0 && slotsWithCounts.length > 0) {
-        console.error('🔴 ALL SLOTS ARE FULL! All', slotsWithCounts.length, 'slots have reached capacity');
+        logError('All slots are full! All', slotsWithCounts.length, 'slots have reached capacity');
       }
 
       setAvailableSlots(available);
@@ -314,40 +281,54 @@ export default function StudentOffers() {
     const selectedSlot = availableSlots.find(s => s.id === slotId);
     if (!selectedSlot) return;
 
-    // Check for time conflicts with existing bookings
-    const { data: existingBookings } = await supabase
+    // Get existing bookings - simplified query to avoid nested join issues
+    const { data: existingBookings, error } = await supabase
       .from('bookings')
-      .select('event_slots!slot_id(start_time, end_time, companies(company_name))')
+      .select('slot_id')
       .eq('student_id', user.id)
       .eq('status', 'confirmed');
 
+    if (error) {
+      logError('Error checking conflicts:', error);
+      return;
+    }
+
     if (existingBookings && existingBookings.length > 0) {
-      const slotStart = new Date(selectedSlot.start_time);
-      const slotEnd = new Date(selectedSlot.end_time);
+      // Get slot details for all existing bookings
+      const slotIds = existingBookings.map(b => b.slot_id);
+      const { data: slots, error: slotsError } = await supabase
+        .from('event_slots')
+        .select('id, start_time, end_time, company_id')
+        .in('id', slotIds);
 
-      // Check for time conflicts with existing bookings
-      // Supabase nested queries require type assertions for proper typing
-      for (const booking of existingBookings) {
-        const eventSlot = assertSupabaseType<{ 
-          start_time: string; 
-          end_time: string; 
-          companies: { company_name: string } | null;
-        } | null>(booking.event_slots);
-        
-        if (!eventSlot) continue;
-        
-        const bookingStart = new Date(eventSlot.start_time);
-        const bookingEnd = new Date(eventSlot.end_time);
+      if (slotsError) {
+        logError('Error fetching slots:', slotsError);
+        return;
+      }
 
-        // Check for time overlap
-        if (slotStart < bookingEnd && slotEnd > bookingStart) {
-          // Extract company name from nested query result
-          const company = extractNestedObject<{ company_name: string }>(eventSlot.companies);
-          const companyName = company?.company_name || 'Unknown Company';
-          setValidationWarning(
-            `⚠️ Time conflict detected! You already have an interview with ${companyName} at ${bookingStart.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`
-          );
-          return;
+      if (slots && slots.length > 0) {
+        const slotStart = new Date(selectedSlot.start_time);
+        const slotEnd = new Date(selectedSlot.end_time);
+
+        for (const existingSlot of slots) {
+          const bookingStart = new Date(existingSlot.start_time);
+          const bookingEnd = new Date(existingSlot.end_time);
+
+          // Check for time overlap
+          if (slotStart < bookingEnd && slotEnd > bookingStart) {
+            // Get company name separately to avoid nested join issues
+            const { data: company } = await supabase
+              .from('companies')
+              .select('company_name')
+              .eq('id', existingSlot.company_id)
+              .single();
+
+            const companyName = company?.company_name || 'Unknown Company';
+            setValidationWarning(
+              `⚠️ Time conflict detected! You already have an interview with ${companyName} at ${bookingStart.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`
+            );
+            return;
+          }
         }
       }
     }
@@ -371,9 +352,16 @@ export default function StudentOffers() {
         return;
       }
 
+      // Use the offer_id from the selected offer
+      if (!selectedOffer?.id) {
+        setBookingError('Offer ID not found');
+        return;
+      }
+
       const { data, error } = await supabase.rpc('fn_book_interview', {
         p_student_id: user.id,
-        p_slot_id: slotId
+        p_slot_id: slotId,
+        p_offer_id: selectedOffer.id
       });
 
       if (error) throw error;
@@ -390,7 +378,7 @@ export default function StudentOffers() {
         setBookingError(result?.message || 'Failed to book interview');
       }
     } catch (error: any) {
-      console.error('Error booking interview:', error);
+      logError('Error booking interview:', error);
       setBookingError(error.message || 'Failed to book interview. Please check booking limits and phase restrictions.');
     }
   };
