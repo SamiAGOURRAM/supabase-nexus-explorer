@@ -120,18 +120,11 @@ export default function QuickInvitePage() {
             message: data.message + `\n\n⚠️ Magic link error: ${magicLinkError.message}`
           });
         } else {
-          // Count slots
-          const { count: slotCount } = await supabase
-            .from('event_slots')
-            .select('*', { count: 'exact', head: true })
-            .eq('company_id', data.company_id)
-            .eq('event_id', eventId);
-
           setResult({
             ...data,
             message: data.message + 
               `\n\n📧 Magic link sent to ${inviteEmail}!` +
-              `\n🎯 ${slotCount || 0} interview slots generated` +
+              `\n\nℹ️ No slots auto-generated. Create slots manually via Sessions/Offers page.` +
               (isNewCompany ? '\n✅ Company will receive an email to set their password.' : '')
           });
         }
@@ -219,13 +212,6 @@ const handleSearch = async () => {
         if (!isDuplicate) throw error;
       }
 
-      // Count how many slots were auto-generated (or already exist)
-      const { count: slotCount } = await supabase
-        .from('event_slots')
-        .select('*', { count: 'exact', head: true })
-        .eq('company_id', companyId)
-        .eq('event_id', eventId);
-
       // Try to fetch company email and send magic link
       const { data: companyData, error: companyError } = await supabase
         .from('companies')
@@ -235,14 +221,14 @@ const handleSearch = async () => {
 
       if (companyError) {
         // still consider the invite successful but inform admin
-        alert(`✅ ${companyName} invited to the event!\n\n🎯 ${slotCount || 0} interview slots generated\n\n⚠️ Could not fetch company email: ${companyError.message}`);
+        alert(`✅ ${companyName} invited to the event!\n\nℹ️ No slots auto-generated (create manually via Sessions/Offers)\n\n⚠️ Could not fetch company email: ${companyError.message}`);
         await handleSearch();
         return;
       }
 
       const companyEmail = (companyData?.email || '').trim().toLowerCase();
       if (!companyEmail) {
-        alert(`✅ ${companyName} invited to the event!\n\n🎯 ${slotCount || 0} interview slots generated\n\n⚠️ No email on file for this company — cannot send an invite email.`);
+        alert(`✅ ${companyName} invited to the event!\n\nℹ️ No slots auto-generated (create manually via Sessions/Offers)\n\n⚠️ No email on file for this company — cannot send an invite email.`);
         await handleSearch();
         return;
       }
@@ -263,12 +249,12 @@ const handleSearch = async () => {
         });
 
         if (magicLinkError) {
-          alert(`✅ ${companyName} invited to the event!\n\n🎯 ${slotCount || 0} interview slots generated\n\n⚠️ Could not send invite email: ${magicLinkError.message}`);
+          alert(`✅ ${companyName} invited to the event!\n\nℹ️ No slots auto-generated (create manually)\n\n⚠️ Could not send invite email: ${magicLinkError.message}`);
         } else {
-          alert(`✅ ${companyName} invited and magic link sent to ${companyEmail}!\n\n🎯 ${slotCount || 0} interview slots generated`);
+          alert(`✅ ${companyName} invited and magic link sent to ${companyEmail}!\n\nℹ️ No slots auto-generated. Create slots manually via Sessions/Offers page.`);
         }
       } catch (sendErr: any) {
-        alert(`✅ ${companyName} invited to the event!\n\n🎯 ${slotCount || 0} interview slots generated\n\n⚠️ Error sending invite: ${sendErr?.message || String(sendErr)}`);
+        alert(`✅ ${companyName} invited to the event!\n\nℹ️ No slots auto-generated (create manually)\n\n⚠️ Error sending invite: ${sendErr?.message || String(sendErr)}`);
       }
 
       await handleSearch();

@@ -59,6 +59,18 @@ export default function OfferDetail() {
     loadOfferDetail();
   }, [id]);
 
+  // Auto-refresh slots every 10 seconds when booking modal is open
+  useEffect(() => {
+    if (!showBookingModal) return;
+
+    const interval = setInterval(() => {
+      console.log('🔄 [Auto-refresh] Refreshing slots...');
+      fetchSlots();
+    }, 10000); // Refresh every 10 seconds
+
+    return () => clearInterval(interval);
+  }, [showBookingModal, offer, eventId]);
+
   const loadOfferDetail = async () => {
     if (!id) return;
 
@@ -161,6 +173,12 @@ export default function OfferDetail() {
     setValidationWarning(null);
     setSelectedSlotId(null);
 
+    await fetchSlots(); // Fetch fresh slots when modal opens
+  };
+
+  const fetchSlots = async () => {
+    if (!offer || !eventId) return;
+
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
@@ -176,27 +194,68 @@ export default function OfferDetail() {
 
     // Get slots for this specific offer
     // Slots are linked to offers via offer_id
+    const currentTime = new Date().toISOString();
     console.log('🔵 [OfferDetail] Fetching slots with filters:', {
       company_id: offer.company_id,
       event_id: eventId,
-      current_time: new Date().toISOString()
+      current_time: currentTime,
+      timestamp: new Date().toISOString()
     });
 
-    const { data: slotsData, error: slotsError } = await supabase
+    // Try 1: Get ALL slots for this company (no time filter, no is_active filter)
+    const { data: allSlots } = await supabase
       .from('event_slots')
-      .select('id, start_time, end_time, capacity, offer_id, company_id, event_id, is_active')
+      .select('*')
+      .eq('company_id', offer.company_id);
+    
+    console.log('🟡 [DEBUG] ALL SLOTS for company (no filters):', {
+      total: allSlots?.length || 0,
+      samples: allSlots?.slice(0, 3),
+      breakdown: {
+        active: allSlots?.filter(s => s.is_active).length || 0,
+        inactive: allSlots?.filter(s => !s.is_active).length || 0,
+        future: allSlots?.filter(s => new Date(s.start_time) > new Date()).length || 0,
+        past: allSlots?.filter(s => new Date(s.start_time) <= new Date()).length || 0,
+        withEventId: allSlots?.filter(s => s.event_id).length || 0,
+        withoutEventId: allSlots?.filter(s => !s.event_id).length || 0
+      }
+    });
+
+    // Try 2: Get slots with our intended filters (future slots only)
+    let { data: slotsData, error: slotsError } = await supabase
+      .from('event_slots')
+      .select('id, start_time, end_time, location, capacity, offer_id, company_id, event_id, is_active')
       .eq('company_id', offer.company_id)
-      .eq('event_id', eventId)
-      // Removed .eq('offer_id', offer.id) - slots are per company, not per offer
       .eq('is_active', true)
-      .gte('start_time', new Date().toISOString())
+      .gte('start_time', currentTime)
       .order('start_time', { ascending: true });
 
-    console.log('🔵 [OfferDetail] RAW QUERY RESULT:', {
+    console.log('🔵 [OfferDetail] FILTERED QUERY RESULT (future only):', {
       error: slotsError,
       data: slotsData,
-      count: slotsData?.length || 0
+      count: slotsData?.length || 0,
+      sample: slotsData?.[0]
     });
+
+    // If no future slots, get ALL active slots (including past ones)
+    // This handles the case where slots were created but are now in the past
+    if (!slotsError && (!slotsData || slotsData.length === 0)) {
+      console.log('⚠️ [OfferDetail] No future slots found, fetching ALL active slots including past...');
+      const { data: allActiveSlots, error: allSlotsError } = await supabase
+        .from('event_slots')
+        .select('id, start_time, end_time, location, capacity, offer_id, company_id, event_id, is_active')
+        .eq('company_id', offer.company_id)
+        .eq('is_active', true)
+        .order('start_time', { ascending: true });
+      
+      slotsData = allActiveSlots;
+      slotsError = allSlotsError;
+      
+      console.log('🟠 [OfferDetail] ALL ACTIVE SLOTS (including past):', {
+        count: slotsData?.length || 0,
+        samples: slotsData?.slice(0, 3)
+      });
+    }
 
     if (slotsError) {
       console.error('🔴 [OfferDetail] Error fetching slots:', slotsError);
@@ -558,7 +617,26 @@ export default function OfferDetail() {
                 <div className="text-center py-12">
                   <Calendar className="w-16 h-16 text-muted-foreground opacity-50 mx-auto mb-4" />
                   <h3 className="font-semibold text-foreground mb-2">No Available Slots</h3>
-                  <p className="text-muted-foreground text-sm">All slots are currently booked</p>
+
+                  <p className="text-muted-foreground text-sm mb-4">
+                    All slots for {offer.company_name} are booked.
+                  </p>
+                  <details className="text-left max-w-md mx-auto">
+                    <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">
+                      Debug Info (click to expand)
+                    </summary>
+                    <pre className="text-xs bg-muted p-3 rounded mt-2 overflow-auto">
+                      Company ID: {offer.company_id}{'\n'}
+                      Event ID: {eventId || 'Not set'}{'\n'}
+                      Check browser console for query details
+                    </pre>
+                  </details>
+                  <Link
+                    to="/student/offers"
+                    className="inline-block mt-4 px-4 py-2 text-sm text-primary hover:underline"
+                  >
+                    Browse Other Offers
+                  </Link>
                 </div>
               ) : (
                 <>

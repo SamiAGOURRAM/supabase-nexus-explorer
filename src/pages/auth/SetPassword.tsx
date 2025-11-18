@@ -76,12 +76,13 @@ export default function SetPassword() {
       }
 
       if (!existingProfile) {
-        // Create profile
+        // Create profile with company information
         const { error: profileError } = await supabase
           .from('profiles')
           .insert({
             id: user.id,
             email: user.email,
+            full_name: companyInfo?.company_name || 'Company User',
             role: 'company'
           });
 

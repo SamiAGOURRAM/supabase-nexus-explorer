@@ -132,13 +132,22 @@ export default function StudentDashboard() {
               <h1 className="text-2xl font-bold text-foreground">Student Dashboard</h1>
               <p className="text-sm text-muted-foreground mt-1">Welcome back!</p>
             </div>
-            <button
-              onClick={handleSignOut}
-              className="flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
-              Sign Out
-            </button>
+            <div className="flex items-center gap-3">
+              <Link
+                to="/student/profile"
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-foreground hover:bg-primary/10 rounded-lg transition-colors border border-border hover:border-primary"
+              >
+                <User className="w-4 h-4" />
+                Profile
+              </Link>
+              <button
+                onClick={handleSignOut}
+                className="flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+                Sign Out
+              </button>
+            </div>
           </div>
         </div>
       </header>
