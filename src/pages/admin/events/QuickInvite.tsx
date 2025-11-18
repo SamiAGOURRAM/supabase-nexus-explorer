@@ -70,6 +70,32 @@ export default function QuickInvitePage() {
   setResult(null);
 
   try {
+    // First check if a company with this email already exists and is already invited
+    const { data: existingCompany } = await supabase
+      .from('companies')
+      .select('id, company_name, email')
+      .eq('email', email.trim().toLowerCase())
+      .single();
+    
+    if (existingCompany) {
+      // Check if already invited to THIS event
+      const { data: alreadyInvited } = await supabase
+        .from('event_participants')
+        .select('id')
+        .eq('company_id', existingCompany.id)
+        .eq('event_id', eventId)
+        .maybeSingle();
+      
+      if (alreadyInvited) {
+        setResult({
+          success: false,
+          message: `⚠️ Company "${existingCompany.company_name}" with email ${email} is already invited to this event.\n\nℹ️ Use the "Search Existing Companies" tab to view all invited companies.`
+        });
+        setLoading(false);
+        return;
+      }
+    }
+
     const { data, error } = await supabase.rpc('quick_invite_company', {
       p_email: email.trim(),
       p_company_name: companyName.trim(),
@@ -146,9 +172,21 @@ export default function QuickInvitePage() {
     }
   } catch (error: any) {
     console.error('Quick invite error:', error);
+    
+    // Provide detailed error message
+    let errorMessage = 'Failed to invite company';
+    if (error.message) {
+      errorMessage = error.message;
+    }
+    
+    // Check for specific error cases
+    if (error.message?.includes('duplicate') || error.message?.includes('unique')) {
+      errorMessage = 'This company email or name is already registered. Use the "Search Existing Companies" tab to invite them.';
+    }
+    
     setResult({
       success: false,
-      message: error.message || 'Failed to invite company'
+      message: errorMessage
     });
   } finally {
     setLoading(false);

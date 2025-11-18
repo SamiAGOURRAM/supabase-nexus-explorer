@@ -11,6 +11,7 @@ const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || '';
 const RECAPTCHA_ENABLED = !!RECAPTCHA_SITE_KEY;
 
 // Lazy load pages for better performance
+const Home = lazy(() => import("./pages/Home"));
 const SetPassword = lazy(() => import("./pages/auth/SetPassword"));
 const Login = lazy(() => import("./pages/Login"));
 const Signup = lazy(() => import("./pages/Signup"));
@@ -56,7 +57,7 @@ function App() {
       <Suspense fallback={<LoadingScreen />}>
         <Routes>
           {/* Public Routes */}
-          <Route path="/" element={<Navigate to="/offers" replace />} />
+          <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
