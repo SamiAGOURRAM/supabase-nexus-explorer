@@ -7,6 +7,7 @@ import LoadingScreen from '@/components/shared/LoadingScreen';
 import ErrorDisplay from '@/components/shared/ErrorDisplay';
 import EmptyState from '@/components/shared/EmptyState';
 import { useAuth } from '@/hooks/useAuth';
+import { debug, warn as logWarn, error as logError } from '@/utils/logger';
 
 type StudentBooking = {
   booking_id: string;
@@ -18,6 +19,7 @@ type StudentBooking = {
   specialization: string | null;
   graduation_year: number | null;
   cv_url: string | null;
+  resume_url: string | null;
   offer_title: string;
   slot_time: string;
   status: string;
@@ -53,65 +55,93 @@ export default function CompanyStudents() {
         return;
       }
 
-      const { data: offers, error: offersError } = await supabase
-        .from('offers')
-        .select('id, title')
+      // Get all slots directly for this company (slots have company_id)
+      const { data: slots, error: slotsError } = await supabase
+        .from('event_slots')
+        .select('id, start_time, offer_id, company_id')
         .eq('company_id', company.id);
 
-      if (offersError) {
-        throw new Error(`Failed to load offers: ${offersError.message}`);
+      if (slotsError) {
+        throw new Error(`Failed to load slots: ${slotsError.message}`);
       }
 
-      if (!offers || offers.length === 0) {
+      if (!slots || slots.length === 0) {
+        debug('📊 No slots found for company:', company.id);
         setStudents([]);
         return;
       }
 
-      const offerIds = offers.map((o) => o.id);
-      const offerMap = new Map(offers.map((o) => [o.id, o.title]));
+      debug('📊 Found slots for company:', slots.length);
 
+      const slotIds = slots.map((s) => s.id);
+      
+      // Get all unique offer IDs from slots
+      const offerIds = [...new Set(slots.map((s) => s.offer_id).filter((id): id is string => Boolean(id)))];
+      
+      // Get offer titles
+      let offerMap = new Map<string, string>();
+      if (offerIds.length > 0) {
+        const { data: offers, error: offersError } = await supabase
+          .from('offers')
+          .select('id, title')
+          .in('id', offerIds);
+
+        if (offersError) {
+          logWarn('Failed to load offers:', offersError);
+        } else if (offers) {
+          offerMap = new Map(offers.map((o) => [o.id, o.title]));
+        }
+      }
+
+      const slotMap = new Map(slots.map((s) => [s.id, { time: s.start_time, offer_id: s.offer_id }]));
+
+      // Get bookings for these slots
       const { data: bookings, error: bookingsError } = await supabase
         .from('bookings')
-        .select('id, student_id, slot_id, status, event_slots!inner(offer_id)')
-        .in('event_slots.offer_id', offerIds);
+        .select('id, student_id, slot_id, status')
+        .in('slot_id', slotIds)
+        .eq('status', 'confirmed'); // Only show confirmed bookings
 
       if (bookingsError) {
         throw new Error(`Failed to load bookings: ${bookingsError.message}`);
       }
 
       if (!bookings || bookings.length === 0) {
+        debug('📊 No bookings found for company slots');
         setStudents([]);
         return;
       }
 
+      debug('📊 Found bookings:', bookings.length);
+
       const studentIds = [...new Set(bookings.map((b) => b.student_id))];
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, full_name, email, phone, student_number, specialization, graduation_year, cv_url, profile_photo_url, languages_spoken, program, biography, linkedin_url, resume_url, year_of_study')
-        .in('id', studentIds);
+      
+      // Get all student profile information for companies to view
+      let profiles: any[] = [];
+      if (studentIds.length > 0) {
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, full_name, email, phone, student_number, specialization, graduation_year, cv_url, profile_photo_url, languages_spoken, program, biography, linkedin_url, resume_url, year_of_study, created_at')
+          .in('id', studentIds)
+          .eq('role', 'student'); // Ensure we only get students
 
-      if (profilesError) {
-        throw new Error(`Failed to load student profiles: ${profilesError.message}`);
-      }
+        if (profilesError) {
+          throw new Error(`Failed to load student profiles: ${profilesError.message}`);
+        }
 
-      const slotIds = bookings.map((b) => b.slot_id);
-      const { data: slots, error: slotsError } = await supabase
-        .from('event_slots')
-        .select('id, start_time')
-        .in('id', slotIds);
-
-      if (slotsError) {
-        throw new Error(`Failed to load slots: ${slotsError.message}`);
+        profiles = profilesData || [];
       }
 
       // Store profiles for later use in rendering
-      setProfiles(profiles || []);
+      setProfiles(profiles);
 
       const profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
-      const slotMap = new Map(slots?.map((s) => [s.id, s.start_time]) || []);
 
       const studentsData: StudentBooking[] = bookings.map((booking) => {
         const profile = profileMap.get(booking.student_id);
+        const slotInfo = slotMap.get(booking.slot_id);
+        const offerId = slotInfo?.offer_id;
+        
         return {
           booking_id: booking.id,
           student_id: booking.student_id,
@@ -122,8 +152,9 @@ export default function CompanyStudents() {
           specialization: profile?.specialization || null,
           graduation_year: profile?.graduation_year || null,
           cv_url: profile?.cv_url || null,
-          offer_title: offerMap.get((booking as any).event_slots?.offer_id) || 'Unknown',
-          slot_time: slotMap.get(booking.slot_id) || '',
+          resume_url: profile?.resume_url || null,
+          offer_title: offerId ? (offerMap.get(offerId) || 'Unknown') : 'Unknown',
+          slot_time: slotInfo?.time || '',
           status: booking.status,
         };
       });
@@ -132,9 +163,23 @@ export default function CompanyStudents() {
         (a, b) => new Date(b.slot_time).getTime() - new Date(a.slot_time).getTime()
       );
 
+      // Debug logging (development only)
+      debug('📊 Company Students Data:', {
+        companyId: company.id,
+        slotsCount: slots.length,
+        offerIdsCount: offerIds.length,
+        bookingsCount: bookings.length,
+        studentsCount: studentIds.length,
+        profilesCount: profiles.length,
+        studentsDataCount: studentsData.length,
+        sampleStudent: studentsData[0] || null,
+        sampleBooking: bookings[0] || null,
+        sampleSlot: slots[0] || null
+      });
+
       setStudents(studentsData);
     } catch (err: any) {
-      console.error('Error loading students:', err);
+      logError('Error loading students:', err);
       const errorMessage = err instanceof Error ? err : new Error('Failed to load students');
       setError(errorMessage);
       showError('Failed to load students. Please try again.');
@@ -317,13 +362,13 @@ export default function CompanyStudents() {
                       </td>
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-2">
-                          {student.cv_url ? (
+                          {(student.cv_url || student.resume_url) ? (
                             <a
-                              href={student.cv_url}
+                              href={student.resume_url || student.cv_url || '#'}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors"
-                              title="View CV"
+                              title="View CV/Resume"
                             >
                               <FileText className="w-4 h-4" />
                             </a>

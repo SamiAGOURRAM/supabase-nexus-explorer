@@ -76,7 +76,7 @@ export default function SetPassword() {
         logError('Profile check error:', profileError);
       }
 
-      if (!existingProfile) {
+      if (!existingProfile && user.id && user.email) {
         // Create profile with company information
         const { error: profileError } = await supabase
           .from('profiles')

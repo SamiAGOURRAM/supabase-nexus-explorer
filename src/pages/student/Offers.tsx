@@ -1,8 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { useToast } from '@/contexts/ToastContext';
 import { ArrowLeft, Briefcase, MapPin, Calendar, Clock, X, Search } from 'lucide-react';
 import { debug, error as logError } from '@/utils/logger';
+import EmptyState from '@/components/shared/EmptyState';
+import ErrorDisplay from '@/components/shared/ErrorDisplay';
 
 type Offer = {
   id: string;
@@ -40,6 +43,7 @@ type BookingLimitInfo = {
 
 export default function StudentOffers() {
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
   const [offers, setOffers] = useState<Offer[]>([]);
   const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
   const [availableSlots, setAvailableSlots] = useState<Slot[]>([]);
@@ -53,7 +57,9 @@ export default function StudentOffers() {
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
   const [validationWarning, setValidationWarning] = useState<string | null>(null);
   const [bookingError, setBookingError] = useState<string | null>(null);
+  const [booking, setBooking] = useState(false);
   const navigate = useNavigate();
+  const { showSuccess, showError } = useToast();
   const modalCloseRef = useRef<HTMLButtonElement | null>(null);
   const modalOverlayRef = useRef<HTMLDivElement | null>(null);
 
@@ -126,53 +132,68 @@ export default function StudentOffers() {
   const loadOffers = async () => {
     if (!selectedEventId) return;
 
-    setLoading(true);
-    const { data: offersData } = await supabase
-      .from('offers')
-      .select(`
-        id,
-        title,
-        description,
-        interest_tag,
-        location,
-        duration_months,
-        paid,
-        remote_possible,
-        salary_range,
-        skills_required,
-        department,
-        company_id,
-        companies (
-          company_name,
-          logo_url
-        )
-      `)
-      .eq('is_active', true)
-      .eq('event_id', selectedEventId)
-      .order('created_at', { ascending: false });
+    try {
+      setError(null);
+      setLoading(true);
+      
+      const { data: offersData, error: offersError } = await supabase
+        .from('offers')
+        .select(`
+          id,
+          title,
+          description,
+          interest_tag,
+          location,
+          duration_months,
+          paid,
+          remote_possible,
+          salary_range,
+          skills_required,
+          department,
+          company_id,
+          companies (
+            company_name,
+            logo_url
+          )
+        `)
+        .eq('is_active', true)
+        .eq('event_id', selectedEventId)
+        .order('created_at', { ascending: false });
 
-    if (offersData) {
-      const formattedOffers: Offer[] = offersData.map((offer: any) => ({
-        id: offer.id,
-        title: offer.title,
-        description: offer.description,
-        interest_tag: offer.interest_tag,
-        location: offer.location,
-        duration_months: offer.duration_months,
-        paid: offer.paid,
-        remote_possible: offer.remote_possible,
-        salary_range: offer.salary_range,
-        skills_required: offer.skills_required,
-        department: offer.department,
-        company_id: offer.company_id,
-        company_name: offer.companies?.company_name || 'Unknown Company',
-        company_logo: offer.companies?.logo_url || null,
-      }));
+      if (offersError) {
+        throw new Error(`Failed to load offers: ${offersError.message}`);
+      }
 
-      setOffers(formattedOffers);
+      if (offersData) {
+        const formattedOffers: Offer[] = offersData.map((offer: any) => ({
+          id: offer.id,
+          title: offer.title,
+          description: offer.description,
+          interest_tag: offer.interest_tag,
+          location: offer.location,
+          duration_months: offer.duration_months,
+          paid: offer.paid,
+          remote_possible: offer.remote_possible,
+          salary_range: offer.salary_range,
+          skills_required: offer.skills_required,
+          department: offer.department,
+          company_id: offer.company_id,
+          company_name: offer.companies?.company_name || 'Unknown Company',
+          company_logo: offer.companies?.logo_url || null,
+        }));
+
+        setOffers(formattedOffers);
+      } else {
+        setOffers([]);
+      }
+    } catch (err: any) {
+      logError('Error loading offers:', err);
+      const errorMessage = err instanceof Error ? err : new Error('Failed to load offers');
+      setError(errorMessage);
+      showError('Failed to load offers. Please try again.');
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   const handleBookInterview = async (offer: Offer) => {
@@ -343,18 +364,26 @@ export default function StudentOffers() {
     setBookingError(null);
 
     try {
+      setBooking(true);
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        showError('You must be logged in to book an interview');
+        return;
+      }
 
       // Final validation check
       if (bookingLimit && !bookingLimit.can_book) {
-        setBookingError('You have reached your booking limit for this phase.');
+        const errorMsg = 'You have reached your booking limit for this phase.';
+        setBookingError(errorMsg);
+        showError(errorMsg);
         return;
       }
 
       // Use the offer_id from the selected offer
       if (!selectedOffer?.id) {
-        setBookingError('Offer ID not found');
+        const errorMsg = 'Offer ID not found';
+        setBookingError(errorMsg);
+        showError(errorMsg);
         return;
       }
 
@@ -369,17 +398,30 @@ export default function StudentOffers() {
       const result = Array.isArray(data) && data.length > 0 ? data[0] : null;
 
       if (result?.success) {
-        // Success! Navigate to bookings page
+        // Success! Show success message and navigate
+        showSuccess(result.message || 'Interview booked successfully!');
         setSelectedOffer(null);
         setAvailableSlots([]);
-        navigate('/student/bookings');
+        setSelectedSlotId(null);
+        // Refresh offers to update availability
+        await loadOffers();
+        // Small delay before navigation for better UX
+        setTimeout(() => {
+          navigate('/student/bookings');
+        }, 1000);
       } else {
         // Show error message in UI
-        setBookingError(result?.message || 'Failed to book interview');
+        const errorMsg = result?.message || 'Failed to book interview';
+        setBookingError(errorMsg);
+        showError(errorMsg);
       }
     } catch (error: any) {
       logError('Error booking interview:', error);
-      setBookingError(error.message || 'Failed to book interview. Please check booking limits and phase restrictions.');
+      const errorMsg = error.message || 'Failed to book interview. Please check booking limits and phase restrictions.';
+      setBookingError(errorMsg);
+      showError(errorMsg);
+    } finally {
+      setBooking(false);
     }
   };
 
@@ -401,7 +443,7 @@ export default function StudentOffers() {
 
   const uniqueTags = [...new Set(offers.map((o) => o.interest_tag))];
 
-  if (loading) {
+  if (loading && offers.length === 0) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
         <header className="bg-card/80 backdrop-blur-sm border-b border-border">
@@ -497,6 +539,12 @@ export default function StudentOffers() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {error && (
+          <div className="mb-6">
+            <ErrorDisplay error={error} onRetry={loadOffers} />
+          </div>
+        )}
+
         {/* Event Selector */}
         {events.length > 0 && (
           <div className="bg-card/80 backdrop-blur-sm rounded-xl border border-border shadow-sm hover:shadow-md transition-shadow p-5 mb-6">
@@ -598,30 +646,31 @@ export default function StudentOffers() {
 
         {/* Offers Grid */}
         {filteredOffers.length === 0 ? (
-          <div className="bg-card/80 backdrop-blur-sm rounded-2xl border-2 border-dashed border-border p-12 text-center animate-fade-in">
-            <div className="w-20 h-20 bg-gradient-to-br from-primary/20 to-primary/5 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-inner">
-              <Briefcase className="w-10 h-10 text-primary/60" />
-            </div>
-            <h3 className="text-xl font-bold text-foreground mb-3">No offers found</h3>
-            <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-              {searchQuery || filterTag || filterPaid 
+          <EmptyState
+            icon={Briefcase}
+            title={searchQuery || filterTag || filterPaid ? "No offers match your filters" : "No offers available"}
+            message={
+              searchQuery || filterTag || filterPaid 
                 ? "We couldn't find any offers matching your filters. Try adjusting your search criteria to see more results." 
-                : "There are no active offers for this event yet. Check back soon or contact your administrator."}
-            </p>
-            {(searchQuery || filterTag || filterPaid) && (
-              <button
-                onClick={() => {
-                  setSearchQuery('');
-                  setFilterTag('');
-                  setFilterPaid('');
-                }}
-                className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-all font-medium shadow-sm hover:shadow-md inline-flex items-center gap-2"
-              >
-                <X className="w-4 h-4" />
-                Clear All Filters
-              </button>
-            )}
-          </div>
+                : "There are no active offers for this event yet. Check back soon or contact your administrator."
+            }
+            action={
+              (searchQuery || filterTag || filterPaid) ? (
+                <button
+                  onClick={() => {
+                    setSearchQuery('');
+                    setFilterTag('');
+                    setFilterPaid('');
+                  }}
+                  className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-all font-medium shadow-sm hover:shadow-md inline-flex items-center gap-2"
+                >
+                  <X className="w-4 h-4" />
+                  Clear All Filters
+                </button>
+              ) : undefined
+            }
+            className="bg-card/80 backdrop-blur-sm rounded-2xl border-2 border-dashed border-border p-12"
+          />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in">
             {filteredOffers.map((offer, index) => (
@@ -1024,7 +1073,7 @@ export default function StudentOffers() {
                     <div className="sticky bottom-0 pt-3 pb-1">
                       <button
                         onClick={() => confirmBooking(selectedSlotId)}
-                        disabled={!bookingLimit?.can_book || !!validationWarning}
+                        disabled={!bookingLimit?.can_book || !!validationWarning || booking}
                         className="w-full px-4 py-3 bg-gradient-to-r from-primary to-primary/90 text-primary-foreground rounded-xl hover:shadow-xl transition-all duration-300 font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98] shadow-md disabled:hover:scale-100 group relative overflow-hidden"
                       >
                         {/* Animated background */}
@@ -1035,6 +1084,11 @@ export default function StudentOffers() {
                             <>
                               <X className="w-5 h-5" />
                               <span>Time Conflict</span>
+                            </>
+                          ) : booking ? (
+                            <>
+                              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                              <span>Booking...</span>
                             </>
                           ) : (
                             <>

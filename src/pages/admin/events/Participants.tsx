@@ -59,6 +59,7 @@ export default function EventParticipantsPage() {
   };
 
   const loadData = async () => {
+    if (!eventId) return;
     try {
       setLoading(true);
       setError('');

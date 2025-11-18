@@ -175,12 +175,13 @@ export default function Signup() {
         return;
       }
 
-      // Validate email domain - only allow UM6P
+      // Validate email domain - allow UM6P and Gmail (for testing)
       const isUM6P = sanitizedEmail.endsWith('@um6p.ma');
+      const isGmail = sanitizedEmail.endsWith('@gmail.com');
       
-      if (!isUM6P) {
+      if (!isUM6P && !isGmail) {
         await recordFailedAttempt(sanitizedEmail, 'Invalid email domain', 'signup');
-        throw new Error('Email must be from UM6P (@um6p.ma). Students only.');
+        throw new Error('Email must be from UM6P (@um6p.ma) or Gmail (@gmail.com) for testing.');
       }
 
       // Validate password strength
@@ -306,7 +307,7 @@ export default function Signup() {
               </li>
               <li className="flex items-start gap-3">
                 <div className="mt-1 h-2 w-2 rounded-full bg-white/80" />
-                Only @um6p.ma email addresses are accepted.
+                @um6p.ma or @gmail.com (for testing) email addresses are accepted.
               </li>
               <li className="flex items-start gap-3">
                 <div className="mt-1 h-2 w-2 rounded-full bg-white/80" />
@@ -350,7 +351,7 @@ export default function Signup() {
               </span>
               <span className="flex items-center gap-2">
                 <Sparkles className="h-3.5 w-3.5" />
-                Only @um6p.ma email addresses accepted
+                @um6p.ma or @gmail.com (for testing) accepted
               </span>
             </div>
           </div>
@@ -394,7 +395,7 @@ export default function Signup() {
                 className="w-full px-4 py-3 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring transition-shadow"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                Only @um6p.ma email addresses are allowed
+                @um6p.ma or @gmail.com (for testing) email addresses are allowed
               </p>
             </div>
 

@@ -1200,6 +1200,7 @@ export type Database = {
     }
     Functions: {
       check_email_exists: { Args: { p_email: string }; Returns: Json }
+      delete_user_account: { Args: never; Returns: undefined }
       fn_add_event_time_range: {
         Args: {
           p_day_date: string

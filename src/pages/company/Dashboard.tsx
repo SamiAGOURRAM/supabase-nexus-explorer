@@ -3,12 +3,16 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { useCompanyEvents } from '@/hooks/useCompanyEvents';
 import { useCompanyStats } from '@/hooks/useCompanyStats';
+import { useToast } from '@/contexts/ToastContext';
 import LoadingScreen from '@/components/shared/LoadingScreen';
+import SkeletonLoader from '@/components/shared/SkeletonLoader';
+import ErrorDisplay from '@/components/shared/ErrorDisplay';
 import CompanyHeader from '@/components/company/dashboard/CompanyHeader';
 import CompanyEventSelector from '@/components/company/dashboard/CompanyEventSelector';
 import CompanyStatsGrid from '@/components/company/dashboard/CompanyStatsGrid';
 import ScheduledStudentsList from '@/components/company/dashboard/ScheduledStudentsList';
 import EmptyEventsState from '@/components/company/dashboard/EmptyEventsState';
+import LoadingCard from '@/components/shared/LoadingCard';
 
 /**
  * CompanyDashboard - Main dashboard page for companies
@@ -31,6 +35,8 @@ export default function CompanyDashboard() {
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [selectedEventId, setSelectedEventId] = useState<string>('');
   const [loadingCompany, setLoadingCompany] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+  const { showError } = useToast();
 
   const { events, loading: eventsLoading } = useCompanyEvents(companyId);
   const { stats, scheduledStudents, loading: statsLoading } = useCompanyStats(companyId, selectedEventId);
@@ -41,17 +47,27 @@ export default function CompanyDashboard() {
       if (!user) return;
 
       try {
-        const { data: company } = await supabase
+        setError(null);
+        const { data: company, error: companyError } = await supabase
           .from('companies')
           .select('id, company_name')
           .eq('profile_id', user.id)
-          .single();
+          .maybeSingle();
+
+        if (companyError) {
+          throw new Error(`Failed to load company: ${companyError.message}`);
+        }
 
         if (company) {
           setCompanyId(company.id);
+        } else {
+          throw new Error('Company profile not found. Please contact support.');
         }
-      } catch (error) {
-        console.error('Error loading company:', error);
+      } catch (err: any) {
+        console.error('Error loading company:', err);
+        const errorMessage = err instanceof Error ? err : new Error('Failed to load company information');
+        setError(errorMessage);
+        showError('Failed to load company information. Please try again.');
       } finally {
         setLoadingCompany(false);
       }
@@ -60,7 +76,7 @@ export default function CompanyDashboard() {
     if (user) {
       loadCompany();
     }
-  }, [user]);
+  }, [user, showError]);
 
   // Set first event as selected when events load
   useEffect(() => {
@@ -92,10 +108,36 @@ export default function CompanyDashboard() {
               onEventChange={setSelectedEventId}
             />
 
-            {statsLoading ? (
-              <div className="text-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-                <p className="mt-4 text-muted-foreground">Loading statistics...</p>
+            {error ? (
+              <ErrorDisplay error={error} onRetry={() => {
+                const loadCompany = async () => {
+                  if (!user) return;
+                  setError(null);
+                  setLoadingCompany(true);
+                  try {
+                    const { data: company, error: companyError } = await supabase
+                      .from('companies')
+                      .select('id, company_name')
+                      .eq('profile_id', user.id)
+                      .maybeSingle();
+                    if (companyError) throw companyError;
+                    if (company) setCompanyId(company.id);
+                  } catch (err: any) {
+                    setError(err instanceof Error ? err : new Error('Failed to load company'));
+                  } finally {
+                    setLoadingCompany(false);
+                  }
+                };
+                loadCompany();
+              }} />
+            ) : statsLoading ? (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {[1, 2, 3, 4].map((i) => (
+                    <LoadingCard key={i} />
+                  ))}
+                </div>
+                <SkeletonLoader type="list" count={3} />
               </div>
             ) : (
               <>

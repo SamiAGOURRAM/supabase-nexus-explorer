@@ -1,9 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { useToast } from '@/contexts/ToastContext';
 import { ArrowLeft, Building2, MapPin, Clock, DollarSign, Tag, Briefcase, CheckCircle, Calendar, X } from 'lucide-react';
 import { extractNestedObject } from '@/utils/supabaseTypes';
 import { debug, error as logError } from '@/utils/logger';
+import LoadingScreen from '@/components/shared/LoadingScreen';
+import ErrorDisplay from '@/components/shared/ErrorDisplay';
+import NotFound from '@/components/shared/NotFound';
 
 type Offer = {
   id: string;
@@ -47,6 +51,7 @@ export default function OfferDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
   const [offer, setOffer] = useState<Offer | null>(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [availableSlots, setAvailableSlots] = useState<Slot[]>([]);
@@ -54,7 +59,9 @@ export default function OfferDetail() {
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
   const [bookingLimit, setBookingLimit] = useState<BookingLimitInfo | null>(null);
   const [validationWarning, setValidationWarning] = useState<string | null>(null);
+  const [booking, setBooking] = useState(false);
   const [eventId, setEventId] = useState<string>('');
+  const { showSuccess, showError } = useToast();
 
   useEffect(() => {
     loadOfferDetail();
@@ -73,97 +80,120 @@ export default function OfferDetail() {
   }, [showBookingModal, offer, eventId]);
 
   const loadOfferDetail = async () => {
-    if (!id) return;
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      navigate('/login');
-      return;
-    }
-
-    // Get the latest active event
-    const { data: eventsData } = await supabase
-      .from('events')
-      .select('id')
-      .gte('date', new Date().toISOString())
-      .order('date', { ascending: true })
-      .limit(1);
-
-    if (eventsData && eventsData.length > 0) {
-      setEventId(eventsData[0].id);
-    }
-
-    const { data: offerData, error } = await supabase
-      .from('offers')
-      .select(`
-        id,
-        title,
-        description,
-        requirements,
-        skills_required,
-        benefits,
-        interest_tag,
-        location,
-        duration_months,
-        paid,
-        remote_possible,
-        salary_range,
-        department,
-        company_id,
-        companies (
-          company_name,
-          logo_url,
-          description,
-          website,
-          industry
-        )
-      `)
-      .eq('id', id)
-      .eq('is_active', true)
-      .single();
-
-    if (error || !offerData) {
+    if (!id) {
+      setError(new Error('Offer ID is required'));
       setLoading(false);
       return;
     }
 
-    setOffer({
-      id: offerData.id,
-      title: offerData.title,
-      description: offerData.description,
-      requirements: offerData.requirements,
-      skills_required: offerData.skills_required,
-      benefits: offerData.benefits,
-      interest_tag: offerData.interest_tag,
-      location: offerData.location,
-      duration_months: offerData.duration_months,
-      paid: offerData.paid,
-      remote_possible: offerData.remote_possible,
-      salary_range: offerData.salary_range,
-      department: offerData.department,
-      company_id: offerData.company_id,
-      // Extract company data from nested Supabase query result
-      // Supabase returns nested objects as arrays or objects depending on join type
-      ...(() => {
-        const company = extractNestedObject<{
-          company_name: string;
-          logo_url: string | null;
-          description: string | null;
-          website: string | null;
-          industry: string | null;
-        }>(offerData.companies);
-        
-        return {
-          company_name: company?.company_name || 'Unknown',
-          company_logo: company?.logo_url || null,
-          company_description: company?.description || null,
-          company_website: company?.website || null,
-          company_industry: company?.industry || null,
-        };
-      })(),
-    });
+    try {
+      setError(null);
+      setLoading(true);
 
-    setLoading(false);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        navigate('/login');
+        return;
+      }
+
+      // Get the latest active event
+      const { data: eventsData, error: eventsError } = await supabase
+        .from('events')
+        .select('id')
+        .gte('date', new Date().toISOString())
+        .order('date', { ascending: true })
+        .limit(1);
+
+      if (eventsError) {
+        logError('Error loading events:', eventsError);
+      }
+
+      if (eventsData && eventsData.length > 0) {
+        setEventId(eventsData[0].id);
+      }
+
+      const { data: offerData, error: offerError } = await supabase
+        .from('offers')
+        .select(`
+          id,
+          title,
+          description,
+          requirements,
+          skills_required,
+          benefits,
+          interest_tag,
+          location,
+          duration_months,
+          paid,
+          remote_possible,
+          salary_range,
+          department,
+          company_id,
+          companies (
+            company_name,
+            logo_url,
+            description,
+            website,
+            industry
+          )
+        `)
+        .eq('id', id)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (offerError) {
+        throw new Error(`Failed to load offer: ${offerError.message}`);
+      }
+
+      if (!offerData) {
+        setError(new Error('Offer not found or is no longer active'));
+        setLoading(false);
+        return;
+      }
+
+      setOffer({
+        id: offerData.id,
+        title: offerData.title,
+        description: offerData.description,
+        requirements: offerData.requirements,
+        skills_required: offerData.skills_required,
+        benefits: offerData.benefits,
+        interest_tag: offerData.interest_tag,
+        location: offerData.location,
+        duration_months: offerData.duration_months,
+        paid: offerData.paid,
+        remote_possible: offerData.remote_possible,
+        salary_range: offerData.salary_range,
+        department: offerData.department,
+        company_id: offerData.company_id,
+        // Extract company data from nested Supabase query result
+        // Supabase returns nested objects as arrays or objects depending on join type
+        ...(() => {
+          const company = extractNestedObject<{
+            company_name: string;
+            logo_url: string | null;
+            description: string | null;
+            website: string | null;
+            industry: string | null;
+          }>(offerData.companies);
+          
+          return {
+            company_name: company?.company_name || 'Unknown',
+            company_logo: company?.logo_url || null,
+            company_description: company?.description || null,
+            company_website: company?.website || null,
+            company_industry: company?.industry || null,
+          };
+        })(),
+      });
+    } catch (err: any) {
+      logError('Error loading offer detail:', err);
+      const errorMessage = err instanceof Error ? err : new Error('Failed to load offer details');
+      setError(errorMessage);
+      showError('Failed to load offer. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleBookInterview = async () => {
@@ -355,11 +385,16 @@ export default function OfferDetail() {
     if (!offer) return;
 
     try {
+      setBooking(true);
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        showError('You must be logged in to book an interview');
+        return;
+      }
 
       if (bookingLimit && !bookingLimit.can_book) {
-        alert('You have reached your booking limit for this phase.');
+        const errorMsg = 'You have reached your booking limit for this phase.';
+        showError(errorMsg);
         return;
       }
 
@@ -389,15 +424,23 @@ export default function OfferDetail() {
       debug('Booking result:', result);
 
       if (result.success) {
-        alert(result.message || 'Interview booked successfully!');
+        showSuccess(result.message || 'Interview booked successfully!');
         setShowBookingModal(false);
-        navigate('/student/bookings');
+        setSelectedSlotId(null);
+        setAvailableSlots([]);
+        // Small delay before navigation for better UX
+        setTimeout(() => {
+          navigate('/student/bookings');
+        }, 1000);
       } else {
         throw new Error(result.message || 'Failed to book interview');
       }
     } catch (error: any) {
       logError('Error booking interview:', error);
-      alert(error.message || 'Failed to book interview.');
+      const errorMsg = error.message || 'Failed to book interview. Please try again.';
+      showError(errorMsg);
+    } finally {
+      setBooking(false);
     }
   };
 
@@ -417,27 +460,33 @@ export default function OfferDetail() {
   };
 
   if (loading) {
+    return <LoadingScreen message="Loading offer details..." />;
+  }
+
+  if (error && !offer) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-sm text-muted-foreground animate-pulse">Loading offer...</p>
-        </div>
+      <div className="min-h-screen bg-background">
+        <header className="bg-card border-b border-border">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <Link to="/student/offers" className="text-muted-foreground hover:text-foreground">
+              <ArrowLeft className="w-5 h-5" />
+            </Link>
+          </div>
+        </header>
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {error.message.includes('not found') ? (
+            <NotFound resource="Offer" backTo="/student/offers" backLabel="Back to Offers" />
+          ) : (
+            <ErrorDisplay error={error} onRetry={loadOfferDetail} />
+          )}
+        </main>
       </div>
     );
   }
 
   if (!offer) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-xl font-bold text-foreground mb-2">Offer Not Found</h2>
-          <p className="text-muted-foreground mb-4">This offer may have been removed or is no longer active.</p>
-          <Link to="/student/offers" className="text-primary hover:underline">
-            Back to Offers
-          </Link>
-        </div>
-      </div>
+      <NotFound resource="Offer" backTo="/student/offers" backLabel="Back to Offers" />
     );
   }
 
@@ -690,10 +739,19 @@ export default function OfferDetail() {
                   {selectedSlotId && (
                     <button
                       onClick={() => confirmBooking(selectedSlotId)}
-                      disabled={!bookingLimit?.can_book || !!validationWarning}
-                      className="w-full px-4 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={!bookingLimit?.can_book || !!validationWarning || booking}
+                      className="w-full px-4 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
-                      {validationWarning ? 'Cannot Book - Time Conflict' : 'Confirm Booking'}
+                      {booking ? (
+                        <>
+                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          <span>Booking...</span>
+                        </>
+                      ) : validationWarning ? (
+                        'Cannot Book - Time Conflict'
+                      ) : (
+                        'Confirm Booking'
+                      )}
                     </button>
                   )}
                 </>

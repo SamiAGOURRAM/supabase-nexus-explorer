@@ -44,13 +44,14 @@ export type Profile = {
  */
 export type Company = {
   id: string;
-  profile_id: string;
+  profile_id: string | null;
   company_name: string;
-  industry?: string;
-  description?: string;
-  website?: string;
+  company_code: string | null;
+  industry?: string | null;
+  description?: string | null;
+  website?: string | null;
   is_verified: boolean;
-  verified_at?: string;
+  verified_at?: string | null;
   created_at: string;
 };
 
@@ -61,8 +62,8 @@ export type Event = {
   id: string;
   name: string;
   date: string;
-  location: string;
-  description?: string;
+  location: string | null;
+  description?: string | null;
   is_active: boolean;
   created_at: string;
 };

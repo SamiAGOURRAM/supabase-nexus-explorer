@@ -210,6 +210,11 @@ const LOGIN_HIGHLIGHTS: Highlight[] = [
 
       e.preventDefault();
 
+      // Prevent multiple submissions
+      if (loading) {
+        return;
+      }
+
       setError('');
 
       setLoading(true);
@@ -393,9 +398,10 @@ const LOGIN_HIGHLIGHTS: Highlight[] = [
           
           try {
             // Try to create profile using the helper function
+            // The function gets user data from auth.users table, so we only need the user ID
             const { error: createError } = await supabase.rpc('create_profile_for_user', {
               p_user_id: data.user.id
-            });
+            } as any);
             
             if (createError) {
               console.error('Failed to create profile:', createError);
@@ -481,7 +487,13 @@ const LOGIN_HIGHLIGHTS: Highlight[] = [
 
           console.log('Redirecting user to role-based dashboard');
 
+          // Set loading to false before redirect to prevent further submissions
+          setLoading(false);
+          
           redirectUser(profile.role);
+          
+          // Return early to prevent any further execution
+          return;
 
         } else {
 

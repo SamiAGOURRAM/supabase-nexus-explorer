@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useEvents } from '@/hooks/useEvents';
 import { useEventStats } from '@/hooks/useEventStats';
 import LoadingScreen from '@/components/shared/LoadingScreen';
+import LoadingCard from '@/components/shared/LoadingCard';
 import AdminLayout from '@/components/admin/AdminLayout';
 import EmptyState from '@/components/admin/dashboard/EmptyState';
 import EventSelector from '@/components/admin/dashboard/EventSelector';
@@ -69,9 +70,10 @@ export default function AdminDashboard() {
           <PhaseStatusCard event={selectedEvent} />
 
           {statsLoading ? (
-            <div className="text-center py-16">
-              <div className="animate-spin rounded-full h-12 w-12 border-[3px] border-primary border-t-transparent mx-auto"></div>
-              <p className="mt-4 text-muted-foreground font-medium">Loading statistics...</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {[1, 2, 3, 4].map((i) => (
+                <LoadingCard key={i} />
+              ))}
             </div>
           ) : (
             <StatsGrid stats={stats} eventId={selectedEvent.id} />

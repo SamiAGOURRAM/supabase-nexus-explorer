@@ -1,17 +1,23 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { useToast } from '@/contexts/ToastContext';
 import { Building2, CheckCircle, Clock, X } from 'lucide-react';
 import type { Company } from '@/types/database';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { useAuth } from '@/hooks/useAuth';
+import ErrorDisplay from '@/components/shared/ErrorDisplay';
+import EmptyState from '@/components/shared/EmptyState';
+import LoadingTable from '@/components/shared/LoadingTable';
 
 export default function AdminCompanies() {
   const { signOut } = useAuth('admin');
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
   const [verifying, setVerifying] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { showSuccess, showError } = useToast();
 
   useEffect(() => {
     checkAdminAndLoadCompanies();
@@ -45,17 +51,37 @@ export default function AdminCompanies() {
   };
 
   const loadCompanies = async () => {
-    const { data, error } = await supabase
-      .from('companies')
-      .select('*')
-      .order('created_at', { ascending: false });
+    try {
+      setError(null);
+      setLoading(true);
+      
+      const { data, error } = await supabase
+        .from('companies')
+        .select(`
+          *,
+          company_representatives (
+            id,
+            full_name,
+            title,
+            email,
+            phone
+          )
+        `)
+        .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error('Error loading companies:', error);
-    } else {
+      if (error) {
+        throw new Error(`Failed to load companies: ${error.message}`);
+      }
+
       setCompanies(data || []);
+    } catch (err: any) {
+      console.error('Error loading companies:', err);
+      const errorMessage = err instanceof Error ? err : new Error('Failed to load companies');
+      setError(errorMessage);
+      showError('Failed to load companies. Please try again.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleVerifyCompany = async (companyId: string, verify: boolean) => {
@@ -68,16 +94,16 @@ export default function AdminCompanies() {
       });
 
       if (error) {
-        console.error('Error verifying company:', error);
-        alert('Error: ' + error.message);
-        return;
+        throw new Error(`Failed to verify company: ${error.message}`);
       }
 
+      showSuccess(`Company ${verify ? 'verified' : 'rejected'} successfully`);
       // Reload companies to reflect changes
       await loadCompanies();
     } catch (err: any) {
       console.error('Error:', err);
-      alert('Error: ' + (err.message || 'Failed to verify company'));
+      const errorMsg = err.message || 'Failed to verify company';
+      showError(errorMsg);
     } finally {
       setVerifying(null);
     }
@@ -93,19 +119,17 @@ export default function AdminCompanies() {
             <p className="text-muted-foreground text-sm md:text-base">View and verify all companies</p>
           </div>
 
-          {loading ? (
-            <div className="text-center py-16">
-              <div className="animate-spin rounded-full h-12 w-12 border-[3px] border-primary border-t-transparent mx-auto"></div>
-              <p className="mt-4 text-muted-foreground font-medium">Loading companies...</p>
-            </div>
+          {error ? (
+            <ErrorDisplay error={error} onRetry={loadCompanies} />
+          ) : loading ? (
+            <LoadingTable columns={5} rows={10} />
           ) : companies.length === 0 ? (
-            <div className="text-center py-16 bg-card rounded-xl border border-border shadow-soft">
-              <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-                <Building2 className="w-10 h-10 text-muted-foreground" />
-              </div>
-              <h3 className="text-xl font-semibold text-foreground mb-2">No Companies Yet</h3>
-              <p className="text-muted-foreground">Invite companies to events to see them here</p>
-            </div>
+            <EmptyState
+              icon={Building2}
+              title="No companies yet"
+              message="Companies will appear here once they register and create their profiles."
+              className="bg-card rounded-xl border border-border p-12"
+            />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {companies.map((company) => (
@@ -128,9 +152,27 @@ export default function AdminCompanies() {
                     )}
                   </div>
                   <h3 className="text-lg font-semibold text-foreground mb-2 line-clamp-1">{company.company_name}</h3>
-                  <p className="text-sm text-muted-foreground mb-5 line-clamp-2 min-h-[2.5rem]">
+                  {company.industry && (
+                    <p className="text-xs text-muted-foreground mb-2">{company.industry}</p>
+                  )}
+                  <p className="text-sm text-muted-foreground mb-3 line-clamp-2 min-h-[2.5rem]">
                     {company.description || 'No description provided'}
                   </p>
+                  {(company as any).company_representatives && Array.isArray((company as any).company_representatives) && (company as any).company_representatives.length > 0 && (
+                    <div className="mb-3 pt-3 border-t border-border">
+                      <p className="text-xs font-medium text-muted-foreground mb-1">Representatives:</p>
+                      <div className="space-y-1">
+                        {(company as any).company_representatives.slice(0, 2).map((rep: any) => (
+                          <p key={rep.id} className="text-xs text-foreground">
+                            {rep.full_name} - {rep.title}
+                          </p>
+                        ))}
+                        {(company as any).company_representatives.length > 2 && (
+                          <p className="text-xs text-muted-foreground">+{(company as any).company_representatives.length - 2} more</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between gap-3 pt-4 border-t border-border">
                     <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold ${
                       company.is_verified

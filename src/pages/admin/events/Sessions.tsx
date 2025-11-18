@@ -11,7 +11,7 @@ type Session = {
   interview_duration_minutes: number;
   buffer_minutes: number;
   slots_per_time: number;
-  is_active: boolean;
+  is_active: boolean | null;
 };
 
 export default function SessionManagement() {
@@ -82,6 +82,7 @@ export default function SessionManagement() {
   };
 
   const loadData = async () => {
+    if (!eventId) return;
     const { data: eventData, error: eventError } = await supabase
       .from('events')
       .select('*')
@@ -166,6 +167,10 @@ export default function SessionManagement() {
         if (error) throw error;
         alert('Session updated successfully!');
       } else {
+        if (!eventId) {
+          alert('Event ID is required');
+          return;
+        }
         const { error } = await supabase
           .from('speed_recruiting_sessions')
           .insert({
@@ -261,6 +266,10 @@ export default function SessionManagement() {
       return;
     }
 
+    if (!eventId) {
+      alert('Event ID is required');
+      return;
+    }
     try {
       setGeneratingINF(true);
 
@@ -275,9 +284,9 @@ export default function SessionManagement() {
 
       if (error) throw error;
 
-      const result = data?.[0];
-      if (result) {
-        alert(`✅ INF Slot Generation Complete!\n\n📊 ${result.total_slots_created} total slots created\n🏢 ${result.companies_processed} companies processed\n📅 Session 1: ${result.session1_slots} slots\n📅 Session 2: ${result.session2_slots} slots\n\n${result.message}`);
+      if (data && Array.isArray(data) && data.length > 0) {
+        const result = data[0] as { total_slots_created?: number; companies_processed?: number; session1_slots?: number; session2_slots?: number; message?: string };
+        alert(`✅ INF Slot Generation Complete!\n\n📊 ${result.total_slots_created || 0} total slots created\n🏢 ${result.companies_processed || 0} companies processed\n📅 Session 1: ${result.session1_slots || 0} slots\n📅 Session 2: ${result.session2_slots || 0} slots\n\n${result.message || 'Slots generated successfully'}`);
         setShowINFGenerator(false);
         await loadData();
       }

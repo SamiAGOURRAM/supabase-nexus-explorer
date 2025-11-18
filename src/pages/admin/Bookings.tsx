@@ -1,8 +1,12 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useToast } from '@/contexts/ToastContext';
 import { Clock, Calendar, User, Building2, Search, X } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { useAuth } from '@/hooks/useAuth';
+import ErrorDisplay from '@/components/shared/ErrorDisplay';
+import EmptyState from '@/components/shared/EmptyState';
+import LoadingTable from '@/components/shared/LoadingTable';
 
 type Booking = {
   id: string;
@@ -27,7 +31,9 @@ export default function AdminBookings() {
   const { signOut } = useAuth('admin');
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const { showError } = useToast();
 
   useEffect(() => {
     loadBookings();
@@ -35,6 +41,8 @@ export default function AdminBookings() {
 
   const loadBookings = async () => {
     try {
+      setError(null);
+      setLoading(true);
       // First get all bookings with student info
       const { data: bookingsData, error: bookingsError } = await supabase
         .from('bookings')
@@ -95,7 +103,9 @@ export default function AdminBookings() {
       setBookings(formattedBookings);
     } catch (err: any) {
       console.error('Error loading bookings:', err);
-      alert('Error loading bookings: ' + err.message);
+      const errorMessage = err instanceof Error ? err : new Error('Failed to load bookings');
+      setError(errorMessage);
+      showError('Failed to load bookings. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -175,19 +185,21 @@ export default function AdminBookings() {
           </div>
 
           {/* Bookings List */}
-          {loading ? (
-            <div className="text-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-              <p className="mt-4 text-muted-foreground">Loading bookings...</p>
-            </div>
+          {error ? (
+            <ErrorDisplay error={error} onRetry={loadBookings} />
+          ) : loading ? (
+            <LoadingTable columns={5} rows={10} />
           ) : filteredBookings.length === 0 ? (
-            <div className="text-center py-12 bg-card rounded-xl border border-border">
-              <Clock className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-foreground mb-2">No Bookings Found</h3>
-              <p className="text-muted-foreground">
-                {searchQuery ? 'Try a different search term' : 'No bookings yet'}
-              </p>
-            </div>
+            <EmptyState
+              icon={Clock}
+              title={searchQuery ? 'No bookings match your search' : 'No bookings yet'}
+              message={
+                searchQuery 
+                  ? 'Try a different search term or clear your filters to see all bookings.' 
+                  : 'Bookings will appear here once students start booking interview slots.'
+              }
+              className="bg-card rounded-xl border border-border p-12"
+            />
           ) : (
             <div className="bg-card border border-border rounded-xl overflow-hidden">
               <div className="overflow-x-auto">

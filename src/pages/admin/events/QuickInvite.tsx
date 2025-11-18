@@ -55,6 +55,7 @@ export default function QuickInvitePage() {
   };
 
   const loadEventName = async () => {
+    if (!eventId) return;
     const { data } = await supabase
       .from('events')
       .select('name')
@@ -66,6 +67,10 @@ export default function QuickInvitePage() {
 
   const handleQuickInvite = async (e: React.FormEvent) => {
   e.preventDefault();
+  if (!eventId) {
+    alert('Event ID is required');
+    return;
+  }
   setLoading(true);
   setResult(null);
 
@@ -101,28 +106,43 @@ export default function QuickInvitePage() {
       p_company_name: companyName.trim(),
       p_event_id: eventId,
       p_industry: industry || 'Other',
-      p_website: website.trim() || null
+      p_website: website.trim() || undefined
     });
 
     if (error) throw error;
     
     console.log('RPC Response:', data); // Debug: check what the RPC returns
-    setResult(data);
+    
+    // Type guard for Json response
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+      throw new Error('Invalid response from server');
+    }
+    
+    const result = data as {
+      success?: boolean;
+      message?: string;
+      next_step?: string;
+      company_created?: boolean;
+      company_code?: string;
+      already_invited?: boolean;
+    };
+    
+    setResult(result);
 
-    if (data.success) {
+    if (result.success) {
       const inviteEmail = email.trim().toLowerCase();
       
       if (!inviteEmail) {
         setResult({
-          ...data,
-          message: (data.message || 'Company invited') + '\n\n⚠️ No email provided — magic link not sent.'
+          ...result,
+          message: (result.message || 'Company invited') + '\n\n⚠️ No email provided — magic link not sent.'
         });
         return;
       }
 
       // Always try to send magic link for new invites
       // The RPC should tell us if it's a new company or existing
-      const isNewCompany = data.next_step === 'send_invite_email' || data.company_created;
+      const isNewCompany = result.next_step === 'send_invite_email' || result.company_created;
       
       try {
         const { error: magicLinkError } = await supabase.auth.signInWithOtp({
@@ -131,7 +151,7 @@ export default function QuickInvitePage() {
             emailRedirectTo: `${window.location.origin}/auth/set-password`,
             data: {
               company_name: companyName.trim(),
-              company_code: data.company_code,
+              company_code: result.company_code,
               role: 'company',
               event_name: eventName,
               event_id: eventId
@@ -142,13 +162,13 @@ export default function QuickInvitePage() {
         if (magicLinkError) {
           console.error('Magic link error:', magicLinkError);
           setResult({
-            ...data,
-            message: data.message + `\n\n⚠️ Magic link error: ${magicLinkError.message}`
+            ...result,
+            message: (result.message || '') + `\n\n⚠️ Magic link error: ${magicLinkError.message}`
           });
         } else {
           setResult({
-            ...data,
-            message: data.message + 
+            ...result,
+            message: (result.message || '') + 
               `\n\n📧 Magic link sent to ${inviteEmail}!` +
               `\n\nℹ️ No slots auto-generated. Create slots manually via Sessions/Offers page.` +
               (isNewCompany ? '\n✅ Company will receive an email to set their password.' : '')
@@ -157,13 +177,13 @@ export default function QuickInvitePage() {
       } catch (emailError: any) {
         console.error('Email send error:', emailError);
         setResult({
-          ...data,
-          message: data.message + '\n\n⚠️ Failed to send magic link: ' + (emailError?.message || 'Unknown error')
+          ...result,
+          message: (result.message || '') + '\n\n⚠️ Failed to send magic link: ' + (emailError?.message || 'Unknown error')
         });
       }
 
       // Clear form on success
-      if (!data.already_invited) {
+      if (!result.already_invited) {
         setEmail('');
         setCompanyName('');
         setIndustry('Technology');
@@ -302,6 +322,10 @@ const handleSearch = async () => {
   };
 
   const handleExportCSV = async () => {
+    if (!eventId) {
+      alert('Event ID is required');
+      return;
+    }
     setExportingCSV(true);
     try {
       const { data, error } = await supabase

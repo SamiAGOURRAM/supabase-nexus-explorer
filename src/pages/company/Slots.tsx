@@ -1,8 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { useToast } from '@/contexts/ToastContext';
 import { ArrowLeft, Calendar, Clock, MapPin, Users } from 'lucide-react';
-import { assertSupabaseType, extractFirstFromNested, getFromMapOrNull } from '@/utils/supabaseTypes';
+import { extractFirstFromNested } from '@/utils/supabaseTypes';
+import LoadingScreen from '@/components/shared/LoadingScreen';
+import ErrorDisplay from '@/components/shared/ErrorDisplay';
+import EmptyState from '@/components/shared/EmptyState';
+import { debug, warn as logWarn, error as logError } from '@/utils/logger';
 
 type Booking = {
   id: string;
@@ -28,53 +33,72 @@ type Slot = {
   bookings: Booking[];
   bookings_count: number;
   is_active: boolean;
+  offer_id: string | null;
 };
 
 export default function CompanySlots() {
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
   const [slots, setSlots] = useState<Slot[]>([]);
   const navigate = useNavigate();
+  const { showError } = useToast();
 
   useEffect(() => {
     loadSlots();
   }, []);
 
   const loadSlots = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      navigate('/login');
-      return;
-    }
+    try {
+      setError(null);
+      setLoading(true);
 
-    const { data: company } = await supabase
-      .from('companies')
-      .select('id')
-      .eq('profile_id', user.id)
-      .single();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        navigate('/login');
+        return;
+      }
 
-    if (!company) {
-      setLoading(false);
-      return;
-    }
+      const { data: company, error: companyError } = await supabase
+        .from('companies')
+        .select('id')
+        .eq('profile_id', user.id)
+        .maybeSingle();
 
-    // Get all slots for this company
-    const { data: eventSlots } = await supabase
-      .from('event_slots')
-      .select(`
-        id,
-        start_time,
-        end_time,
-        location,
-        capacity,
-        is_active,
-        event_id,
-        offer_id
-      `)
-      .eq('company_id', company.id);
+      if (companyError) {
+        throw new Error(`Failed to load company: ${companyError.message}`);
+      }
 
-    if (eventSlots && eventSlots.length > 0) {
+      if (!company) {
+        setSlots([]);
+        setLoading(false);
+        return;
+      }
+
+      // Get all slots for this company
+      const { data: eventSlots, error: slotsError } = await supabase
+        .from('event_slots')
+        .select(`
+          id,
+          start_time,
+          end_time,
+          location,
+          capacity,
+          is_active,
+          event_id,
+          offer_id
+        `)
+        .eq('company_id', company.id);
+
+      if (slotsError) {
+        throw new Error(`Failed to load slots: ${slotsError.message}`);
+      }
+
+      // Debug: Log slots to see offer_id (development only)
+      debug('📅 Company Slots:', eventSlots?.map(s => ({ id: s.id, offer_id: s.offer_id, start_time: s.start_time })));
+
+      if (eventSlots && eventSlots.length > 0) {
       // Get event details
-      const eventIds = [...new Set(eventSlots.map(s => s.event_id))];
+      const eventIds = [...new Set(eventSlots.map(s => s.event_id).filter((id): id is string => id !== null))];
       const { data: events } = await supabase
         .from('events')
         .select('id, name, date')
@@ -83,59 +107,59 @@ export default function CompanySlots() {
       const eventMap = new Map(events?.map(e => [e.id, e]) || []);
       
           // Get bookings with student and offer info
-          // Note: Supabase nested queries return arrays for !inner joins, so we need type assertions
+          // Use the slot's offer_id directly since we already have it
           const slotsWithBookings = await Promise.all(
             eventSlots.map(async (slot: any) => {
+              // Get bookings for this slot
               const { data: bookings } = await supabase
                 .from('bookings')
                 .select(`
                   id,
                   student_id,
-                  slot:event_slots!inner(offer_id),
-                  profiles!inner(full_name)
+                  profiles!inner(id, full_name, email, phone)
                 `)
                 .eq('slot_id', slot.id)
                 .eq('status', 'confirmed');
 
-          // Extract offer IDs from nested slot data
-          // Supabase returns slot as an array or object depending on join type
-          const offerIds = (bookings || [])
-            .map(b => {
-              const slot = assertSupabaseType<{ offer_id: string } | null>(b.slot);
-              return slot?.offer_id;
-            })
-            .filter((id): id is string => Boolean(id));
-          
-          // Fetch offer details separately for better type safety
-          const { data: offers } = await supabase
-            .from('offers')
-            .select('id, title')
-            .in('id', offerIds);
-
-          const offersMap = new Map(offers?.map(o => [o.id, o]) || []);
+          // Get offer information for this slot (use slot's offer_id directly)
+          let offerTitle = null;
+          if (slot.offer_id) {
+            const { data: offer, error: offerError } = await supabase
+              .from('offers')
+              .select('id, title')
+              .eq('id', slot.offer_id)
+              .maybeSingle();
+            
+            if (offerError) {
+              logWarn(`Failed to load offer ${slot.offer_id}:`, offerError);
+            }
+            
+            if (offer) {
+              offerTitle = offer.title;
+            } else {
+              logWarn(`Offer ${slot.offer_id} not found for slot ${slot.id}`);
+            }
+          } else {
+            logWarn(`Slot ${slot.id} has no offer_id`);
+          }
           
           // Transform bookings to match our Booking type
           // Handle nested profiles array (Supabase !inner join returns arrays)
           const bookingsWithOffers: Booking[] = (bookings || []).map(b => {
-            const slot = assertSupabaseType<{ offer_id: string } | null>(b.slot);
             // Extract first profile from array (or use fallback)
-            const profile = extractFirstFromNested<{ full_name: string }>(
+            const profile = extractFirstFromNested<{ full_name: string; email?: string; phone?: string }>(
               b.profiles,
               { full_name: 'Unknown' }
             );
             
-            const offerId = slot?.offer_id;
-            // Convert undefined to null for type safety
-            const offer = offerId ? getFromMapOrNull(offersMap, offerId) : null;
-            
             return {
               id: b.id,
               student_id: b.student_id,
-              offer_id: offerId || '',
+              offer_id: slot.offer_id || '',
               profiles: {
                 full_name: profile.full_name
               },
-              offers: offer ? { title: offer.title } : null
+              offers: offerTitle ? { title: offerTitle } : null
             };
           });
 
@@ -153,6 +177,7 @@ export default function CompanySlots() {
             event_date: event?.date || '',
             bookings: bookingsWithOffers || [],
             bookings_count: bookingsWithOffers?.length || 0,
+            offer_id: slot.offer_id || null,
           };
         })
       );
@@ -160,16 +185,41 @@ export default function CompanySlots() {
       // Sort by start_time
       slotsWithBookings.sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
 
-      setSlots(slotsWithBookings);
+        setSlots(slotsWithBookings);
+      } else {
+        setSlots([]);
+      }
+    } catch (err: any) {
+      logError('Error loading slots:', err);
+      const errorMessage = err instanceof Error ? err : new Error('Failed to load slots');
+      setError(errorMessage);
+      showError('Failed to load slots. Please try again.');
+      setSlots([]);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   if (loading) {
+    return <LoadingScreen message="Loading slots..." />;
+  }
+
+  if (error) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      <div className="min-h-screen bg-background">
+        <header className="bg-card border-b border-border">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div className="flex items-center gap-4">
+              <Link to="/company" className="text-muted-foreground hover:text-foreground">
+                <ArrowLeft className="w-5 h-5" />
+              </Link>
+              <h1 className="text-2xl font-bold text-foreground">Time Slots</h1>
+            </div>
+          </div>
+        </header>
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <ErrorDisplay error={error} onRetry={loadSlots} />
+        </main>
       </div>
     );
   }
@@ -192,11 +242,12 @@ export default function CompanySlots() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {slots.length === 0 ? (
-          <div className="bg-card rounded-xl border border-border p-12 text-center">
-            <Calendar className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
-            <h3 className="text-lg font-semibold text-foreground mb-2">No slots created yet</h3>
-            <p className="text-muted-foreground mb-6">Contact the event administrator to create interview slots</p>
-          </div>
+          <EmptyState
+            icon={Calendar}
+            title="No Interview Slots"
+            message="You haven't created any interview slots yet. Create slots through the Offers section when setting up your offers."
+            className="bg-card rounded-xl border border-border p-12"
+          />
         ) : (
           <div className="space-y-6">
             {/* Group slots by event */}
@@ -276,14 +327,19 @@ export default function CompanySlots() {
                           {slot.bookings.length > 0 && (
                             <div className="mb-3 space-y-2">
                               {slot.bookings.map((booking: any) => (
-                                <div key={booking.id} className="text-xs bg-background/50 rounded p-2">
-                                  <p className="font-medium text-foreground">
-                                    {booking.profiles?.full_name || 'Unknown'}
+                                <Link
+                                  key={booking.id}
+                                  to={`/company/students/${booking.student_id}`}
+                                  className="block text-xs bg-background/50 rounded p-2 hover:bg-background transition-colors cursor-pointer"
+                                >
+                                  <p className="font-medium text-foreground hover:text-primary">
+                                    {booking.profiles?.full_name || 'Unknown Student'}
                                   </p>
                                   <p className="text-muted-foreground">
-                                    {booking.offers?.title || 'No offer selected'}
+                                    {booking.offers?.title || (slot.offer_id ? 'Offer information unavailable' : 'No offer selected')}
                                   </p>
-                                </div>
+                                  <p className="text-xs text-primary mt-1">Click to view profile →</p>
+                                </Link>
                               ))}
                             </div>
                           )}

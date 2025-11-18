@@ -1,8 +1,12 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useNavigate, useParams, Link } from 'react-router-dom'
+import { useToast } from '@/contexts/ToastContext'
 import { Users, Filter, Download } from 'lucide-react'
 import { error as logError } from '@/utils/logger'
+import LoadingScreen from '@/components/shared/LoadingScreen'
+import ErrorDisplay from '@/components/shared/ErrorDisplay'
+import EmptyState from '@/components/shared/EmptyState'
 
 type StudentWithBookings = {
   student_id: string
@@ -28,12 +32,14 @@ export default function EventStudents() {
   const navigate = useNavigate()
   const { id: eventId } = useParams<{ id: string }>()
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
   const [event, setEvent] = useState<Event | null>(null)
   const [students, setStudents] = useState<StudentWithBookings[]>([])
   const [companies, setCompanies] = useState<Array<{ id: string; name: string }>>([])
   
   const [searchQuery, setSearchQuery] = useState('')
   const [filterCompany, setFilterCompany] = useState<string>('all')
+  const { showError } = useToast()
 
   useEffect(() => {
     checkAdminAndLoad()
@@ -65,58 +71,80 @@ export default function EventStudents() {
       }
 
       await loadData()
-    } catch (err) {
+    } catch (err: any) {
       logError('Error:', err)
+      const errorMessage = err instanceof Error ? err : new Error('Failed to load data')
+      setError(errorMessage)
+      showError('Failed to load data. Please try again.')
     } finally {
       setLoading(false)
     }
   }
 
   const loadData = async () => {
-    if (!eventId) return
-
-    const { data: eventData } = await supabase
-      .from('events')
-      .select('id, name, date')
-      .eq('id', eventId)
-      .single()
-
-    if (eventData) setEvent(eventData)
-
-    const { data: participantsData } = await supabase
-      .from('event_participants')
-      .select(`
-        companies!inner (
-          id,
-          company_name
-        )
-      `)
-      .eq('event_id', eventId)
-
-    if (participantsData) {
-      const uniqueCompanies = participantsData
-        .map((p: any) => ({ id: p.companies.id, name: p.companies.company_name }))
-        .filter((c: any, i: number, arr: any[]) => arr.findIndex((x: any) => x.id === c.id) === i)
-      setCompanies(uniqueCompanies)
+    if (!eventId) {
+      setError(new Error('Event ID is required'))
+      setLoading(false)
+      return
     }
 
-    // Get ALL students (registered users with role='student')
-    const { data: allStudents, error: studentsError } = await supabase
-      .from('profiles')
-      .select('id, full_name, email, specialization, graduation_year')
-      .eq('role', 'student')
-      .order('full_name', { ascending: true });
+    try {
+      setError(null)
+      setLoading(true)
 
-    if (studentsError) {
-      logError('Error fetching students:', studentsError);
-      setStudents([]);
-      return;
-    }
+      const { data: eventData, error: eventError } = await supabase
+        .from('events')
+        .select('id, name, date')
+        .eq('id', eventId)
+        .maybeSingle()
 
-    if (!allStudents || allStudents.length === 0) {
-      setStudents([]);
-      return;
-    }
+      if (eventError) {
+        throw new Error(`Failed to load event: ${eventError.message}`)
+      }
+
+      if (eventData) {
+        setEvent(eventData)
+      } else {
+        throw new Error('Event not found')
+      }
+
+      const { data: participantsData, error: participantsError } = await supabase
+        .from('event_participants')
+        .select(`
+          companies!inner (
+            id,
+            company_name
+          )
+        `)
+        .eq('event_id', eventId)
+
+      if (participantsError) {
+        logError('Error fetching participants:', participantsError);
+      }
+
+      if (participantsData) {
+        const uniqueCompanies = participantsData
+          .map((p: any) => ({ id: p.companies.id, name: p.companies.company_name }))
+          .filter((c: any, i: number, arr: any[]) => arr.findIndex((x: any) => x.id === c.id) === i)
+        setCompanies(uniqueCompanies)
+      }
+
+      // Get ALL students (registered users with role='student')
+      const { data: allStudents, error: studentsError } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, specialization, graduation_year')
+        .eq('role', 'student')
+        .order('full_name', { ascending: true });
+
+      if (studentsError) {
+        throw new Error(`Failed to load students: ${studentsError.message}`);
+      }
+
+      if (!allStudents || allStudents.length === 0) {
+        setStudents([]);
+        setLoading(false);
+        return;
+      }
 
     // Get event slots
     const { data: eventSlots } = await supabase
@@ -235,7 +263,16 @@ export default function EventStudents() {
       };
     });
 
-    setStudents(studentsWithBookings);
+      setStudents(studentsWithBookings);
+    } catch (err: any) {
+      logError('Error loading data:', err);
+      const errorMessage = err instanceof Error ? err : new Error('Failed to load data');
+      setError(errorMessage);
+      showError('Failed to load data. Please try again.');
+      setStudents([]);
+    } finally {
+      setLoading(false);
+    }
   }
 
   const filteredStudents = students.filter(student => {
@@ -280,17 +317,31 @@ export default function EventStudents() {
   }
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    )
+    return <LoadingScreen message="Loading students..." />
   }
 
-  if (!event) {
+  if (error || !event) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-destructive">Event not found</p>
+      <div className="min-h-screen bg-background">
+        <header className="bg-card border-b">
+          <div className="max-w-7xl mx-auto px-4 py-4">
+            <Link to="/admin/events" className="text-sm text-primary hover:underline mb-2 inline-block">
+              ← Back to Events
+            </Link>
+          </div>
+        </header>
+        <main className="max-w-7xl mx-auto px-4 py-8">
+          {error ? (
+            <ErrorDisplay error={error} onRetry={loadData} />
+          ) : (
+            <EmptyState
+              icon={Users}
+              title="Event Not Found"
+              message="The event you're looking for doesn't exist or has been removed."
+              className="bg-card rounded-xl border border-border p-12"
+            />
+          )}
+        </main>
       </div>
     )
   }

@@ -1,7 +1,12 @@
-import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { useToast } from '@/contexts/ToastContext';
 import { ArrowLeft, Calendar, Clock, MapPin, Building2, Briefcase } from 'lucide-react';
+import LoadingScreen from '@/components/shared/LoadingScreen';
+import ErrorDisplay from '@/components/shared/ErrorDisplay';
+import EmptyState from '@/components/shared/EmptyState';
+import { useAuth } from '@/hooks/useAuth';
 
 type Booking = {
   id: string;
@@ -15,127 +20,132 @@ type Booking = {
 };
 
 export default function StudentBookings() {
+  const { user, loading: authLoading } = useAuth('student');
+  const { showSuccess, showError } = useToast();
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [events, setEvents] = useState<Array<{ id: string; name: string; date: string }>>([]);
   const [selectedEventId, setSelectedEventId] = useState<string>('all');
-  const navigate = useNavigate();
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    checkStudentAndLoadBookings();
-  }, []);
+  const loadBookings = useCallback(
+    async (studentId: string, eventFilter?: string, manageLoading = true) => {
+      const eventId = eventFilter ?? selectedEventId;
+      try {
+        setError(null);
+        if (manageLoading) {
+          setLoading(true);
+        }
 
-  useEffect(() => {
-    const reloadBookings = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user && selectedEventId) {
-        loadBookings(user.id);
-      }
-    };
-    
-    if (selectedEventId) {
-      reloadBookings();
-    }
-  }, [selectedEventId]);
+        const { data, error: rpcError } = await supabase.rpc('fn_get_student_bookings', {
+          p_student_id: studentId,
+        });
 
-  const checkStudentAndLoadBookings = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      navigate('/login');
-      return;
-    }
+        if (rpcError) {
+          throw new Error(`Failed to load bookings: ${rpcError.message}`);
+        }
 
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .maybeSingle(); // Use maybeSingle() to avoid 406 errors
+        if (data && data.length > 0) {
+          const formattedBookings: Booking[] = data.map((booking: any) => ({
+            id: booking.booking_id,
+            student_id: studentId,
+            status: booking.status,
+            slot_start_time: booking.slot_time,
+            slot_end_time: booking.slot_time,
+            slot_location: null,
+            company_name: booking.company_name,
+            offer_title: booking.offer_title,
+          }));
 
-    if (profileError) {
-      console.error('Profile fetch error:', profileError);
-      navigate('/login');
-      return;
-    }
+          if (eventId !== 'all') {
+            const slotIds = data.map((b: any) => b.slot_id).filter(Boolean);
+            if (slotIds.length > 0) {
+              const { data: slots, error: slotsError } = await supabase
+                .from('event_slots')
+                .select('id, event_id')
+                .in('id', slotIds);
 
-    if (!profile || profile.role !== 'student') {
-      navigate('/offers');
-      return;
-    }
+              if (slotsError) {
+                console.error('Error fetching slots:', slotsError);
+              }
 
-    // Load events
-    const { data: eventsData } = await supabase
-      .from('events')
-      .select('id, name, date')
-      .order('date', { ascending: false });
-
-    if (eventsData) {
-      setEvents(eventsData);
-    }
-
-    loadBookings(user.id);
-  };
-
-  const loadBookings = async (studentId: string) => {
-    // Use the RPC function which properly handles sorting and joins
-    const { data, error } = await supabase.rpc('fn_get_student_bookings', {
-      p_student_id: studentId
-    });
-
-    if (error) {
-      console.error('Error loading bookings:', error);
-      setLoading(false);
-      return;
-    }
-
-    if (data) {
-      // Map the RPC response to our Booking type
-      const formattedBookings: Booking[] = data.map((booking: any) => ({
-        id: booking.booking_id,
-        student_id: studentId,
-        status: booking.status,
-        slot_start_time: booking.slot_time,
-        slot_end_time: booking.slot_time, // RPC doesn't return end_time, but we can calculate it
-        slot_location: null, // RPC doesn't return location
-        company_name: booking.company_name,
-        offer_title: booking.offer_title,
-      }));
-
-      // Filter by event if needed
-      if (selectedEventId !== 'all') {
-        // We need to fetch event_id for filtering - let's get slot details
-        const slotIds = data.map((b: any) => b.slot_id).filter(Boolean);
-        if (slotIds.length > 0) {
-          const { data: slots } = await supabase
-            .from('event_slots')
-            .select('id, event_id')
-            .in('id', slotIds);
-
-          const slotEventMap = new Map(slots?.map(s => [s.id, s.event_id]) || []);
-          
-          // Filter bookings by event
-          const filtered = formattedBookings.filter((_booking, index) => {
-            const slotId = data[index].slot_id;
-            return slotEventMap.get(slotId) === selectedEventId;
-          });
-          
-          setBookings(filtered);
+              const slotEventMap = new Map(slots?.map((s) => [s.id, s.event_id]) || []);
+              const filtered = formattedBookings.filter((_booking, index) => {
+                const slotId = data[index].slot_id;
+                return slotEventMap.get(slotId) === eventId;
+              });
+              setBookings(filtered);
+            } else {
+              setBookings([]);
+            }
+          } else {
+            setBookings(formattedBookings);
+          }
         } else {
           setBookings([]);
         }
-      } else {
-        setBookings(formattedBookings);
+      } catch (err: any) {
+        console.error('Error loading bookings:', err);
+        setError(err instanceof Error ? err : new Error('Failed to load bookings'));
+        showError('Failed to load bookings. Please try again.');
+      } finally {
+        if (manageLoading) {
+          setLoading(false);
+        }
       }
-    }
+    },
+    [selectedEventId, showError]
+  );
 
-    setLoading(false);
+  const loadInitialData = useCallback(async () => {
+    if (!user) return;
+    try {
+      setLoading(true);
+      setError(null);
+
+      const { data: eventsData, error: eventsError } = await supabase
+        .from('events')
+        .select('id, name, date')
+        .order('date', { ascending: false });
+
+      if (eventsError) {
+        throw new Error(`Failed to load events: ${eventsError.message}`);
+      }
+
+      setEvents(eventsData || []);
+      await loadBookings(user.id, selectedEventId, false);
+    } catch (err: any) {
+      console.error('Error loading bookings:', err);
+      setError(err instanceof Error ? err : new Error('Failed to load bookings'));
+      showError('Failed to load bookings. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, [loadBookings, selectedEventId, showError, user]);
+
+  useEffect(() => {
+    if (!authLoading) {
+      loadInitialData();
+    }
+  }, [authLoading, loadInitialData]);
+
+  const handleEventChange = (value: string) => {
+    setSelectedEventId(value);
+    if (user) {
+      loadBookings(user.id, value);
+    }
   };
 
   const handleCancelBooking = async (bookingId: string) => {
     if (!confirm('Are you sure you want to cancel this interview?')) return;
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      setCancellingId(bookingId);
+      if (!user) {
+        showError('You must be logged in to cancel a booking');
+        return;
+      }
 
       const { data, error } = await supabase.rpc('fn_cancel_booking', {
         p_booking_id: bookingId,
@@ -145,31 +155,66 @@ export default function StudentBookings() {
       if (error) throw error;
 
       if (data && data.length > 0 && data[0].success) {
-        alert(data[0].message);
-        await loadBookings(user.id);
+        showSuccess(data[0].message || 'Booking cancelled successfully');
+        await loadBookings(user.id, selectedEventId, false);
       } else {
-        alert(data[0]?.message || 'Failed to cancel booking');
+        throw new Error(data[0]?.message || 'Failed to cancel booking');
       }
     } catch (error: any) {
-      alert('Failed to cancel booking: ' + error.message);
+      console.error('Error cancelling booking:', error);
+      showError(error.message || 'Failed to cancel booking. Please try again.');
+    } finally {
+      setCancellingId(null);
     }
   };
 
-  const upcomingBookings = bookings.filter(
-    (b) => b.status === 'confirmed' && new Date(b.slot_start_time) >= new Date()
-  );
-  
-  const pastBookings = bookings.filter(
-    (b) => new Date(b.slot_start_time) < new Date() || b.status === 'cancelled'
+  const upcomingBookings = useMemo(
+    () =>
+      bookings.filter(
+        (b) => b.status === 'confirmed' && new Date(b.slot_start_time) >= new Date()
+      ),
+    [bookings]
   );
 
+  const pastBookings = useMemo(
+    () =>
+      bookings.filter(
+        (b) => new Date(b.slot_start_time) < new Date() || b.status === 'cancelled'
+      ),
+    [bookings]
+  );
+
+  if (authLoading) {
+    return <LoadingScreen message="Preparing your bookings..." />;
+  }
+
   if (loading) {
+    return <LoadingScreen message="Loading your bookings..." />;
+  }
+
+  if (error) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-sm text-muted-foreground animate-pulse">Loading your bookings...</p>
-        </div>
+      <div className="min-h-screen bg-background">
+        <header className="bg-card border-b border-border">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div className="flex items-center gap-4">
+              <Link to="/student" className="text-muted-foreground hover:text-foreground">
+                <ArrowLeft className="w-5 h-5" />
+              </Link>
+              <h1 className="text-2xl font-bold text-foreground">My Bookings</h1>
+            </div>
+          </div>
+        </header>
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <ErrorDisplay
+            error={error}
+            onRetry={async () => {
+              if (user) {
+                await loadBookings(user.id, selectedEventId);
+              }
+            }}
+          />
+        </main>
       </div>
     );
   }
@@ -199,7 +244,7 @@ export default function StudentBookings() {
             </label>
             <select
               value={selectedEventId}
-              onChange={(e) => setSelectedEventId(e.target.value)}
+              onChange={(e) => handleEventChange(e.target.value)}
               className="w-full md:w-auto px-4 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
             >
               <option value="all">All Events</option>
@@ -234,8 +279,8 @@ export default function StudentBookings() {
           </div>
         </div>
 
-        {upcomingBookings.length > 0 && (
-          <div className="bg-card rounded-xl border border-border p-6 mb-8 animate-fade-in">
+        {upcomingBookings.length > 0 ? (
+          <div className="bg-card rounded-xl border border-border p-6 mb-8">
             <h2 className="text-xl font-bold text-foreground mb-6">Upcoming Interviews</h2>
             <div className="space-y-4">
               {upcomingBookings.map((booking, index) => (
@@ -278,18 +323,34 @@ export default function StudentBookings() {
                     </div>
                     <button
                       onClick={() => handleCancelBooking(booking.id)}
-                      className="px-4 py-2 text-sm text-red-600 hover:text-red-700 border border-red-200 rounded-lg hover:bg-red-50 transition-all hover:scale-105 active:scale-95"
+                      disabled={cancellingId === booking.id}
+                      className="px-4 py-2 text-sm text-red-600 hover:text-red-700 border border-red-200 rounded-lg hover:bg-red-50 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Cancel
+                      {cancellingId === booking.id ? 'Cancelling...' : 'Cancel'}
                     </button>
                   </div>
                 </div>
               ))}
             </div>
           </div>
-        )}
+        ) : bookings.length > 0 ? (
+          <EmptyState
+            icon={Calendar}
+            title="No Upcoming Interviews"
+            message="You don't have any upcoming interviews scheduled. Browse offers to book an interview slot."
+            action={
+              <Link
+                to="/student/offers"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium"
+              >
+                Browse Offers
+              </Link>
+            }
+            className="bg-card rounded-xl border border-border p-8 mb-8"
+          />
+        ) : null}
 
-        {pastBookings.length > 0 && (
+        {pastBookings.length > 0 ? (
           <div className="bg-card rounded-xl border border-border p-6">
             <h2 className="text-xl font-bold text-foreground mb-6">Past Bookings</h2>
             <div className="space-y-4">
@@ -319,25 +380,24 @@ export default function StudentBookings() {
               ))}
             </div>
           </div>
-        )}
+        ) : null}
 
         {bookings.length === 0 && (
-          <div className="bg-card rounded-xl border border-border p-12 text-center animate-fade-in">
-            <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Calendar className="w-10 h-10 text-primary" />
-            </div>
-            <h3 className="text-lg font-semibold text-foreground mb-2">No bookings yet</h3>
-            <p className="text-muted-foreground mb-6">
-              Ready to schedule your first interview? Browse available offers and book a time that works for you.
-            </p>
-            <Link
-              to="/student/offers"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-all font-medium hover:scale-105 active:scale-95"
-            >
-              <Briefcase className="w-4 h-4" />
-              Browse Offers
-            </Link>
-          </div>
+          <EmptyState
+            icon={Calendar}
+            title="No Bookings Yet"
+            message="Ready to schedule your first interview? Browse available offers and book a time that works for you."
+            action={
+              <Link
+                to="/student/offers"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium"
+              >
+                <Briefcase className="w-4 h-4" />
+                Browse Offers
+              </Link>
+            }
+            className="bg-card rounded-xl border border-border p-8"
+          />
         )}
       </main>
     </div>

@@ -2,8 +2,11 @@ import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useEmailVerification } from '@/hooks/useEmailVerification';
+import { useToast } from '@/contexts/ToastContext';
 import { Calendar, Briefcase, User, LogOut, Book, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { warn, error as logError } from '@/utils/logger';
+import ErrorDisplay from '@/components/shared/ErrorDisplay';
+import LoadingScreen from '@/components/shared/LoadingScreen';
 
 type EventPhaseInfo = {
   eventId: string;
@@ -18,9 +21,11 @@ type EventPhaseInfo = {
 
 export default function StudentDashboard() {
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
   const [stats, setStats] = useState({ bookings: 0, offers: 0 });
   const [phaseInfo, setPhaseInfo] = useState<EventPhaseInfo | null>(null);
   const navigate = useNavigate();
+  const { showError: showToastError } = useToast();
   
   // Check email verification status
   const { isLoading: verificationLoading } = useEmailVerification();
@@ -33,82 +38,106 @@ export default function StudentDashboard() {
   }, [verificationLoading]);
 
   const checkStudentAndLoadData = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      navigate('/login');
-      return;
-    }
-    
-    // Double-check email verification
-    if (!user.email_confirmed_at) {
-      warn('Unverified user detected, signing out...');
-      await supabase.auth.signOut();
-      navigate('/verify-email', {
-        state: { email: user.email },
-      });
-      return;
-    }
+    try {
+      setError(null);
+      setLoading(true);
 
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .maybeSingle(); // Use maybeSingle() to avoid 406 errors
-
-    if (profileError) {
-      logError('Profile fetch error:', profileError);
-      navigate('/offers');
-      return;
-    }
-
-    if (!profile || profile.role !== 'student') {
-      navigate('/offers');
-      return;
-    }
-
-    const { count: bookingsCount } = await supabase
-      .from('bookings')
-      .select('*', { count: 'exact', head: true })
-      .eq('student_id', user.id)
-      .eq('status', 'confirmed');
-
-    const { count: offersCount } = await supabase
-      .from('offers')
-      .select('*', { count: 'exact', head: true })
-      .eq('is_active', true);
-
-    // Get active event and phase info
-    const { data: activeEvent } = await supabase
-      .from('events')
-      .select('id, name, date, current_phase, phase1_max_bookings, phase2_max_bookings')
-      .gte('date', new Date().toISOString())
-      .order('date', { ascending: true })
-      .limit(1)
-      .single();
-
-    if (activeEvent) {
-      const { data: limitCheck } = await supabase.rpc('fn_check_student_booking_limit', {
-        p_student_id: user.id,
-        p_event_id: activeEvent.id
-      });
-
-      if (limitCheck && limitCheck.length > 0) {
-        const check = limitCheck[0];
-        setPhaseInfo({
-          eventId: activeEvent.id,
-          eventName: activeEvent.name,
-          eventDate: activeEvent.date,
-          currentPhase: check.current_phase,
-          canBook: check.can_book,
-          currentBookings: check.current_count,
-          maxBookings: check.max_allowed,
-          message: check.message
-        });
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError || !user) {
+        navigate('/login');
+        return;
       }
-    }
+      
+      // Double-check email verification
+      if (!user.email_confirmed_at) {
+        warn('Unverified user detected, signing out...');
+        await supabase.auth.signOut();
+        navigate('/verify-email', {
+          state: { email: user.email },
+        });
+        return;
+      }
 
-    setStats({ bookings: bookingsCount || 0, offers: offersCount || 0 });
-    setLoading(false);
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (profileError) {
+        logError('Profile fetch error:', profileError);
+        throw new Error('Failed to load profile. Please try again.');
+      }
+
+      if (!profile || profile.role !== 'student') {
+        navigate('/offers');
+        return;
+      }
+
+      // Fetch stats in parallel
+      const [bookingsResult, offersResult, eventsResult] = await Promise.all([
+        supabase
+          .from('bookings')
+          .select('*', { count: 'exact', head: true })
+          .eq('student_id', user.id)
+          .eq('status', 'confirmed'),
+        supabase
+          .from('offers')
+          .select('*', { count: 'exact', head: true })
+          .eq('is_active', true),
+        supabase
+          .from('events')
+          .select('id, name, date, current_phase, phase1_max_bookings, phase2_max_bookings')
+          .gte('date', new Date().toISOString())
+          .order('date', { ascending: true })
+          .limit(1)
+          .maybeSingle()
+      ]);
+
+      if (bookingsResult.error) {
+        logError('Bookings fetch error:', bookingsResult.error);
+      }
+
+      if (offersResult.error) {
+        logError('Offers fetch error:', offersResult.error);
+      }
+
+      setStats({
+        bookings: bookingsResult.count || 0,
+        offers: offersResult.count || 0
+      });
+
+      // Get phase info if event exists
+      if (eventsResult.data && !eventsResult.error) {
+        const activeEvent = eventsResult.data;
+        const { data: limitCheck, error: limitError } = await supabase.rpc('fn_check_student_booking_limit', {
+          p_student_id: user.id,
+          p_event_id: activeEvent.id
+        });
+
+        if (!limitError && limitCheck && limitCheck.length > 0) {
+          const check = limitCheck[0];
+          setPhaseInfo({
+            eventId: activeEvent.id,
+            eventName: activeEvent.name,
+            eventDate: activeEvent.date,
+            currentPhase: check.current_phase,
+            canBook: check.can_book,
+            currentBookings: check.current_count,
+            maxBookings: check.max_allowed,
+            message: check.message
+          });
+        }
+      }
+    } catch (err: any) {
+      logError('Error loading dashboard:', err);
+      const errorMessage = err instanceof Error ? err : new Error('Failed to load dashboard data');
+      setError(errorMessage);
+      showToastError('Failed to load dashboard. Please refresh the page.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSignOut = async () => {
@@ -116,10 +145,21 @@ export default function StudentDashboard() {
     navigate('/');
   };
 
-  if (loading) {
+  if (verificationLoading || loading) {
+    return <LoadingScreen message="Loading dashboard..." />;
+  }
+
+  if (error) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      <div className="min-h-screen bg-background">
+        <header className="bg-card border-b border-border">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <h1 className="text-2xl font-bold text-foreground">Student Dashboard</h1>
+          </div>
+        </header>
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <ErrorDisplay error={error} onRetry={checkStudentAndLoadData} />
+        </main>
       </div>
     );
   }
@@ -204,21 +244,30 @@ export default function StudentDashboard() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 animate-in">
-          <Link to="/student/bookings" className="bg-card rounded-xl border border-border p-6 hover:border-primary hover:shadow-elegant transition-all">
-            <Calendar className="w-8 h-8 text-primary mb-4" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <Link 
+            to="/student/bookings" 
+            className="bg-card rounded-xl border border-border p-6 hover:border-primary hover:shadow-elegant transition-all group"
+          >
+            <Calendar className="w-8 h-8 text-primary mb-4 group-hover:scale-110 transition-transform" />
             <p className="text-3xl font-bold text-foreground mb-1">{stats.bookings}</p>
             <p className="text-sm text-muted-foreground">My Bookings</p>
           </Link>
           
-          <Link to="/student/offers" className="bg-card rounded-xl border border-border p-6 hover:border-primary hover:shadow-elegant transition-all">
-            <Briefcase className="w-8 h-8 text-success mb-4" />
+          <Link 
+            to="/student/offers" 
+            className="bg-card rounded-xl border border-border p-6 hover:border-primary hover:shadow-elegant transition-all group"
+          >
+            <Briefcase className="w-8 h-8 text-success mb-4 group-hover:scale-110 transition-transform" />
             <p className="text-3xl font-bold text-foreground mb-1">{stats.offers}</p>
             <p className="text-sm text-muted-foreground">Available Offers</p>
           </Link>
 
-          <Link to="/student/profile" className="bg-card rounded-xl border border-border p-6 hover:border-primary hover:shadow-elegant transition-all">
-            <User className="w-8 h-8 text-warning mb-4" />
+          <Link 
+            to="/student/profile" 
+            className="bg-card rounded-xl border border-border p-6 hover:border-primary hover:shadow-elegant transition-all group"
+          >
+            <User className="w-8 h-8 text-warning mb-4 group-hover:scale-110 transition-transform" />
             <p className="text-sm font-medium text-foreground mb-1">My Profile</p>
             <p className="text-sm text-muted-foreground">View & edit</p>
           </Link>

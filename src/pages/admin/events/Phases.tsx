@@ -7,14 +7,14 @@ type EventPhaseConfig = {
   id: string;
   name: string;
   date: string;
-  phase1_start_date: string;
-  phase1_end_date: string;
-  phase2_start_date: string;
-  phase2_end_date: string;
-  current_phase: number;
-  phase1_max_bookings: number;
-  phase2_max_bookings: number;
-  phase_mode: string;
+  phase1_start_date: string | null;
+  phase1_end_date: string | null;
+  phase2_start_date: string | null;
+  phase2_end_date: string | null;
+  current_phase: number | null;
+  phase1_max_bookings: number | null;
+  phase2_max_bookings: number | null;
+  phase_mode: string | null;
 };
 
 export default function EventPhaseManagement() {
@@ -74,6 +74,7 @@ export default function EventPhaseManagement() {
   };
 
   const loadEvent = async () => {
+    if (!eventId) return;
     const { data, error } = await supabase
       .from('events')
       .select('*')
@@ -167,6 +168,10 @@ export default function EventPhaseManagement() {
       updateData.phase2_start_date = toTimestampOrNull(formData.phase2_start);
       updateData.phase2_end_date = toTimestampOrNull(formData.phase2_end);
 
+      if (!eventId) {
+        alert('Event ID is required');
+        return;
+      }
       const { error } = await supabase
         .from('events')
         .update(updateData)

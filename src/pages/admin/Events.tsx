@@ -1,16 +1,25 @@
-import { useEffect, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { useToast } from '@/contexts/ToastContext';
 import { Calendar, Users, Clock, Target, Trash2, Power } from 'lucide-react';
 import type { Event } from '@/types/database';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { useAuth } from '@/hooks/useAuth';
+import ErrorDisplay from '@/components/shared/ErrorDisplay';
+import EmptyState from '@/components/shared/EmptyState';
+import LoadingTable from '@/components/shared/LoadingTable';
+import LoadingScreen from '@/components/shared/LoadingScreen';
 
 export default function AdminEvents() {
-  const { signOut } = useAuth('admin');
+  const { user, loading: authLoading, signOut } = useAuth('admin');
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     date: '',
@@ -21,56 +30,47 @@ export default function AdminEvents() {
     phase2_max_bookings: 6,
     phase_mode: 'manual'
   });
-  const navigate = useNavigate();
+  const { showSuccess, showError } = useToast();
+
+  const loadEvents = useCallback(async () => {
+    try {
+      setError(null);
+      setLoading(true);
+      
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .order('date', { ascending: false });
+
+      if (error) {
+        throw new Error(`Failed to load events: ${error.message}`);
+      }
+
+      setEvents(data || []);
+    } catch (err: any) {
+      console.error('Error loading events:', err);
+      const errorMessage = err instanceof Error ? err : new Error('Failed to load events');
+      setError(errorMessage);
+      showError('Failed to load events. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, [showError]);
 
   useEffect(() => {
-    checkAdminAndLoadEvents();
-  }, []);
-
-  const checkAdminAndLoadEvents = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      navigate('/login');
-      return;
+    if (!authLoading && user) {
+      loadEvents();
     }
+  }, [authLoading, loadEvents, user]);
 
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .maybeSingle(); // Use maybeSingle() to avoid 406 errors
-
-    if (profileError) {
-      console.error('Profile fetch error:', profileError);
-      navigate('/login');
-      return;
-    }
-
-    if (!profile || profile.role !== 'admin') {
-      navigate('/offers');
-      return;
-    }
-
-    await loadEvents();
-  };
-
-  const loadEvents = async () => {
-    const { data, error } = await supabase
-      .from('events')
-      .select('*')
-      .order('date', { ascending: false });
-
-    if (error) {
-      console.error('Error loading events:', error);
-    } else {
-      setEvents(data || []);
-    }
-    setLoading(false);
-  };
+  if (authLoading) {
+    return <LoadingScreen message="Loading events..." />;
+  }
 
   const handleCreateEvent = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      setCreating(true);
       const { error } = await supabase
         .from('events')
         .insert([formData]);
@@ -88,24 +88,32 @@ export default function AdminEvents() {
         phase2_max_bookings: 6,
         phase_mode: 'manual'
       });
+      showSuccess('Event created successfully!');
       await loadEvents();
-      alert('✅ Event created successfully!');
     } catch (err: any) {
-      alert('Error creating event: ' + err.message);
+      console.error('Error creating event:', err);
+      showError(err.message || 'Failed to create event. Please try again.');
+    } finally {
+      setCreating(false);
     }
   };
 
   const handleToggleActive = async (eventId: string, currentStatus: boolean) => {
     try {
+      setTogglingId(eventId);
       const { error } = await supabase
         .from('events')
         .update({ is_active: !currentStatus })
         .eq('id', eventId);
 
       if (error) throw error;
+      showSuccess(`Event ${!currentStatus ? 'activated' : 'deactivated'} successfully`);
       await loadEvents();
     } catch (err: any) {
-      alert('Error toggling event status: ' + err.message);
+      console.error('Error toggling event status:', err);
+      showError(err.message || 'Failed to update event status. Please try again.');
+    } finally {
+      setTogglingId(null);
     }
   };
 
@@ -115,6 +123,7 @@ export default function AdminEvents() {
     }
 
     try {
+      setDeletingId(eventId);
       const { data, error } = await supabase
         .rpc('fn_delete_event', { p_event_id: eventId });
 
@@ -123,21 +132,19 @@ export default function AdminEvents() {
       await loadEvents();
       
       // Show detailed deletion summary
-      if (data) {
-        alert(
-          `✅ Event deleted successfully!\n\n` +
-          `Deleted/Updated:\n` +
-          `• ${data.offers_updated} offer(s) unlinked\n` +
-          `• ${data.slots_deleted} slot(s) deleted\n` +
-          `• ${data.bookings_deleted} booking(s) deleted\n` +
-          `• ${data.registrations_deleted} registration(s) deleted\n` +
-          `• ${data.sessions_deleted} session(s) deleted`
+      if (data && data.length > 0) {
+        const result = data[0];
+        showSuccess(
+          `Event deleted successfully! Deleted: ${result.slots_deleted} slots, ${result.bookings_deleted} bookings, ${result.sessions_deleted} sessions.`
         );
       } else {
-        alert('✅ Event deleted successfully!');
+        showSuccess('Event deleted successfully!');
       }
     } catch (err: any) {
-      alert('Error deleting event: ' + err.message);
+      console.error('Error deleting event:', err);
+      showError(err.message || 'Failed to delete event. Please try again.');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -266,24 +273,42 @@ export default function AdminEvents() {
 
               <button
                 type="submit"
-                className="bg-success text-white px-6 py-2 rounded-lg hover:bg-success/90 transition font-medium"
+                disabled={creating}
+                className="bg-success text-white px-6 py-2 rounded-lg hover:bg-success/90 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                Create Event
+                {creating ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Creating...</span>
+                  </>
+                ) : (
+                  'Create Event'
+                )}
               </button>
             </form>
           </div>
         )}
 
-        {loading ? (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          </div>
+        {error ? (
+          <ErrorDisplay error={error} onRetry={loadEvents} />
+        ) : loading ? (
+          <LoadingTable columns={4} rows={8} />
         ) : events.length === 0 ? (
-          <div className="text-center py-12 bg-card rounded-xl border border-border">
-            <Calendar className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-foreground mb-2">No Events Yet</h3>
-            <p className="text-muted-foreground">Create your first event to get started</p>
-          </div>
+          <EmptyState
+            icon={Calendar}
+            title="No events yet"
+            message="Create your first event to start managing internship recruitment activities."
+            action={
+              <button
+                onClick={() => setShowCreateForm(true)}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium"
+              >
+                <Calendar className="w-4 h-4" />
+                Create Your First Event
+              </button>
+            }
+            className="bg-card rounded-xl border border-border p-12"
+          />
         ) : (
           <div className="grid grid-cols-1 gap-6 animate-in">
             {events.map((event) => (
@@ -311,17 +336,27 @@ export default function AdminEvents() {
                     </span>
                     <button
                       onClick={() => handleToggleActive(event.id, event.is_active)}
-                      className="p-2 hover:bg-muted rounded-lg transition-colors"
+                      disabled={togglingId === event.id}
+                      className="p-2 hover:bg-muted rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       title={event.is_active ? 'Deactivate event' : 'Activate event'}
                     >
-                      <Power className={`w-5 h-5 ${event.is_active ? 'text-success' : 'text-muted-foreground'}`} />
+                      {togglingId === event.id ? (
+                        <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Power className={`w-5 h-5 ${event.is_active ? 'text-success' : 'text-muted-foreground'}`} />
+                      )}
                     </button>
                     <button
                       onClick={() => handleDeleteEvent(event.id, event.name)}
-                      className="p-2 hover:bg-destructive/10 rounded-lg transition-colors"
+                      disabled={deletingId === event.id}
+                      className="p-2 hover:bg-destructive/10 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       title="Delete event"
                     >
-                      <Trash2 className="w-5 h-5 text-destructive" />
+                      {deletingId === event.id ? (
+                        <div className="w-5 h-5 border-2 border-destructive border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Trash2 className="w-5 h-5 text-destructive" />
+                      )}
                     </button>
                   </div>
                 </div>

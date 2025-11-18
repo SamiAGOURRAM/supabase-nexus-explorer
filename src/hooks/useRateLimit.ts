@@ -230,15 +230,17 @@ export async function checkRateLimitDirect(
     if (error) {
       // If RPC function doesn't exist or table doesn't exist, fail open (allow request)
       // Error codes: 42883 = function doesn't exist, PGRST116 = table not found, 42P01 = relation doesn't exist
-      if (['42883', 'PGRST116', '42P01', '42501'].includes(error.code || '') || 
-          error.message?.includes('does not exist') ||
-          error.message?.includes('permission denied')) {
+      const errorCode = error?.code || '';
+      const errorMessage = error?.message || '';
+      if (['42883', 'PGRST116', '42P01', '42501'].includes(errorCode) || 
+          errorMessage.includes('does not exist') ||
+          errorMessage.includes('permission denied')) {
         // Silently allow - rate limiting is optional
         return { allowed: true, message: 'Rate limit check unavailable' };
       }
       // Only log unexpected errors in development
       if (process.env.NODE_ENV === 'development') {
-        console.debug('Rate limit check error (ignored):', error.message);
+        console.debug('Rate limit check error (ignored):', errorMessage);
       }
       return { allowed: true, message: 'Rate limit check unavailable' };
     }
@@ -258,21 +260,29 @@ export async function checkRateLimitDirect(
         if (queryError) {
           // Table doesn't exist or RLS blocking - fail open
           // Silently ignore: PGRST116 = table not found, 42501 = permission denied, 42P01 = relation doesn't exist
-          if (!['PGRST116', '42501', '42P01'].includes(queryError.code || '')) {
+          const errorCode = queryError?.code || '';
+          if (!['PGRST116', '42501', '42P01'].includes(errorCode)) {
             if (process.env.NODE_ENV === 'development') {
-              console.debug('Rate limit query error (ignored):', queryError.message);
+              console.debug('Rate limit query error (ignored):', queryError?.message);
             }
           }
           return { allowed: true, message: 'Rate limit check unavailable' };
         }
 
         let waitTimeMinutes = windowMinutes;
-        if (attempts?.attempt_time) {
-          const oldestTime = new Date(attempts.attempt_time).getTime();
-          const now = Date.now();
-          const elapsedMs = now - oldestTime;
-          const windowMs = windowMinutes * 60 * 1000;
-          waitTimeMinutes = Math.ceil((windowMs - elapsedMs) / 60000);
+        if (attempts && typeof attempts === 'object' && attempts !== null) {
+          const attemptRecord = attempts as { attempt_time?: string | null };
+          const attemptTime = attemptRecord.attempt_time;
+          if (attemptTime != null) {
+            const timeStr = String(attemptTime);
+            if (timeStr.length > 0) {
+              const oldestTime = new Date(timeStr).getTime();
+              const now = Date.now();
+              const elapsedMs = now - oldestTime;
+              const windowMs = windowMinutes * 60 * 1000;
+              waitTimeMinutes = Math.ceil((windowMs - elapsedMs) / 60000);
+            }
+          }
         }
 
         return {
@@ -297,9 +307,10 @@ export async function checkRateLimitDirect(
       if (countError) {
         // Table doesn't exist or RLS blocking - fail open
         // Silently ignore: PGRST116 = table not found, 42501 = permission denied, 42P01 = relation doesn't exist
-        if (!['PGRST116', '42501', '42P01'].includes(countError.code || '')) {
+        const errorCode = countError?.code || '';
+        if (!['PGRST116', '42501', '42P01'].includes(errorCode)) {
           if (process.env.NODE_ENV === 'development') {
-            console.debug('Rate limit count error (ignored):', countError.message);
+            console.debug('Rate limit count error (ignored):', countError?.message);
           }
         }
         return { allowed: true, message: 'Rate limit check unavailable' };

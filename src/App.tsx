@@ -4,6 +4,9 @@ import { GoogleReCaptchaProvider } from 'react-google-recaptcha-v3';
 import LoadingScreen from "./components/shared/LoadingScreen";
 import ProtectedRoute from "./components/shared/ProtectedRoute";
 import ErrorBoundary from "./components/shared/ErrorBoundary";
+import ToastContainer from "./components/shared/ToastContainer";
+import { ToastProvider, useToast } from "./contexts/ToastContext";
+import { UserProvider } from "./contexts/UserContext";
 import VerifyEmail from '@/pages/VerifyEmail';
 
 // Get reCAPTCHA site key from environment
@@ -41,8 +44,6 @@ const StudentBookings = lazy(() => import("./pages/student/Bookings"));
 const StudentProfile = lazy(() => import("./pages/student/Profile"));
 const CompanyDashboard = lazy(() => import("./pages/company/Dashboard"));
 const CompanyOffers = lazy(() => import("./pages/company/Offers"));
-const CompanyEvents = lazy(() => import("./pages/company/Events"));
-const CompanySchedule = lazy(() => import("./pages/company/Schedule"));
 const CompanyProfile = lazy(() => import("./pages/company/Profile"));
 const CompanySlots = lazy(() => import("./pages/company/Slots"));
 const CreateOffer = lazy(() => import("./pages/company/offers/CreateOffer"));
@@ -50,12 +51,15 @@ const EditOffer = lazy(() => import("./pages/company/offers/EditOffer"));
 const CompanyStudents = lazy(() => import("./pages/company/Students"));
 const StudentProfileView = lazy(() => import("./pages/company/students/StudentProfile"));
 
-function App() {
-  // Wrap application with CAPTCHA provider if enabled
-  const AppContent = (
-    <BrowserRouter>
-      <Suspense fallback={<LoadingScreen />}>
-        <Routes>
+function AppRoutes() {
+  const { toasts, removeToast } = useToast();
+  
+  return (
+    <>
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
+      <BrowserRouter>
+        <Suspense fallback={<LoadingScreen />}>
+          <Routes>
           {/* Public Routes */}
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
@@ -90,27 +94,36 @@ function App() {
           <Route path="/student/profile" element={<ProtectedRoute><StudentProfile /></ProtectedRoute>} />
           <Route path="/verify-email" element={<VerifyEmail />} />
           
-          {/* Company Routes */}
-          <Route path="/company" element={<CompanyDashboard />} />
-          <Route path="/company/offers" element={<CompanyOffers />} />
-          <Route path="/company/offers/new" element={<CreateOffer />} />
-          <Route path="/company/offers/:id/edit" element={<EditOffer />} />
-          <Route path="/company/students" element={<CompanyStudents />} />
-          <Route path="/company/students/:id" element={<StudentProfileView />} />
-          <Route path="/company/events" element={<CompanyEvents />} />
-          <Route path="/company/schedule" element={<CompanySchedule />} />
-          <Route path="/company/profile" element={<CompanyProfile />} />
-          <Route path="/company/slots" element={<CompanySlots />} />
+          {/* Company Routes - Protected */}
+          <Route path="/company" element={<ProtectedRoute><CompanyDashboard /></ProtectedRoute>} />
+          <Route path="/company/offers" element={<ProtectedRoute><CompanyOffers /></ProtectedRoute>} />
+          <Route path="/company/offers/new" element={<ProtectedRoute><CreateOffer /></ProtectedRoute>} />
+          <Route path="/company/offers/:id/edit" element={<ProtectedRoute><EditOffer /></ProtectedRoute>} />
+          <Route path="/company/students" element={<ProtectedRoute><CompanyStudents /></ProtectedRoute>} />
+          <Route path="/company/students/:id" element={<ProtectedRoute><StudentProfileView /></ProtectedRoute>} />
+          <Route path="/company/profile" element={<ProtectedRoute><CompanyProfile /></ProtectedRoute>} />
+          <Route path="/company/slots" element={<ProtectedRoute><CompanySlots /></ProtectedRoute>} />
           <Route path="/auth/set-password" element={<SetPassword />} />
           
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/offers" replace />} />
-        </Routes>
-      </Suspense>
-    </BrowserRouter>
+          </Routes>
+        </Suspense>
+      </BrowserRouter>
+    </>
+  );
+}
+
+function App() {
+  // Wrap with ErrorBoundary, ToastProvider, and optionally with CAPTCHA provider
+  const AppContent = (
+    <UserProvider>
+      <ToastProvider>
+        <AppRoutes />
+      </ToastProvider>
+    </UserProvider>
   );
 
-  // Wrap with ErrorBoundary and optionally with CAPTCHA provider
   const WrappedApp = RECAPTCHA_ENABLED ? (
     <GoogleReCaptchaProvider
       reCaptchaKey={RECAPTCHA_SITE_KEY}

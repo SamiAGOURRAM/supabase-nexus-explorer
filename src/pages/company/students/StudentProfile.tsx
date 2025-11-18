@@ -12,6 +12,13 @@ type StudentProfile = {
   specialization: string | null;
   graduation_year: number | null;
   cv_url: string | null;
+  profile_photo_url?: string | null;
+  languages_spoken?: string[];
+  program?: string | null;
+  biography?: string | null;
+  linkedin_url?: string | null;
+  resume_url?: string | null;
+  year_of_study?: number | null;
 };
 
 type Booking = {
@@ -52,10 +59,15 @@ export default function StudentProfile() {
       return;
     }
 
-    // Get student profile
+    if (!id) {
+      alert('Student ID is required');
+      navigate('/company/students');
+      return;
+    }
+    // Get student profile with ALL fields for companies to view
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('*')
+      .select('id, full_name, email, phone, student_number, specialization, graduation_year, cv_url, profile_photo_url, languages_spoken, program, biography, linkedin_url, resume_url, year_of_study, created_at, updated_at')
       .eq('id', id)
       .maybeSingle(); // Use maybeSingle() to avoid 406 errors
 
@@ -72,7 +84,21 @@ export default function StudentProfile() {
       return;
     }
 
-    setStudent(profile);
+    // Debug: Log profile data to see what we're getting (development only)
+    if (import.meta.env.DEV) {
+      // Using direct console.log here since it's already gated by DEV check
+      // and this is in a company view page, not critical path
+      console.log('📋 Student Profile Data:', profile);
+      console.log('📋 Academic Info:', {
+        specialization: profile.specialization,
+        year_of_study: profile.year_of_study,
+        graduation_year: profile.graduation_year,
+        program: profile.program,
+        languages: profile.languages_spoken
+      });
+    }
+
+    setStudent(profile as unknown as StudentProfile);
 
     // Get company's offers
     const { data: offers } = await supabase
@@ -101,7 +127,7 @@ export default function StudentProfile() {
           offer_id
         )
       `)
-      .eq('student_id', id)
+      .eq('student_id', id || '')
       .in('event_slots.offer_id', offerIds);
 
     if (bookingsData && bookingsData.length > 0) {
@@ -170,10 +196,21 @@ export default function StudentProfile() {
           <div className="lg:col-span-1 space-y-6">
             {/* Basic Info */}
             <div className="bg-card rounded-xl border border-border p-6">
-              <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mb-4 mx-auto">
-                <User className="w-10 h-10 text-primary" />
-              </div>
+              {student.profile_photo_url ? (
+                <img
+                  src={student.profile_photo_url}
+                  alt={student.full_name}
+                  className="w-20 h-20 rounded-full object-cover mb-4 mx-auto border-2 border-border"
+                />
+              ) : (
+                <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mb-4 mx-auto">
+                  <User className="w-10 h-10 text-primary" />
+                </div>
+              )}
               <h2 className="text-xl font-bold text-foreground text-center mb-4">{student.full_name}</h2>
+              <p className="text-sm text-muted-foreground text-center mb-4">
+                {student.program || 'Program not specified'}
+              </p>
               
               <div className="space-y-3">
                 <div className="flex items-start gap-3">
@@ -206,46 +243,121 @@ export default function StudentProfile() {
               </div>
             </div>
 
-            {/* Academic Info */}
+            {/* Academic Info - Always show this section */}
             <div className="bg-card rounded-xl border border-border p-6">
               <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
                 <GraduationCap className="w-4 h-4" />
                 Academic Information
               </h3>
               <div className="space-y-3">
-                {student.specialization && (
-                  <div>
-                    <p className="text-xs text-muted-foreground">Specialization</p>
-                    <p className="text-sm text-foreground">{student.specialization}</p>
-                  </div>
-                )}
-                {student.graduation_year && (
-                  <div>
-                    <p className="text-xs text-muted-foreground">Graduation Year</p>
-                    <p className="text-sm text-foreground">{student.graduation_year}</p>
-                  </div>
-                )}
+                <div>
+                  <p className="text-xs text-muted-foreground">Specialization</p>
+                  <p className="text-sm text-foreground">
+                    {student.specialization || <span className="text-muted-foreground italic">Not provided</span>}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Year of Study</p>
+                  <p className="text-sm text-foreground">
+                    {student.year_of_study ? `Year ${student.year_of_study}` : <span className="text-muted-foreground italic">Not provided</span>}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Graduation Year</p>
+                  <p className="text-sm text-foreground">
+                    {student.graduation_year || <span className="text-muted-foreground italic">Not provided</span>}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-2">Program</p>
+                  <p className="text-sm text-foreground">
+                    {student.program || <span className="text-muted-foreground italic">Not provided</span>}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-2">Languages</p>
+                  {student.languages_spoken && Array.isArray(student.languages_spoken) && student.languages_spoken.length > 0 ? (
+                    <div className="flex flex-wrap gap-1">
+                      {student.languages_spoken.map((lang, idx) => (
+                        <span key={idx} className="inline-flex items-center px-2 py-1 rounded text-xs bg-primary/10 text-primary">
+                          {lang}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground italic">Not provided</p>
+                  )}
+                </div>
               </div>
             </div>
 
-            {/* CV */}
-            {student.cv_url && (
-              <div className="bg-card rounded-xl border border-border p-6">
-                <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+            {/* Biography - Always show this section */}
+            <div className="bg-card rounded-xl border border-border p-6">
+              <h3 className="text-sm font-semibold text-foreground mb-3">Biography</h3>
+              {student.biography ? (
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
+                  {student.biography}
+                </p>
+              ) : (
+                <p className="text-sm text-muted-foreground italic">No biography provided</p>
+              )}
+            </div>
+
+            {/* LinkedIn - Always show this section */}
+            <div className="bg-card rounded-xl border border-border p-6">
+              <h3 className="text-sm font-semibold text-foreground mb-3">LinkedIn Profile</h3>
+              {student.linkedin_url ? (
+                <a
+                  href={student.linkedin_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                >
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                  </svg>
+                  View LinkedIn Profile
+                </a>
+              ) : (
+                <p className="text-sm text-muted-foreground italic">No LinkedIn profile provided</p>
+              )}
+            </div>
+
+            {/* Resume / CV - Always show this section */}
+            <div className="bg-card rounded-xl border border-border p-6">
+              <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                Resume / CV
+              </h3>
+              {student.resume_url ? (
+                <a
+                  href={student.resume_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 w-full px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium mb-2"
+                >
                   <FileText className="w-4 h-4" />
-                  Resume / CV
-                </h3>
+                  View Resume
+                </a>
+              ) : (
+                <p className="text-sm text-muted-foreground italic mb-2">No resume uploaded</p>
+              )}
+              {student.cv_url ? (
                 <a
                   href={student.cv_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 w-full px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
+                  className="flex items-center justify-center gap-2 w-full px-4 py-2 bg-muted text-foreground rounded-lg hover:bg-muted/80 transition-colors text-sm font-medium"
                 >
                   <FileText className="w-4 h-4" />
-                  View CV
+                  View CV (Alternative)
                 </a>
-              </div>
-            )}
+              ) : (
+                !student.resume_url && (
+                  <p className="text-sm text-muted-foreground italic">No CV provided</p>
+                )
+              )}
+            </div>
           </div>
 
           {/* Right Column - Interview History */}

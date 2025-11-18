@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/contexts/ToastContext';
-import { ArrowLeft, Building2, Save, Users, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Building2, Save, Users, Plus, Trash2, AlertTriangle } from 'lucide-react';
 import { validateEmail, validatePhoneNumber } from '@/utils/securityUtils';
 import { error as logError } from '@/utils/logger';
 import LoadingScreen from '@/components/shared/LoadingScreen';
@@ -38,6 +38,9 @@ export default function CompanyProfile() {
   const [newRep, setNewRep] = useState<Representative>({ full_name: '', title: '', phone: '', email: '' });
   const [repErrors, setRepErrors] = useState<Record<number, Record<string, string>>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const navigate = useNavigate();
   const { showSuccess, showError } = useToast();
 
@@ -318,6 +321,67 @@ export default function CompanyProfile() {
       showError(errorMessage.message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== 'DELETE') {
+      showError('Please type DELETE to confirm account deletion');
+      return;
+    }
+
+    if (!profile) return;
+
+    setDeleting(true);
+    try {
+      // Store profile data before deletion (we'll need it for file cleanup)
+      const logoUrl = profile.logo_url;
+
+      // Step 1: Delete files from storage FIRST (before profile deletion)
+      // This ensures we can still access the file paths
+      if (logoUrl) {
+        try {
+          // Extract path from URL - handle both signed URLs and direct paths
+          let logoPath: string | null = null;
+          if (logoUrl.includes('/storage/v1/object/public/company-logos/')) {
+            logoPath = logoUrl.split('/storage/v1/object/public/company-logos/')[1].split('?')[0];
+          } else if (logoUrl.includes('/company-logos/')) {
+            logoPath = logoUrl.split('/company-logos/')[1].split('?')[0];
+          } else {
+            logoPath = logoUrl.split('/').slice(-2).join('/');
+          }
+          
+          if (logoPath) {
+            await supabase.storage.from('company-logos').remove([logoPath]);
+          }
+        } catch (err) {
+          // Non-critical error - log but continue with deletion
+          logError('Error deleting company logo:', err);
+        }
+      }
+
+      // Step 2: Delete all user data from public schema (this will cascade)
+      // This deletes: profile, company, bookings, booking_attempts, notifications
+      const { error: deleteError } = await supabase.rpc('delete_user_account');
+
+      if (deleteError) {
+        throw new Error(`Failed to delete account data: ${deleteError.message}`);
+      }
+
+      // Step 3: Sign out the user (this invalidates the session)
+      await supabase.auth.signOut();
+      
+      // Step 4: Show success message and redirect
+      showSuccess('Your account has been deleted successfully. You have been signed out.');
+      navigate('/login', { 
+        state: { 
+          message: 'Your account has been deleted successfully. All your data has been removed in compliance with GDPR.' 
+        } 
+      });
+    } catch (err: any) {
+      logError('Error deleting account:', err);
+      showError(err.message || 'Failed to delete account. Please try again or contact support.');
+      setDeleting(false);
     }
   };
 
@@ -697,9 +761,78 @@ export default function CompanyProfile() {
                 {saving ? 'Saving...' : 'Save Changes'}
               </button>
             </div>
+
+            {/* Account Deletion Section - GDPR Compliance */}
+            <div className="mt-8 pt-8 border-t border-border">
+              <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-6">
+                <div className="flex items-start gap-3 mb-4">
+                  <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-foreground mb-2">Delete Account</h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Permanently delete your company account and all associated data. This action cannot be undone.
+                      <br />
+                      <span className="font-medium text-foreground">This will delete:</span>
+                    </p>
+                    <ul className="text-sm text-muted-foreground space-y-1 mb-4 list-disc list-inside">
+                      <li>Your company profile and information</li>
+                      <li>All your offers and job postings</li>
+                      <li>All your event slots and bookings</li>
+                      <li>Company representatives and contact information</li>
+                      <li>All other account-related data</li>
+                    </ul>
+                  </div>
+                </div>
+
+                {!showDeleteConfirm ? (
+                  <button
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 transition-colors text-sm font-medium"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Delete My Account
+                  </button>
+                ) : (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-2">
+                        Type <span className="font-mono text-destructive">DELETE</span> to confirm:
+                      </label>
+                      <input
+                        type="text"
+                        value={deleteConfirmText}
+                        onChange={(e) => setDeleteConfirmText(e.target.value)}
+                        placeholder="DELETE"
+                        className="w-full px-4 py-2 bg-background border border-destructive/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-destructive text-foreground"
+                      />
+                    </div>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => {
+                          setShowDeleteConfirm(false);
+                          setDeleteConfirmText('');
+                        }}
+                        className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleDeleteAccount}
+                        disabled={deleting || deleteConfirmText !== 'DELETE'}
+                        className="flex items-center gap-2 px-4 py-2 bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        {deleting ? 'Deleting...' : 'Permanently Delete Account'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </main>
     </div>
   );
 }
+
