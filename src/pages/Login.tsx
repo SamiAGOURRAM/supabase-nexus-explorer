@@ -893,6 +893,22 @@ const LOGIN_HIGHLIGHTS: Highlight[] = [
 
                 </p>
 
+                <div className="pt-4 border-t border-border">
+
+                  <p className="text-xs text-muted-foreground text-center">
+
+                    By signing in, you agree to our{' '}
+
+                    <Link to="/privacy-policy" className="text-primary hover:underline font-medium">
+
+                      Privacy Policy
+
+                    </Link>
+
+                  </p>
+
+                </div>
+
               </div>
 
             </section>

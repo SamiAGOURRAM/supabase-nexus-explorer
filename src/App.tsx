@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Suspense, lazy } from "react";
 import { GoogleReCaptchaProvider } from 'react-google-recaptcha-v3';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import LoadingScreen from "./components/shared/LoadingScreen";
 import ProtectedRoute from "./components/shared/ProtectedRoute";
 import ErrorBoundary from "./components/shared/ErrorBoundary";
@@ -13,6 +14,16 @@ import VerifyEmail from '@/pages/VerifyEmail';
 const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || '';
 const RECAPTCHA_ENABLED = !!RECAPTCHA_SITE_KEY;
 
+// Create a client
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      retry: 1,
+    },
+  },
+});
+
 // Lazy load pages for better performance
 const Home = lazy(() => import("./pages/Home"));
 const SetPassword = lazy(() => import("./pages/auth/SetPassword"));
@@ -21,6 +32,7 @@ const Signup = lazy(() => import("./pages/Signup"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const Offers = lazy(() => import("./pages/Offers"));
+const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 const AdminDashboard = lazy(() => import("./pages/admin/Dashboard"));
 const AdminEvents = lazy(() => import("./pages/admin/Events"));
 const AdminCompanies = lazy(() => import("./pages/admin/Companies"));
@@ -67,6 +79,7 @@ function AppRoutes() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/offers" element={<Offers />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           
           {/* Admin Routes */}
           <Route path="/admin" element={<AdminDashboard />} />
@@ -117,11 +130,13 @@ function AppRoutes() {
 function App() {
   // Wrap with ErrorBoundary, ToastProvider, and optionally with CAPTCHA provider
   const AppContent = (
-    <UserProvider>
-      <ToastProvider>
-        <AppRoutes />
-      </ToastProvider>
-    </UserProvider>
+    <QueryClientProvider client={queryClient}>
+      <UserProvider>
+        <ToastProvider>
+          <AppRoutes />
+        </ToastProvider>
+      </UserProvider>
+    </QueryClientProvider>
   );
 
   const WrappedApp = RECAPTCHA_ENABLED ? (

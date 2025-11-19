@@ -29,7 +29,6 @@ export default function AdminOffers() {
   const [error, setError] = useState<Error | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterActive, setFilterActive] = useState<'all' | 'active' | 'inactive'>('all');
-  const [togglingId, setTogglingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const { showSuccess, showError } = useToast();
 
@@ -65,24 +64,6 @@ export default function AdminOffers() {
     }
   };
 
-  const handleToggleActive = async (offerId: string, currentStatus: boolean) => {
-    try {
-      setTogglingId(offerId);
-      const { error } = await supabase
-        .from('offers')
-        .update({ is_active: !currentStatus })
-        .eq('id', offerId);
-
-      if (error) throw error;
-      showSuccess(`Offer ${!currentStatus ? 'activated' : 'deactivated'} successfully`);
-      await loadOffers();
-    } catch (err: any) {
-      console.error('Error updating offer:', err);
-      showError(err.message || 'Failed to update offer status. Please try again.');
-    } finally {
-      setTogglingId(null);
-    }
-  };
 
   const handleDeleteOffer = async (offerId: string) => {
     if (!confirm('Are you sure you want to delete this offer? This action cannot be undone.')) {
@@ -278,26 +259,9 @@ export default function AdminOffers() {
 
                   <div className="flex gap-2 pt-4 border-t border-border">
                     <button
-                      onClick={() => handleToggleActive(offer.id, offer.is_active)}
-                      disabled={togglingId === offer.id}
-                      className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                        offer.is_active
-                          ? 'bg-warning/10 text-warning hover:bg-warning/20'
-                          : 'bg-success/10 text-success hover:bg-success/20'
-                      }`}
-                    >
-                      {togglingId === offer.id ? (
-                        <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin inline-block mr-1" />
-                      ) : offer.is_active ? (
-                        <><EyeOff className="w-3 h-3 inline mr-1" />Deactivate</>
-                      ) : (
-                        <><Eye className="w-3 h-3 inline mr-1" />Activate</>
-                      )}
-                    </button>
-                    <button
                       onClick={() => handleDeleteOffer(offer.id)}
                       disabled={deletingId === offer.id}
-                      className="px-3 py-2 bg-destructive/10 text-destructive rounded-lg text-xs font-medium hover:bg-destructive/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+                      className="w-full px-3 py-2 bg-destructive/10 text-destructive rounded-lg text-xs font-medium hover:bg-destructive/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1"
                     >
                       {deletingId === offer.id ? (
                         <div className="w-3 h-3 border-2 border-destructive border-t-transparent rounded-full animate-spin" />

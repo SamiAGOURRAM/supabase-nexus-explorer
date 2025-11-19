@@ -9,7 +9,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/contexts/ToastContext';
-import { ArrowLeft, User, Save, GraduationCap, Phone, FileText, Mail, Languages, Briefcase, Linkedin, BookOpen, Calendar, X, Trash2, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, User, Save, GraduationCap, Phone, FileText, Mail, Languages, Briefcase, Linkedin, BookOpen, Calendar, X, Trash2, AlertTriangle, Download } from 'lucide-react';
 import { validatePhoneNumber } from '@/utils/securityUtils';
 import { error as logError } from '@/utils/logger';
 import LoadingScreen from '@/components/shared/LoadingScreen';
@@ -17,6 +17,7 @@ import ErrorDisplay from '@/components/shared/ErrorDisplay';
 import ImageUpload from '@/components/shared/ImageUpload';
 import FileUpload from '@/components/shared/FileUpload';
 import { uploadProfilePhoto, uploadResume } from '@/utils/fileUpload';
+import { exportUserData, downloadUserDataAsJson } from '@/utils/dataExport';
 
 type StudentProfile = {
   id: string;
@@ -34,6 +35,7 @@ type StudentProfile = {
   linkedin_url: string | null;
   resume_url: string | null;
   year_of_study: number | null;
+  is_deprioritized: boolean;
 };
 
 export default function StudentProfile() {
@@ -50,6 +52,7 @@ export default function StudentProfile() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [exportingData, setExportingData] = useState(false);
   const navigate = useNavigate();
   const { showSuccess, showError } = useToast();
 
@@ -67,7 +70,7 @@ export default function StudentProfile() {
 
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select('id, email, full_name, phone, student_number, specialization, graduation_year, cv_url, profile_photo_url, languages_spoken, program, biography, linkedin_url, resume_url, year_of_study')
+        .select('id, email, full_name, phone, student_number, specialization, graduation_year, cv_url, profile_photo_url, languages_spoken, program, biography, linkedin_url, resume_url, year_of_study, is_deprioritized')
         .eq('id', user.id)
         .maybeSingle();
 
@@ -98,6 +101,7 @@ export default function StudentProfile() {
         resume_url: profileDataAny.resume_url || null,
         year_of_study: profileDataAny.year_of_study || null,
         profile_photo_url: profileDataAny.profile_photo_url || null,
+        is_deprioritized: profileDataAny.is_deprioritized || false,
       };
 
       setProfile(profileWithDefaults);
@@ -271,6 +275,7 @@ export default function StudentProfile() {
           linkedin_url: finalLinkedinUrl,
           resume_url: resumeUrl,
           year_of_study: profile.year_of_study || null,
+          is_deprioritized: profile.is_deprioritized,
         })
         .eq('id', profile.id);
 
@@ -294,6 +299,26 @@ export default function StudentProfile() {
       setSaving(false);
       setUploadingPhoto(false);
       setUploadingResume(false);
+    }
+  };
+
+  const handleExportData = async () => {
+    if (!profile) return;
+    
+    setExportingData(true);
+    try {
+      const userData = await exportUserData(profile.id);
+      if (userData) {
+        downloadUserDataAsJson(userData);
+        showSuccess('Your data has been exported successfully!');
+      } else {
+        showError('Failed to export data. Please try again.');
+      }
+    } catch (err: any) {
+      logError('Error exporting data:', err);
+      showError('Failed to export data. Please try again.');
+    } finally {
+      setExportingData(false);
     }
   };
 
@@ -722,21 +747,60 @@ export default function StudentProfile() {
               </p>
             </div>
 
-            <div className="flex justify-end gap-3 pt-4 border-t border-border">
-              <Link
-                to="/student"
-                className="px-6 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Cancel
-              </Link>
+            {/* Internship Status */}
+            <div className="bg-muted/30 border border-border/50 rounded-xl p-6">
+              <div className="flex items-start gap-3">
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-foreground mb-3">Internship Status</h3>
+                  <div className="flex items-start gap-3">
+                    <div className="flex items-center h-5 mt-0.5">
+                      <input
+                        id="is_deprioritized"
+                        type="checkbox"
+                        checked={profile.is_deprioritized}
+                        onChange={(e) => setProfile({ ...profile, is_deprioritized: e.target.checked })}
+                        className="w-4 h-4 text-primary border-border rounded focus:ring-primary"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="is_deprioritized" className="font-medium text-foreground cursor-pointer">
+                        I have already secured an internship
+                      </label>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Check this box if you have already found an internship. This will mark your profile as "Secured Internship" to recruiters, 
+                        indicating that you are not actively looking. You can still participate in the event.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-between items-center pt-4 border-t border-border">
               <button
-                onClick={handleSave}
-                disabled={saving || uploadingPhoto || uploadingResume}
-                className="flex items-center gap-2 px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium disabled:opacity-50"
+                onClick={handleExportData}
+                disabled={exportingData}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary hover:text-primary/80 transition-colors disabled:opacity-50"
               >
-                <Save className="w-4 h-4" />
-                {saving || uploadingPhoto || uploadingResume ? 'Saving...' : 'Save Changes'}
+                <Download className="w-4 h-4" />
+                {exportingData ? 'Exporting...' : 'Download My Data (GDPR)'}
               </button>
+              <div className="flex gap-3">
+                <Link
+                  to="/student"
+                  className="px-6 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Cancel
+                </Link>
+                <button
+                  onClick={handleSave}
+                  disabled={saving || uploadingPhoto || uploadingResume}
+                  className="flex items-center gap-2 px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium disabled:opacity-50"
+                >
+                  <Save className="w-4 h-4" />
+                  {saving || uploadingPhoto || uploadingResume ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
             </div>
 
             {/* Account Deletion Section - GDPR Compliance */}

@@ -969,6 +969,9 @@ export type Database = {
           linkedin_url: string | null
           resume_url: string | null
           year_of_study: number | null
+          consent_given: boolean | null
+          consent_date: string | null
+          consent_version: string | null
         }
         Insert: {
           created_at?: string
@@ -990,6 +993,9 @@ export type Database = {
           linkedin_url?: string | null
           resume_url?: string | null
           year_of_study?: number | null
+          consent_given?: boolean | null
+          consent_date?: string | null
+          consent_version?: string | null
         }
         Update: {
           created_at?: string
@@ -1011,6 +1017,9 @@ export type Database = {
           linkedin_url?: string | null
           resume_url?: string | null
           year_of_study?: number | null
+          consent_given?: boolean | null
+          consent_date?: string | null
+          consent_version?: string | null
         }
         Relationships: []
       }
@@ -1523,7 +1532,7 @@ export type Database = {
           p_email: string
           p_ip_address: string
         }
-        Returns: undefined
+        Returns: number
       }
       fn_check_rate_limit: {
         Args: {
@@ -1532,10 +1541,20 @@ export type Database = {
           p_max_attempts?: number
           p_window_minutes?: number
         }
+        Returns: boolean
+      }
+      fn_rate_limit_status: {
+        Args: {
+          p_email: string
+          p_ip_address: string
+          p_max_attempts?: number
+          p_window_minutes?: number
+        }
         Returns: {
           allowed: boolean
-          attempt_time: string | null
-          attempts: number
+          attempt_count: number
+          remaining_attempts: number
+          wait_time_minutes: number
         }[]
       }
       fn_delete_event: {

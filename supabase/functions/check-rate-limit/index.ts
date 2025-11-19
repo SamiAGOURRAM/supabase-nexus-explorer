@@ -47,27 +47,33 @@ serve(async (req) => {
     const MAX_ATTEMPTS = 5
     const WINDOW_MINUTES = 15
 
-    // Check rate limit using the database function
-    const { data: rateLimitCheck, error: rateLimitError } = await supabaseClient
-      .rpc('fn_check_rate_limit', {
-        p_email: email,
-        p_ip_address: ipAddress,
-        p_max_attempts: MAX_ATTEMPTS,
-        p_window_minutes: WINDOW_MINUTES,
-      })
+    // Get rate limit status using helper
+    const { data: statusData, error: statusError } = await supabaseClient.rpc('fn_rate_limit_status', {
+      p_email: email,
+      p_ip_address: ipAddress,
+      p_max_attempts: MAX_ATTEMPTS,
+      p_window_minutes: WINDOW_MINUTES,
+    })
 
-    if (rateLimitError) {
-      throw rateLimitError
+    if (statusError) {
+      throw statusError
     }
+
+    const statusRecord = Array.isArray(statusData) ? statusData[0] : statusData
+    const allowed = statusRecord?.allowed ?? true
+    const remainingAttempts = statusRecord?.remaining_attempts ?? MAX_ATTEMPTS
+    const waitTimeMinutes = statusRecord?.wait_time_minutes ?? 0
 
     // If action is 'check', just return the current status
     if (action === 'check') {
       return new Response(
         JSON.stringify({
-          allowed: rateLimitCheck,
-          message: rateLimitCheck 
-            ? 'Rate limit check passed' 
-            : `Too many attempts. Please wait ${WINDOW_MINUTES} minutes.`,
+          allowed,
+          remainingAttempts,
+          waitTimeMinutes,
+          message: allowed
+            ? 'Rate limit check passed'
+            : `Too many attempts. Please wait ${waitTimeMinutes} minute(s).`,
         } as RateLimitResponse),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -77,30 +83,13 @@ serve(async (req) => {
     }
 
     // If rate limit exceeded, return error
-    if (!rateLimitCheck) {
-      // Get time until rate limit resets
-      const { data: oldestAttempt } = await supabaseClient
-        .from('failed_login_attempts')
-        .select('attempt_time')
-        .or(`email.eq.${email},ip_address.eq.${ipAddress}`)
-        .order('attempt_time', { ascending: true })
-        .limit(1)
-        .single()
-
-      let waitTimeMinutes = WINDOW_MINUTES
-      if (oldestAttempt?.attempt_time) {
-        const oldestTime = new Date(oldestAttempt.attempt_time).getTime()
-        const now = Date.now()
-        const elapsedMs = now - oldestTime
-        const windowMs = WINDOW_MINUTES * 60 * 1000
-        waitTimeMinutes = Math.ceil((windowMs - elapsedMs) / 60000)
-      }
-
+    if (!allowed) {
       return new Response(
         JSON.stringify({
           allowed: false,
+          remainingAttempts,
           waitTimeMinutes,
-          message: `Too many ${action} attempts. Please try again in ${waitTimeMinutes} minute(s).`,
+          message: `Too many ${action} attempts. Please try again in ${Math.max(waitTimeMinutes, 1)} minute(s).`,
         } as RateLimitResponse),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -108,15 +97,6 @@ serve(async (req) => {
         }
       )
     }
-
-    // Rate limit check passed
-    const { data: attemptCount } = await supabaseClient
-      .from('failed_login_attempts')
-      .select('id', { count: 'exact', head: true })
-      .or(`email.eq.${email},ip_address.eq.${ipAddress}`)
-      .gte('attempt_time', new Date(Date.now() - WINDOW_MINUTES * 60 * 1000).toISOString())
-
-    const remainingAttempts = MAX_ATTEMPTS - (attemptCount || 0)
 
     return new Response(
       JSON.stringify({

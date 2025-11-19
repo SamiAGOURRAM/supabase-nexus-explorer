@@ -241,3 +241,4 @@ For issues or questions:
 - Added comprehensive JSDoc documentation
 - Organized project structure with clear separation of concerns
 - Added utility functions for date formatting and constants
+- Synced rate limiting between Supabase + React and refreshed public UX with live stats and richer offer filtering

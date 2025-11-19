@@ -202,7 +202,8 @@ export default function AdminBookings() {
             />
           ) : (
             <div className="bg-card border border-border rounded-xl overflow-hidden">
-              <div className="overflow-x-auto">
+              {/* Desktop Table */}
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-muted">
                     <tr>
@@ -276,6 +277,58 @@ export default function AdminBookings() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+
+              {/* Mobile Card View */}
+              <div className="md:hidden divide-y divide-border">
+                {filteredBookings.map((booking) => (
+                  <div key={booking.id} className="p-4 space-y-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center">
+                        <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center mr-3">
+                          <User className="w-5 h-5 text-primary" />
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium text-foreground">{booking.profiles.full_name}</div>
+                          <div className="text-xs text-muted-foreground">{booking.profiles.email}</div>
+                        </div>
+                      </div>
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                        booking.status === 'confirmed'
+                          ? 'bg-success/10 text-success'
+                          : 'bg-warning/10 text-warning'
+                      }`}>
+                        {booking.status}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div className="flex items-center text-foreground">
+                        <Building2 className="w-4 h-4 mr-2 text-muted-foreground" />
+                        <span className="truncate">{booking.event_slots.companies.company_name}</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-1 text-foreground">
+                          <Calendar className="w-3 h-3 text-muted-foreground" />
+                          {new Date(booking.event_slots.start_time).toLocaleDateString()}
+                        </div>
+                        <div className="text-xs text-muted-foreground ml-4">
+                          {new Date(booking.event_slots.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 flex justify-end">
+                      <button
+                        onClick={() => handleCancelBooking(booking.id)}
+                        className="px-3 py-1.5 bg-destructive/10 text-destructive rounded-lg text-xs font-medium hover:bg-destructive/20 transition-colors flex items-center gap-1"
+                      >
+                        <X className="w-3 h-3" />
+                        Cancel Booking
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}

@@ -1,19 +1,18 @@
 import { ReactNode } from 'react';
-import AdminSidebar from './AdminSidebar';
+import CompanySidebar from './CompanySidebar';
 
-interface AdminLayoutProps {
+interface CompanyLayoutProps {
   children: ReactNode;
   onSignOut: () => void;
 }
 
-export default function AdminLayout({ children, onSignOut }: AdminLayoutProps) {
+export default function CompanyLayout({ children, onSignOut }: CompanyLayoutProps) {
   return (
     <div className="min-h-screen bg-background flex">
-      <AdminSidebar onSignOut={onSignOut} />
+      <CompanySidebar onSignOut={onSignOut} />
       <main className="flex-1 w-full md:w-auto overflow-auto pt-16 md:pt-0">
         {children}
       </main>
     </div>
   );
 }
-

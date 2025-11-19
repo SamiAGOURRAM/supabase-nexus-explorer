@@ -238,89 +238,160 @@ export default function EventParticipantsPage() {
               </Link>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b bg-muted">
-                    <th className="text-left py-3 px-4 font-semibold text-foreground">Company</th>
-                    <th className="text-left py-3 px-4 font-semibold text-foreground">Code</th>
-                    <th className="text-left py-3 px-4 font-semibold text-foreground">Email</th>
-                    <th className="text-left py-3 px-4 font-semibold text-foreground">Industry</th>
-                    <th className="text-left py-3 px-4 font-semibold text-foreground">Status</th>
-                    <th className="text-left py-3 px-4 font-semibold text-foreground">Invited At</th>
-                    <th className="text-right py-3 px-4 font-semibold text-foreground">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {participants.map(participant => {
-                    if (!participant.companies) return null;
-                    const company = participant.companies;
-                    
-                    return (
-                      <tr key={participant.id} className="border-b hover:bg-muted/50 transition">
-                        <td className="py-3 px-4">
-                          <div>
-                            <p className="font-semibold text-foreground">{company.company_name}</p>
-                            {company.website && (
-                              <a 
-                                href={company.website} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="text-xs text-primary hover:underline"
-                              >
-                                {company.website}
-                              </a>
+            <div className="bg-card rounded-xl border border-border overflow-hidden">
+              {/* Desktop Table */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b bg-muted">
+                      <th className="text-left py-3 px-4 font-semibold text-foreground">Company</th>
+                      <th className="text-left py-3 px-4 font-semibold text-foreground">Code</th>
+                      <th className="text-left py-3 px-4 font-semibold text-foreground">Email</th>
+                      <th className="text-left py-3 px-4 font-semibold text-foreground">Industry</th>
+                      <th className="text-left py-3 px-4 font-semibold text-foreground">Status</th>
+                      <th className="text-left py-3 px-4 font-semibold text-foreground">Invited At</th>
+                      <th className="text-right py-3 px-4 font-semibold text-foreground">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {participants.map(participant => {
+                      if (!participant.companies) return null;
+                      const company = participant.companies;
+                      
+                      return (
+                        <tr key={participant.id} className="border-b hover:bg-muted/50 transition">
+                          <td className="py-3 px-4">
+                            <div>
+                              <p className="font-semibold text-foreground">{company.company_name}</p>
+                              {company.website && (
+                                <a 
+                                  href={company.website} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-primary hover:underline"
+                                >
+                                  {company.website}
+                                </a>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-3 px-4">
+                            <code className="text-xs bg-muted px-2 py-1 rounded font-mono">
+                              {company.company_code}
+                            </code>
+                          </td>
+                          <td className="py-3 px-4 text-sm text-muted-foreground">
+                            {company.email || 'No email'}
+                          </td>
+                          <td className="py-3 px-4 text-sm text-muted-foreground">
+                            {company.industry || '-'}
+                          </td>
+                          <td className="py-3 px-4">
+                            {company.hasLoggedIn ? (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-success/10 text-success">
+                                ✓ Active
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-warning/10 text-warning">
+                                ⏳ Pending
+                              </span>
                             )}
-                          </div>
-                        </td>
-                        <td className="py-3 px-4">
-                          <code className="text-xs bg-muted px-2 py-1 rounded font-mono">
+                          </td>
+                          <td className="py-3 px-4 text-sm text-muted-foreground">
+                            {new Date(participant.invited_at).toLocaleDateString()}
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              {!company.hasLoggedIn && (
+                                <button
+                                  onClick={() => handleResendInvite(company)}
+                                  className="text-primary hover:text-primary/80 text-sm font-medium hover:underline"
+                                >
+                                  📧 Resend
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleRemoveParticipant(participant.id, company.company_name)}
+                                className="text-destructive hover:text-destructive/80 text-sm font-medium hover:underline"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Card View */}
+              <div className="md:hidden divide-y divide-border">
+                {participants.map(participant => {
+                  if (!participant.companies) return null;
+                  const company = participant.companies;
+                  
+                  return (
+                    <div key={participant.id} className="p-4 space-y-3">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="font-semibold text-foreground">{company.company_name}</p>
+                          <code className="text-xs bg-muted px-2 py-1 rounded font-mono mt-1 inline-block">
                             {company.company_code}
                           </code>
-                        </td>
-                        <td className="py-3 px-4 text-sm text-muted-foreground">
-                          {company.email || 'No email'}
-                        </td>
-                        <td className="py-3 px-4 text-sm text-muted-foreground">
-                          {company.industry || '-'}
-                        </td>
-                        <td className="py-3 px-4">
-                          {company.hasLoggedIn ? (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-success/10 text-success">
-                              ✓ Active
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-warning/10 text-warning">
-                              ⏳ Pending
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-3 px-4 text-sm text-muted-foreground">
-                          {new Date(participant.invited_at).toLocaleDateString()}
-                        </td>
-                        <td className="py-3 px-4 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            {!company.hasLoggedIn && (
-                              <button
-                                onClick={() => handleResendInvite(company)}
-                                className="text-primary hover:text-primary/80 text-sm font-medium hover:underline"
-                              >
-                                📧 Resend
-                              </button>
-                            )}
-                            <button
-                              onClick={() => handleRemoveParticipant(participant.id, company.company_name)}
-                              className="text-destructive hover:text-destructive/80 text-sm font-medium hover:underline"
+                        </div>
+                        {company.hasLoggedIn ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-success/10 text-success">
+                            ✓ Active
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-warning/10 text-warning">
+                            ⏳ Pending
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="text-sm space-y-1">
+                        <p className="text-muted-foreground">
+                          <span className="font-medium text-foreground">Email:</span> {company.email || 'No email'}
+                        </p>
+                        <p className="text-muted-foreground">
+                          <span className="font-medium text-foreground">Industry:</span> {company.industry || '-'}
+                        </p>
+                        {company.website && (
+                          <p>
+                            <a 
+                              href={company.website} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-primary hover:underline"
                             >
-                              Remove
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                              {company.website}
+                            </a>
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="pt-2 flex justify-end gap-3 border-t border-border mt-2">
+                        {!company.hasLoggedIn && (
+                          <button
+                            onClick={() => handleResendInvite(company)}
+                            className="text-primary hover:text-primary/80 text-sm font-medium"
+                          >
+                            📧 Resend Invite
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleRemoveParticipant(participant.id, company.company_name)}
+                          className="text-destructive hover:text-destructive/80 text-sm font-medium"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>
