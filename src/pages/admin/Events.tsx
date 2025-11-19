@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { Calendar, MapPin, Users, ArrowLeft, Clock, Target } from 'lucide-react';
+import { Calendar, Users, Clock, Target, Trash2, Power } from 'lucide-react';
 import type { Event } from '@/types/database';
+import AdminLayout from '@/components/admin/AdminLayout';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function AdminEvents() {
+  const { signOut } = useAuth('admin');
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -12,7 +15,11 @@ export default function AdminEvents() {
     name: '',
     date: '',
     description: '',
-    location: ''
+    location: '',
+    current_phase: 0,
+    phase1_max_bookings: 3,
+    phase2_max_bookings: 6,
+    phase_mode: 'manual'
   });
   const navigate = useNavigate();
 
@@ -27,11 +34,17 @@ export default function AdminEvents() {
       return;
     }
 
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', user.id)
-      .single();
+      .maybeSingle(); // Use maybeSingle() to avoid 406 errors
+
+    if (profileError) {
+      console.error('Profile fetch error:', profileError);
+      navigate('/login');
+      return;
+    }
 
     if (!profile || profile.role !== 'admin') {
       navigate('/offers');
@@ -65,7 +78,16 @@ export default function AdminEvents() {
       if (error) throw error;
 
       setShowCreateForm(false);
-      setFormData({ name: '', date: '', description: '', location: '' });
+      setFormData({ 
+        name: '', 
+        date: '', 
+        description: '', 
+        location: '',
+        current_phase: 0,
+        phase1_max_bookings: 3,
+        phase2_max_bookings: 6,
+        phase_mode: 'manual'
+      });
       await loadEvents();
       alert('✅ Event created successfully!');
     } catch (err: any) {
@@ -73,37 +95,72 @@ export default function AdminEvents() {
     }
   };
 
+  const handleToggleActive = async (eventId: string, currentStatus: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('events')
+        .update({ is_active: !currentStatus })
+        .eq('id', eventId);
+
+      if (error) throw error;
+      await loadEvents();
+    } catch (err: any) {
+      alert('Error toggling event status: ' + err.message);
+    }
+  };
+
+  const handleDeleteEvent = async (eventId: string, eventName: string) => {
+    if (!confirm(`Are you sure you want to delete "${eventName}"? This will also delete all related sessions, slots, bookings, and registrations. This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .rpc('fn_delete_event', { p_event_id: eventId });
+
+      if (error) throw error;
+      
+      await loadEvents();
+      
+      // Show detailed deletion summary
+      if (data) {
+        alert(
+          `✅ Event deleted successfully!\n\n` +
+          `Deleted/Updated:\n` +
+          `• ${data.offers_updated} offer(s) unlinked\n` +
+          `• ${data.slots_deleted} slot(s) deleted\n` +
+          `• ${data.bookings_deleted} booking(s) deleted\n` +
+          `• ${data.registrations_deleted} registration(s) deleted\n` +
+          `• ${data.sessions_deleted} session(s) deleted`
+        );
+      } else {
+        alert('✅ Event deleted successfully!');
+      }
+    } catch (err: any) {
+      alert('Error deleting event: ' + err.message);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-background">
-      <header className="bg-card border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link to="/admin" className="text-muted-foreground hover:text-foreground">
-                <ArrowLeft className="w-5 h-5" />
-              </Link>
-              <div>
-                <h1 className="text-2xl font-bold text-foreground">Events Management</h1>
-                <p className="text-sm text-muted-foreground mt-1">Manage speed recruiting events</p>
-              </div>
+    <AdminLayout onSignOut={signOut}>
+      <div className="p-8">
+        <div className="max-w-7xl mx-auto">
+          {/* Header */}
+          <div className="mb-8 flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-foreground mb-2">Events Management</h1>
+              <p className="text-muted-foreground">Create and manage recruitment events</p>
             </div>
+            <button
+              onClick={() => setShowCreateForm(!showCreateForm)}
+              className="bg-primary text-primary-foreground px-6 py-3 rounded-lg hover:bg-primary/90 transition font-medium"
+            >
+              {showCreateForm ? '✕ Cancel' : '+ Create New Event'}
+            </button>
           </div>
-        </div>
-      </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Create Event Button */}
-        <div className="mb-6">
-          <button
-            onClick={() => setShowCreateForm(!showCreateForm)}
-            className="bg-primary text-primary-foreground px-6 py-3 rounded-lg hover:bg-primary/90 transition font-medium"
-          >
-            {showCreateForm ? '✕ Cancel' : '+ Create New Event'}
-          </button>
-        </div>
-
-        {/* Create Event Form */}
-        {showCreateForm && (
+          {/* Create Event Form */}
+          {showCreateForm && (
           <div className="bg-card rounded-xl border border-border p-6 mb-8">
             <h2 className="text-xl font-semibold text-foreground mb-4">Create New Event</h2>
             <form onSubmit={handleCreateEvent} className="space-y-4">
@@ -158,6 +215,55 @@ export default function AdminEvents() {
                   placeholder="Event description..."
                 />
               </div>
+
+              {/* Phase Configuration */}
+              <div className="border-t border-border pt-4 mt-4">
+                <h3 className="text-lg font-semibold text-foreground mb-3">Phase Configuration</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">
+                      Initial Phase
+                    </label>
+                    <select
+                      value={formData.current_phase}
+                      onChange={(e) => setFormData({ ...formData, current_phase: parseInt(e.target.value) })}
+                      className="w-full px-3 py-2 bg-background border border-border rounded-md focus:ring-2 focus:ring-primary"
+                    >
+                      <option value={0}>Phase 0 - Closed</option>
+                      <option value={1}>Phase 1 - Priority</option>
+                      <option value={2}>Phase 2 - Open</option>
+                    </select>
+                    <p className="text-xs text-muted-foreground mt-1">Starting phase for bookings</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">
+                      Phase 1 Max Bookings
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={formData.phase1_max_bookings}
+                      onChange={(e) => setFormData({ ...formData, phase1_max_bookings: parseInt(e.target.value) })}
+                      className="w-full px-3 py-2 bg-background border border-border rounded-md focus:ring-2 focus:ring-primary"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">Max interviews per student</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">
+                      Phase 2 Max Bookings
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={formData.phase2_max_bookings}
+                      onChange={(e) => setFormData({ ...formData, phase2_max_bookings: parseInt(e.target.value) })}
+                      className="w-full px-3 py-2 bg-background border border-border rounded-md focus:ring-2 focus:ring-primary"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">Should be ≥ Phase 1 limit</p>
+                  </div>
+                </div>
+              </div>
+
               <button
                 type="submit"
                 className="bg-success text-white px-6 py-2 rounded-lg hover:bg-success/90 transition font-medium"
@@ -195,13 +301,29 @@ export default function AdminEvents() {
                       </p>
                     </div>
                   </div>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    event.is_active
-                      ? 'bg-success/10 text-success'
-                      : 'bg-muted text-muted-foreground'
-                  }`}>
-                    {event.is_active ? 'Active' : 'Inactive'}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                      event.is_active
+                        ? 'bg-success/10 text-success'
+                        : 'bg-muted text-muted-foreground'
+                    }`}>
+                      {event.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                    <button
+                      onClick={() => handleToggleActive(event.id, event.is_active)}
+                      className="p-2 hover:bg-muted rounded-lg transition-colors"
+                      title={event.is_active ? 'Deactivate event' : 'Activate event'}
+                    >
+                      <Power className={`w-5 h-5 ${event.is_active ? 'text-success' : 'text-muted-foreground'}`} />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteEvent(event.id, event.name)}
+                      className="p-2 hover:bg-destructive/10 rounded-lg transition-colors"
+                      title="Delete event"
+                    >
+                      <Trash2 className="w-5 h-5 text-destructive" />
+                    </button>
+                  </div>
                 </div>
                 
                 {event.description && (
@@ -264,7 +386,8 @@ export default function AdminEvents() {
             ))}
           </div>
         )}
-      </main>
-    </div>
+        </div>
+      </div>
+    </AdminLayout>
   );
 }

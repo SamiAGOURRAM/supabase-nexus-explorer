@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { ArrowLeft, Calendar, Clock, MapPin, Users } from 'lucide-react';
+import { assertSupabaseType, extractFirstFromNested, getFromMapOrNull } from '@/utils/supabaseTypes';
 
 type Booking = {
   id: string;
@@ -81,22 +82,31 @@ export default function CompanySlots() {
 
       const eventMap = new Map(events?.map(e => [e.id, e]) || []);
       
-      // Get bookings with student and offer info
-      const slotsWithBookings = await Promise.all(
-        eventSlots.map(async (slot: any) => {
-          const { data: bookings } = await supabase
-            .from('bookings')
-            .select(`
-              id,
-              student_id,
-              slot:event_slots!inner(offer_id),
-              profiles!inner(full_name)
-            `)
-            .eq('slot_id', slot.id)
-            .eq('status', 'confirmed');
+          // Get bookings with student and offer info
+          // Note: Supabase nested queries return arrays for !inner joins, so we need type assertions
+          const slotsWithBookings = await Promise.all(
+            eventSlots.map(async (slot: any) => {
+              const { data: bookings } = await supabase
+                .from('bookings')
+                .select(`
+                  id,
+                  student_id,
+                  slot:event_slots!inner(offer_id),
+                  profiles!inner(full_name)
+                `)
+                .eq('slot_id', slot.id)
+                .eq('status', 'confirmed');
 
-          // Get offer titles separately
-          const offerIds = bookings?.map(b => b.slot?.offer_id).filter(Boolean) || [];
+          // Extract offer IDs from nested slot data
+          // Supabase returns slot as an array or object depending on join type
+          const offerIds = (bookings || [])
+            .map(b => {
+              const slot = assertSupabaseType<{ offer_id: string } | null>(b.slot);
+              return slot?.offer_id;
+            })
+            .filter((id): id is string => Boolean(id));
+          
+          // Fetch offer details separately for better type safety
           const { data: offers } = await supabase
             .from('offers')
             .select('id, title')
@@ -104,10 +114,30 @@ export default function CompanySlots() {
 
           const offersMap = new Map(offers?.map(o => [o.id, o]) || []);
           
-          const bookingsWithOffers = bookings?.map(b => ({
-            ...b,
-            offers: b.slot?.offer_id ? offersMap.get(b.slot.offer_id) : null
-          })) || [];
+          // Transform bookings to match our Booking type
+          // Handle nested profiles array (Supabase !inner join returns arrays)
+          const bookingsWithOffers: Booking[] = (bookings || []).map(b => {
+            const slot = assertSupabaseType<{ offer_id: string } | null>(b.slot);
+            // Extract first profile from array (or use fallback)
+            const profile = extractFirstFromNested<{ full_name: string }>(
+              b.profiles,
+              { full_name: 'Unknown' }
+            );
+            
+            const offerId = slot?.offer_id;
+            // Convert undefined to null for type safety
+            const offer = offerId ? getFromMapOrNull(offersMap, offerId) : null;
+            
+            return {
+              id: b.id,
+              student_id: b.student_id,
+              offer_id: offerId || '',
+              profiles: {
+                full_name: profile.full_name
+              },
+              offers: offer ? { title: offer.title } : null
+            };
+          });
 
           const event = eventMap.get(slot.event_id);
           

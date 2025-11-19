@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { ArrowLeft, Building2, MapPin, Clock, DollarSign, Tag, Briefcase, CheckCircle, Calendar, X } from 'lucide-react';
+import { extractNestedObject } from '@/utils/supabaseTypes';
 
 type Offer = {
   id: string;
@@ -128,11 +129,25 @@ export default function OfferDetail() {
       salary_range: offerData.salary_range,
       department: offerData.department,
       company_id: offerData.company_id,
-      company_name: offerData.companies?.company_name || 'Unknown',
-      company_logo: offerData.companies?.logo_url || null,
-      company_description: offerData.companies?.description || null,
-      company_website: offerData.companies?.website || null,
-      company_industry: offerData.companies?.industry || null,
+      // Extract company data from nested Supabase query result
+      // Supabase returns nested objects as arrays or objects depending on join type
+      ...(() => {
+        const company = extractNestedObject<{
+          company_name: string;
+          logo_url: string | null;
+          description: string | null;
+          website: string | null;
+          industry: string | null;
+        }>(offerData.companies);
+        
+        return {
+          company_name: company?.company_name || 'Unknown',
+          company_logo: company?.logo_url || null,
+          company_description: company?.description || null,
+          company_website: company?.website || null,
+          company_industry: company?.industry || null,
+        };
+      })(),
     });
 
     setLoading(false);
@@ -159,15 +174,34 @@ export default function OfferDetail() {
       setBookingLimit(limitData[0]);
     }
 
-    // Get slots
-    const { data: slotsData } = await supabase
+    // Get slots for this specific offer
+    // Slots are linked to offers via offer_id
+    console.log('🔵 [OfferDetail] Fetching slots with filters:', {
+      company_id: offer.company_id,
+      event_id: eventId,
+      current_time: new Date().toISOString()
+    });
+
+    const { data: slotsData, error: slotsError } = await supabase
       .from('event_slots')
-      .select('id, start_time, end_time, capacity')
+      .select('id, start_time, end_time, capacity, offer_id, company_id, event_id, is_active')
       .eq('company_id', offer.company_id)
       .eq('event_id', eventId)
+      // Removed .eq('offer_id', offer.id) - slots are per company, not per offer
       .eq('is_active', true)
       .gte('start_time', new Date().toISOString())
       .order('start_time', { ascending: true });
+
+    console.log('🔵 [OfferDetail] RAW QUERY RESULT:', {
+      error: slotsError,
+      data: slotsData,
+      count: slotsData?.length || 0
+    });
+
+    if (slotsError) {
+      console.error('🔴 [OfferDetail] Error fetching slots:', slotsError);
+      alert(`Error fetching slots: ${slotsError.message}`);
+    }
 
     if (slotsData) {
       const slotsWithCounts = await Promise.all(
@@ -186,8 +220,10 @@ export default function OfferDetail() {
       );
 
       const available = slotsWithCounts.filter(
-        (slot) => slot.bookings_count < slot.capacity
+        (slot) => slot.bookings_count < (slot.capacity || 1) // Default capacity to 1 if null
       );
+
+      console.log('🔵 [OfferDetail] Available slots after filtering:', available.length);
 
       setAvailableSlots(available);
     }
@@ -528,7 +564,8 @@ export default function OfferDetail() {
                 <>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 mb-4">
                     {availableSlots.map((slot) => {
-                      const spotsLeft = slot.capacity - slot.bookings_count;
+                      const capacity = slot.capacity || 1; // Default to 1 if null
+                      const spotsLeft = capacity - slot.bookings_count;
                       const isLowCapacity = spotsLeft <= 2;
                       const isSelected = selectedSlotId === slot.id;
 

@@ -54,11 +54,17 @@ export default function EventSlots() {
         return
       }
 
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', user.id)
-        .single()
+        .maybeSingle(); // Use maybeSingle() to avoid 406 errors
+
+      if (profileError) {
+        console.error('Profile fetch error:', profileError);
+        navigate('/login');
+        return;
+      }
 
       if (!profile || profile.role !== 'admin') {
         navigate('/offers')
@@ -127,7 +133,7 @@ export default function EventSlots() {
         return acc
       }, {} as Record<string, TimeSlot>)
 
-      const timeSlotsArray = Object.values(grouped).sort((a, b) => 
+      const timeSlotsArray = (Object.values(grouped) as TimeSlot[]).sort((a, b) => 
         new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
       )
 
@@ -135,9 +141,16 @@ export default function EventSlots() {
     }
   }
 
-  const loadSlotDetails = async (timeKey: string, slotIds: string[]) => {
+  const loadSlotDetails = async (_timeKey: string, slotIds: string[]) => {
     setLoadingDetails(true)
     try {
+      // Early return if no slots
+      if (!slotIds || slotIds.length === 0) {
+        setSlotDetails([])
+        setLoadingDetails(false)
+        return
+      }
+
       // Fetch all bookings for these slots with student info
       const { data: bookingsData } = await supabase
         .from('bookings')
@@ -157,6 +170,7 @@ export default function EventSlots() {
 
       if (!bookingsData || bookingsData.length === 0) {
         setSlotDetails([])
+        setLoadingDetails(false)
         return
       }
 

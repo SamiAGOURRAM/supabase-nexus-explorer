@@ -57,9 +57,16 @@ export default function StudentProfile() {
       .from('profiles')
       .select('*')
       .eq('id', id)
-      .single();
+      .maybeSingle(); // Use maybeSingle() to avoid 406 errors
 
-    if (profileError || !profile) {
+    if (profileError) {
+      console.error('Profile fetch error:', profileError);
+      alert('Student not found');
+      navigate('/company/students');
+      return;
+    }
+
+    if (!profile) {
       alert('Student not found');
       navigate('/company/students');
       return;
@@ -82,11 +89,20 @@ export default function StudentProfile() {
     const offerMap = new Map(offers.map(o => [o.id, o.title]));
 
     // Get bookings for this student with company's offers
+    // Use bookings table and join through event_slots to get offer_id
     const { data: bookingsData } = await supabase
-      .from('interview_bookings')
-      .select('id, offer_id, slot_id, status, notes')
+      .from('bookings')
+      .select(`
+        id,
+        slot_id,
+        status,
+        student_notes,
+        event_slots!inner (
+          offer_id
+        )
+      `)
       .eq('student_id', id)
-      .in('offer_id', offerIds);
+      .in('event_slots.offer_id', offerIds);
 
     if (bookingsData && bookingsData.length > 0) {
       // Get slot details
@@ -100,13 +116,14 @@ export default function StudentProfile() {
 
       const formattedBookings: Booking[] = bookingsData.map(booking => {
         const slot = slotMap.get(booking.slot_id);
+        const offerId = (booking.event_slots as any)?.offer_id;
         return {
           id: booking.id,
-          offer_title: offerMap.get(booking.offer_id) || 'Unknown',
+          offer_title: offerMap.get(offerId) || 'Unknown',
           slot_time: slot?.time || '',
           slot_location: slot?.location || null,
           status: booking.status,
-          notes: booking.notes,
+          notes: booking.student_notes || null,
         };
       });
 

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { ArrowLeft, Plus, Search, Filter, Edit, Trash2, ToggleLeft, ToggleRight, Briefcase } from 'lucide-react';
+import { ArrowLeft, Plus, Search, Edit, Trash2, ToggleLeft, ToggleRight, Briefcase } from 'lucide-react';
 
 type Offer = {
   id: string;
@@ -57,13 +57,26 @@ export default function CompanyOffers() {
 
     if (offersData) {
       // Count bookings for each offer
+      // Use bookings table and join through event_slots to get offer_id
       const offersWithBookings = await Promise.all(
         offersData.map(async (offer) => {
-          const { count } = await supabase
-            .from('interview_bookings')
-            .select('*', { count: 'exact', head: true })
-            .eq('offer_id', offer.id)
-            .eq('status', 'confirmed');
+          // Get slot IDs for this offer first
+          const { data: slots } = await supabase
+            .from('event_slots')
+            .select('id')
+            .eq('offer_id', offer.id);
+          
+          const slotIds = slots?.map(s => s.id) || [];
+          
+          let count = 0;
+          if (slotIds.length > 0) {
+            const { count: bookingCount } = await supabase
+              .from('bookings')
+              .select('*', { count: 'exact', head: true })
+              .in('slot_id', slotIds)
+              .eq('status', 'confirmed');
+            count = bookingCount || 0;
+          }
 
           return {
             ...offer,

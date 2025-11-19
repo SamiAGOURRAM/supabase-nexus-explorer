@@ -46,11 +46,17 @@ export default function EventStudents() {
         return
       }
 
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', user.id)
-        .single()
+        .maybeSingle(); // Use maybeSingle() to avoid 406 errors
+
+      if (profileError) {
+        console.error('Profile fetch error:', profileError);
+        navigate('/login');
+        return;
+      }
 
       if (!profile || profile.role !== 'admin') {
         navigate('/offers')
@@ -93,67 +99,126 @@ export default function EventStudents() {
       setCompanies(uniqueCompanies)
     }
 
-    const { data: bookingsData } = await supabase
-      .from('interview_bookings')
-      .select(`
-        student_id,
-        profiles!inner (
+    // Get ALL students (registered users with role='student')
+    const { data: allStudents, error: studentsError } = await supabase
+      .from('profiles')
+      .select('id, full_name, email, specialization, graduation_year')
+      .eq('role', 'student')
+      .order('full_name', { ascending: true });
+
+    if (studentsError) {
+      console.error('Error fetching students:', studentsError);
+      setStudents([]);
+      return;
+    }
+
+    console.log(`Found ${allStudents?.length || 0} registered students`);
+
+    if (!allStudents || allStudents.length === 0) {
+      setStudents([]);
+      return;
+    }
+
+    // Get event slots
+    const { data: eventSlots } = await supabase
+      .from('event_slots')
+      .select('id, company_id, session_id')
+      .eq('event_id', eventId)
+      .eq('is_active', true);
+
+    const slotIds = eventSlots?.map(s => s.id) || [];
+    console.log(`Found ${slotIds.length} active slots for event ${eventId}`);
+
+    // Get bookings for these slots (if any)
+    let bookingsData: any[] = [];
+    if (slotIds.length > 0) {
+      const { data: bookings } = await supabase
+        .from('bookings')
+        .select('id, student_id, slot_id')
+        .in('slot_id', slotIds)
+        .eq('status', 'confirmed');
+
+      bookingsData = bookings || [];
+      console.log(`Found ${bookingsData.length} confirmed bookings`);
+    }
+
+    // Get slot details with company info
+    let slotsWithDetails: any[] = [];
+    if (slotIds.length > 0) {
+      const { data } = await supabase
+        .from('event_slots')
+        .select(`
           id,
-          full_name,
-          email,
-          specialization,
-          graduation_year
-        ),
-        event_slots!inner (
           company_id,
+          session_id,
           companies!inner (
             id,
             company_name
-          ),
-          speed_recruiting_sessions!inner (
-            name
           )
-        )
-      `)
-      .eq('event_slots.event_id', eventId)
-      .eq('status', 'confirmed')
-
-    if (bookingsData) {
-      const studentMap = new Map<string, StudentWithBookings>()
-
-      bookingsData.forEach((booking: any) => {
-        const studentId = booking.profiles.id
-        
-        if (!studentMap.has(studentId)) {
-          studentMap.set(studentId, {
-            student_id: studentId,
-            student_name: booking.profiles.full_name,
-            student_email: booking.profiles.email,
-            specialization: booking.profiles.specialization,
-            graduation_year: booking.profiles.graduation_year,
-            total_bookings: 0,
-            companies: [],
-            sessions: []
-          })
-        }
-
-        const student = studentMap.get(studentId)!
-        student.total_bookings++
-
-        const companyId = booking.event_slots.companies.id
-        const companyName = booking.event_slots.companies.company_name
-        if (!student.companies.find(c => c.company_id === companyId)) {
-          student.companies.push({ company_id: companyId, company_name: companyName })
-        }
-
-        const sessionName = booking.event_slots.speed_recruiting_sessions.name
-        if (!student.sessions.includes(sessionName)) {
-          student.sessions.push(sessionName)
-        }
-      })
-
-      setStudents(Array.from(studentMap.values()))
+        `)
+        .in('id', slotIds);
+      slotsWithDetails = data || [];
     }
+
+    // Get session names
+    const sessionIds = [...new Set(slotsWithDetails.map(s => s.session_id).filter(Boolean))];
+    let sessionsMap = new Map<string, string>();
+    if (sessionIds.length > 0) {
+      const { data: sessions } = await supabase
+        .from('speed_recruiting_sessions')
+        .select('id, name')
+        .in('id', sessionIds);
+      sessions?.forEach(s => sessionsMap.set(s.id, s.name));
+    }
+
+    // Create lookup maps
+    const slotsMap = new Map(slotsWithDetails.map(s => [s.id, s]));
+
+    // Build student data with booking info
+    const studentsWithBookings: StudentWithBookings[] = allStudents.map(student => {
+      // Get this student's bookings for this event
+      const studentBookings = bookingsData.filter(b => b.student_id === student.id);
+
+      // Extract companies and sessions
+      const companies: Array<{ company_name: string; company_id: string }> = [];
+      const sessions: string[] = [];
+      const companiesSet = new Set<string>();
+      const sessionsSet = new Set<string>();
+
+      studentBookings.forEach(booking => {
+        const slot = slotsMap.get(booking.slot_id);
+        if (slot) {
+          const companyId = slot.companies.id;
+          const companyName = slot.companies.company_name;
+          if (!companiesSet.has(companyId)) {
+            companiesSet.add(companyId);
+            companies.push({ company_id: companyId, company_name: companyName });
+          }
+
+          if (slot.session_id) {
+            const sessionName = sessionsMap.get(slot.session_id);
+            if (sessionName && !sessionsSet.has(sessionName)) {
+              sessionsSet.add(sessionName);
+              sessions.push(sessionName);
+            }
+          }
+        }
+      });
+
+      return {
+        student_id: student.id,
+        student_name: student.full_name,
+        student_email: student.email,
+        specialization: student.specialization,
+        graduation_year: student.graduation_year,
+        total_bookings: studentBookings.length,
+        companies,
+        sessions
+      };
+    });
+
+    console.log('Loaded students:', studentsWithBookings.length);
+    setStudents(studentsWithBookings);
   }
 
   const filteredStudents = students.filter(student => {

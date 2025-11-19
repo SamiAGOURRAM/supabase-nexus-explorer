@@ -48,7 +48,7 @@ export default function BulkImportModal({ eventId, onClose, onSuccess }: BulkImp
           }
 
           try {
-            const { data, error } = await supabase.rpc('quick_invite_company', {
+            const { error } = await supabase.rpc('quick_invite_company', {
               p_email: email,
               p_company_name: companyName,
               p_event_id: eventId,

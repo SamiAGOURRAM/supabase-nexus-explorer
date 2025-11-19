@@ -1,5 +1,18 @@
+/**
+ * Database type definitions
+ * 
+ * TypeScript types matching the Supabase database schema.
+ * These types are used throughout the application for type safety.
+ */
+
+/**
+ * User roles in the system
+ */
 export type UserRole = 'student' | 'company' | 'admin';
 
+/**
+ * Event configuration settings
+ */
 export type EventConfig = {
   id: number;
   event_date: string;
@@ -12,6 +25,10 @@ export type EventConfig = {
   phase2_booking_limit: number;
 };
 
+/**
+ * User profile information
+ * Extends Supabase auth.users with additional fields
+ */
 export type Profile = {
   id: string;
   email: string;
@@ -22,6 +39,9 @@ export type Profile = {
   created_at: string;
 };
 
+/**
+ * Company information
+ */
 export type Company = {
   id: string;
   profile_id: string;
@@ -34,6 +54,9 @@ export type Company = {
   created_at: string;
 };
 
+/**
+ * Recruitment event
+ */
 export type Event = {
   id: string;
   name: string;
@@ -44,6 +67,9 @@ export type Event = {
   created_at: string;
 };
 
+/**
+ * Job/internship offer
+ */
 export type Offer = {
   id: string;
   company_id: string;
@@ -55,6 +81,9 @@ export type Offer = {
   created_at: string;
 };
 
+/**
+ * Interview time slot
+ */
 export type EventSlot = {
   id: string;
   event_id: string;
@@ -67,6 +96,9 @@ export type EventSlot = {
   created_at: string;
 };
 
+/**
+ * Student booking for an interview slot
+ */
 export type Booking = {
   id: string;
   slot_id: string;
@@ -77,15 +109,24 @@ export type Booking = {
   cancelled_at?: string;
 };
 
+/**
+ * Event slot with related company and offer details
+ */
 export type SlotWithDetails = EventSlot & {
   company: Company;
   offer: Offer;
 };
 
+/**
+ * Booking with related slot and details
+ */
 export type BookingWithDetails = Booking & {
   slot: SlotWithDetails;
 };
 
+/**
+ * Statistics response for booking limits
+ */
 export type StatsResponse = {
   current_bookings: number;
   max_bookings: number;

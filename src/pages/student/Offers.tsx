@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { ArrowLeft, Briefcase, Building2, MapPin, Calendar, Clock, Users, X, DollarSign, Tag, Search } from 'lucide-react';
+import { ArrowLeft, Briefcase, MapPin, Calendar, Clock, X, Search } from 'lucide-react';
+import { extractNestedObject, assertSupabaseType } from '@/utils/supabaseTypes';
 
 type Offer = {
   id: string;
@@ -51,11 +52,31 @@ export default function StudentOffers() {
   const [bookingLimit, setBookingLimit] = useState<BookingLimitInfo | null>(null);
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
   const [validationWarning, setValidationWarning] = useState<string | null>(null);
+  const [bookingError, setBookingError] = useState<string | null>(null);
   const navigate = useNavigate();
+  const modalCloseRef = useRef<HTMLButtonElement | null>(null);
+  const modalOverlayRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     checkStudentAndLoadOffers();
   }, []);
+
+  // Close modal on ESC and focus management
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && selectedOffer) {
+        setSelectedOffer(null);
+      }
+    };
+
+    if (selectedOffer) {
+      // focus the close button for keyboard users
+      setTimeout(() => modalCloseRef.current?.focus(), 0);
+      document.addEventListener('keydown', onKey);
+    }
+
+    return () => document.removeEventListener('keydown', onKey);
+  }, [selectedOffer]);
 
   useEffect(() => {
     if (selectedEventId) {
@@ -70,11 +91,17 @@ export default function StudentOffers() {
       return;
     }
 
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', user.id)
-      .single();
+      .maybeSingle(); // Use maybeSingle() to avoid 406 errors
+
+    if (profileError) {
+      console.error('Profile fetch error:', profileError);
+      navigate('/login');
+      return;
+    }
 
     if (!profile || profile.role !== 'student') {
       navigate('/offers');
@@ -152,6 +179,7 @@ export default function StudentOffers() {
     setSelectedOffer(offer);
     setLoadingSlots(true);
     setValidationWarning(null);
+    setBookingError(null);
     setSelectedSlotId(null);
 
     const { data: { user } } = await supabase.auth.getUser();
@@ -167,25 +195,75 @@ export default function StudentOffers() {
       setBookingLimit(limitData[0]);
     }
 
+    console.log('🔵 Fetching slots with filters:', {
+      company_id: offer.company_id,
+      event_id: selectedEventId,
+      offer_id: offer.id,
+      company_name: offer.company_name,
+      offer_title: offer.title,
+      current_time: new Date().toISOString()
+    });
+
+    // CRITICAL DEBUG: Log the exact values being used
+    console.log('🔵 EXACT FILTER VALUES:', {
+      'company_id (from offer)': offer.company_id,
+      'event_id (selected)': selectedEventId,
+      'Are they truthy?': {
+        company_id: !!offer.company_id,
+        event_id: !!selectedEventId
+      }
+    });
+
+    console.log('🔵 About to execute query...');
+
     // Get all slots for this company for the selected event
-    const { data: slotsData } = await supabase
+    // Note: Slots are generated per company, not per offer
+    // When admin creates sessions, slots are linked to companies, not specific offers
+    const { data: slotsData, error: slotsError } = await supabase
       .from('event_slots')
-      .select('id, start_time, end_time, location, capacity')
+      .select('id, start_time, end_time, location, capacity, offer_id, company_id, event_id, is_active')
       .eq('company_id', offer.company_id)
       .eq('event_id', selectedEventId)
+      // Removed .eq('offer_id', offer.id) - slots are per company, not per offer
       .eq('is_active', true)
       .gte('start_time', new Date().toISOString())
       .order('start_time', { ascending: true });
 
+    console.log('🔵 Query completed!');
+    console.log('🔵 RAW QUERY RESULT:', {
+      error: slotsError,
+      data: slotsData,
+      count: slotsData?.length || 0,
+      dataType: typeof slotsData,
+      isArray: Array.isArray(slotsData),
+      dataKeys: slotsData ? Object.keys(slotsData) : 'null'
+    });
+
+    if (slotsError) {
+      console.error('🔴 Error fetching slots:', slotsError);
+      alert(`Error fetching slots: ${slotsError.message}`);
+    }
+
+    console.log('🔵 Slots fetched:', slotsData?.length || 0, slotsData);
+
     if (slotsData) {
+      console.log('🔵 Processing', slotsData.length, 'slots to check capacity...');
+      
       // Count bookings for each slot
       const slotsWithCounts = await Promise.all(
         slotsData.map(async (slot) => {
-          const { count } = await supabase
+          const { count, error: countError } = await supabase
             .from('bookings')
             .select('*', { count: 'exact', head: true })
             .eq('slot_id', slot.id)
             .eq('status', 'confirmed');
+
+          console.log(`🔵 Slot ${slot.id.slice(0, 8)}... at ${new Date(slot.start_time).toLocaleTimeString()}:`, {
+            capacity: slot.capacity,
+            bookings: count || 0,
+            available: (slot.capacity || 0) - (count || 0),
+            countError
+          });
 
           return {
             ...slot,
@@ -194,10 +272,25 @@ export default function StudentOffers() {
         })
       );
 
+      console.log('🔵 All slots with booking counts:', slotsWithCounts.map(s => ({
+        time: new Date(s.start_time).toLocaleTimeString(),
+        capacity: s.capacity,
+        booked: s.bookings_count,
+        available: (s.capacity || 0) - s.bookings_count
+      })));
+
       // Filter out full slots
+      // Default capacity to 1 if null/undefined (single interview slot)
       const available = slotsWithCounts.filter(
-        (slot) => slot.bookings_count < slot.capacity
+        (slot) => slot.bookings_count < (slot.capacity || 1)
       );
+
+      console.log('🔵 Available slots after filtering:', available.length, available);
+      console.log('🔵 Slots filtered out (full):', slotsWithCounts.length - available.length);
+
+      if (available.length === 0 && slotsWithCounts.length > 0) {
+        console.error('🔴 ALL SLOTS ARE FULL! All', slotsWithCounts.length, 'slots have reached capacity');
+      }
 
       setAvailableSlots(available);
     }
@@ -205,9 +298,18 @@ export default function StudentOffers() {
     setLoadingSlots(false);
   };
 
+  const handleOverlayClick = (e: React.MouseEvent) => {
+    if (e.target === modalOverlayRef.current) {
+      setSelectedOffer(null);
+    }
+  };
+
   const checkSlotConflict = async (slotId: string) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
+
+    // Clear previous errors when checking a new slot
+    setBookingError(null);
 
     const selectedSlot = availableSlots.find(s => s.id === slotId);
     if (!selectedSlot) return;
@@ -223,14 +325,27 @@ export default function StudentOffers() {
       const slotStart = new Date(selectedSlot.start_time);
       const slotEnd = new Date(selectedSlot.end_time);
 
+      // Check for time conflicts with existing bookings
+      // Supabase nested queries require type assertions for proper typing
       for (const booking of existingBookings) {
-        const bookingStart = new Date(booking.event_slots.start_time);
-        const bookingEnd = new Date(booking.event_slots.end_time);
+        const eventSlot = assertSupabaseType<{ 
+          start_time: string; 
+          end_time: string; 
+          companies: { company_name: string } | null;
+        } | null>(booking.event_slots);
+        
+        if (!eventSlot) continue;
+        
+        const bookingStart = new Date(eventSlot.start_time);
+        const bookingEnd = new Date(eventSlot.end_time);
 
-        // Check for overlap
+        // Check for time overlap
         if (slotStart < bookingEnd && slotEnd > bookingStart) {
+          // Extract company name from nested query result
+          const company = extractNestedObject<{ company_name: string }>(eventSlot.companies);
+          const companyName = company?.company_name || 'Unknown Company';
           setValidationWarning(
-            `⚠️ Time conflict detected! You already have an interview with ${booking.event_slots.companies.company_name} at ${bookingStart.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`
+            `⚠️ Time conflict detected! You already have an interview with ${companyName} at ${bookingStart.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`
           );
           return;
         }
@@ -243,13 +358,16 @@ export default function StudentOffers() {
   const confirmBooking = async (slotId: string) => {
     if (!selectedOffer) return;
 
+    // Clear previous errors
+    setBookingError(null);
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
       // Final validation check
       if (bookingLimit && !bookingLimit.can_book) {
-        alert('You have reached your booking limit for this phase.');
+        setBookingError('You have reached your booking limit for this phase.');
         return;
       }
 
@@ -263,16 +381,17 @@ export default function StudentOffers() {
       const result = Array.isArray(data) && data.length > 0 ? data[0] : null;
 
       if (result?.success) {
-        alert(result.message || 'Interview booked successfully!');
+        // Success! Navigate to bookings page
         setSelectedOffer(null);
         setAvailableSlots([]);
         navigate('/student/bookings');
       } else {
-        throw new Error(result?.message || 'Failed to book interview');
+        // Show error message in UI
+        setBookingError(result?.message || 'Failed to book interview');
       }
     } catch (error: any) {
       console.error('Error booking interview:', error);
-      alert(error.message || 'Failed to book interview. Please check booking limits and phase restrictions.');
+      setBookingError(error.message || 'Failed to book interview. Please check booking limits and phase restrictions.');
     }
   };
 
@@ -296,27 +415,95 @@ export default function StudentOffers() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-sm text-muted-foreground animate-pulse">Loading offers...</p>
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
+        <header className="bg-card/80 backdrop-blur-sm border-b border-border">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div className="flex items-center gap-4">
+              <Link to="/student" className="text-muted-foreground hover:text-foreground transition-colors">
+                <ArrowLeft className="w-5 h-5" />
+              </Link>
+              <div>
+                <h1 className="text-2xl font-bold text-foreground">Browse Offers</h1>
+                <p className="text-sm text-muted-foreground mt-1">Find your perfect internship</p>
+              </div>
+            </div>
+          </div>
+        </header>
+        
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Skeleton Loading */}
+          <div className="space-y-6">
+            {/* Event selector skeleton */}
+            <div className="bg-card/50 rounded-xl border border-border p-4 animate-pulse">
+              <div className="h-4 w-24 bg-muted rounded mb-2"></div>
+              <div className="h-10 w-full md:w-64 bg-muted rounded"></div>
+            </div>
+            
+            {/* Filters skeleton */}
+            <div className="bg-card/50 rounded-xl border border-border p-6 animate-pulse">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="md:col-span-2 h-10 bg-muted rounded-lg"></div>
+                <div className="h-10 bg-muted rounded-lg"></div>
+                <div className="h-10 bg-muted rounded-lg"></div>
+              </div>
+            </div>
+            
+            {/* Cards skeleton */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div key={i} className="bg-card/50 rounded-xl border border-border p-6 animate-pulse">
+                  <div className="flex items-start gap-4 mb-4">
+                    <div className="w-12 h-12 bg-muted rounded-lg flex-shrink-0"></div>
+                    <div className="flex-1">
+                      <div className="h-4 w-3/4 bg-muted rounded mb-2"></div>
+                      <div className="h-3 w-1/2 bg-muted rounded"></div>
+                    </div>
+                  </div>
+                  <div className="space-y-2 mb-4">
+                    <div className="h-3 w-full bg-muted rounded"></div>
+                    <div className="h-3 w-5/6 bg-muted rounded"></div>
+                    <div className="h-3 w-4/6 bg-muted rounded"></div>
+                  </div>
+                  <div className="flex gap-2 mb-4">
+                    <div className="h-6 w-20 bg-muted rounded-full"></div>
+                    <div className="h-6 w-16 bg-muted rounded-full"></div>
+                  </div>
+                  <div className="h-10 w-full bg-muted rounded-lg"></div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </main>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="bg-card border-b border-border">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
+      <header className="bg-card/80 backdrop-blur-sm border-b border-border sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center gap-4">
-            <Link to="/student" className="text-muted-foreground hover:text-foreground">
+            <Link 
+              to="/student" 
+              className="p-2 -m-2 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-all"
+              aria-label="Back to dashboard"
+            >
               <ArrowLeft className="w-5 h-5" />
             </Link>
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">Browse Offers</h1>
-              <p className="text-sm text-muted-foreground mt-1">Find your perfect internship</p>
+            <div className="flex-1">
+              <h1 className="text-2xl font-bold text-foreground bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
+                Browse Offers
+              </h1>
+              <p className="text-sm text-muted-foreground mt-1">Find your perfect internship opportunity</p>
             </div>
+            {filteredOffers.length > 0 && (
+              <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full">
+                <Briefcase className="w-4 h-4 text-primary" />
+                <span className="text-sm font-semibold text-primary">
+                  {filteredOffers.length} {filteredOffers.length === 1 ? 'Offer' : 'Offers'}
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -324,14 +511,19 @@ export default function StudentOffers() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Event Selector */}
         {events.length > 0 && (
-          <div className="bg-card rounded-xl border border-border p-4 mb-6">
-            <label className="block text-sm font-medium text-foreground mb-2">
-              Select Event
-            </label>
+          <div className="bg-card/80 backdrop-blur-sm rounded-xl border border-border shadow-sm hover:shadow-md transition-shadow p-5 mb-6">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <Calendar className="w-4 h-4 text-primary" />
+              </div>
+              <label className="text-sm font-semibold text-foreground">
+                Select Event
+              </label>
+            </div>
             <select
               value={selectedEventId}
               onChange={(e) => setSelectedEventId(e.target.value)}
-              className="w-full md:w-auto px-4 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full px-4 py-3 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all hover:border-primary/50"
             >
               {events.map((event) => (
                 <option key={event.id} value={event.id}>
@@ -347,24 +539,37 @@ export default function StudentOffers() {
         )}
 
         {/* Filters */}
-        <div className="bg-card rounded-xl border border-border p-6 mb-6">
+        <div className="bg-card/80 backdrop-blur-sm rounded-xl border border-border shadow-sm hover:shadow-md transition-shadow p-6 mb-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Search className="w-5 h-5 text-primary" />
+            <h2 className="text-lg font-semibold text-foreground">Filter & Search</h2>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="md:col-span-2">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                 <input
                   type="text"
                   placeholder="Search offers, companies..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full pl-10 pr-4 py-3 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all hover:border-primary/50"
                 />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    aria-label="Clear search"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
               </div>
             </div>
             <select
               value={filterTag}
               onChange={(e) => setFilterTag(e.target.value)}
-              className="px-4 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              className="px-4 py-3 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all hover:border-primary/50"
             >
               <option value="">All Departments</option>
               {uniqueTags.map((tag) => (
@@ -376,29 +581,16 @@ export default function StudentOffers() {
             <select
               value={filterPaid}
               onChange={(e) => setFilterPaid(e.target.value)}
-              className="px-4 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              className="px-4 py-3 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all hover:border-primary/50"
             >
               <option value="">All Compensation</option>
-              <option value="paid">Paid</option>
+              <option value="paid">💰 Paid</option>
               <option value="unpaid">Unpaid</option>
             </select>
           </div>
-          <p className="text-sm text-muted-foreground mt-4">
-            {filteredOffers.length} offer{filteredOffers.length !== 1 ? 's' : ''} available
-          </p>
-        </div>
-
-        {/* Offers Grid */}
-        {filteredOffers.length === 0 ? (
-          <div className="bg-card rounded-xl border border-border p-12 text-center animate-fade-in">
-            <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-              <Briefcase className="w-10 h-10 text-muted-foreground opacity-50" />
-            </div>
-            <h3 className="text-lg font-semibold text-foreground mb-2">No offers found</h3>
-            <p className="text-muted-foreground mb-6">
-              {searchQuery || filterTag || filterPaid 
-                ? "Try adjusting your filters to see more results" 
-                : "There are no active offers for this event yet"}
+          <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
+            <p className="text-sm text-muted-foreground">
+              Showing <span className="font-semibold text-foreground">{filteredOffers.length}</span> of <span className="font-semibold text-foreground">{offers.length}</span> offer{offers.length !== 1 ? 's' : ''}
             </p>
             {(searchQuery || filterTag || filterPaid) && (
               <button
@@ -407,8 +599,37 @@ export default function StudentOffers() {
                   setFilterTag('');
                   setFilterPaid('');
                 }}
-                className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+                className="text-sm text-primary hover:text-primary/80 font-medium flex items-center gap-1 transition-colors"
               >
+                <X className="w-3 h-3" />
+                Clear filters
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Offers Grid */}
+        {filteredOffers.length === 0 ? (
+          <div className="bg-card/80 backdrop-blur-sm rounded-2xl border-2 border-dashed border-border p-12 text-center animate-fade-in">
+            <div className="w-20 h-20 bg-gradient-to-br from-primary/20 to-primary/5 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-inner">
+              <Briefcase className="w-10 h-10 text-primary/60" />
+            </div>
+            <h3 className="text-xl font-bold text-foreground mb-3">No offers found</h3>
+            <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+              {searchQuery || filterTag || filterPaid 
+                ? "We couldn't find any offers matching your filters. Try adjusting your search criteria to see more results." 
+                : "There are no active offers for this event yet. Check back soon or contact your administrator."}
+            </p>
+            {(searchQuery || filterTag || filterPaid) && (
+              <button
+                onClick={() => {
+                  setSearchQuery('');
+                  setFilterTag('');
+                  setFilterPaid('');
+                }}
+                className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-all font-medium shadow-sm hover:shadow-md inline-flex items-center gap-2"
+              >
+                <X className="w-4 h-4" />
                 Clear All Filters
               </button>
             )}
@@ -418,64 +639,103 @@ export default function StudentOffers() {
             {filteredOffers.map((offer, index) => (
               <div
                 key={offer.id}
-                className="bg-card rounded-xl border border-border p-6 hover:border-primary hover:shadow-elegant transition-all animate-fade-in group"
+                className="bg-card/80 backdrop-blur-sm rounded-xl border border-border p-6 hover:border-primary/50 hover:shadow-lg transition-all duration-300 animate-fade-in group relative overflow-hidden"
                 style={{ animationDelay: `${index * 50}ms` }}
               >
-                <Link to={`/student/offers/${offer.id}`} className="block mb-4">
-                  <div className="flex items-start gap-4 mb-4">
-                    <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Building2 className="w-6 h-6 text-primary" />
+                {/* Gradient background effect on hover */}
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/0 via-primary/0 to-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+                
+                <div className="relative z-10">
+                  <Link to={`/student/offers/${offer.id}`} className="block mb-4" aria-label={`View details for ${offer.title} at ${offer.company_name}`}>
+                    <div className="flex items-start gap-4 mb-4">
+                      <div className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden bg-gradient-to-br from-slate-100 to-slate-50 shadow-sm group-hover:shadow-md transition-shadow">
+                        {offer.company_logo ? (
+                          <img src={offer.company_logo} alt={`${offer.company_name} logo`} className="w-14 h-14 object-cover" />
+                        ) : (
+                          <div className="w-14 h-14 bg-gradient-to-br from-primary/20 to-primary/10 rounded-xl flex items-center justify-center text-primary font-bold text-lg">
+                            {offer.company_name.split(' ').map(s => s[0]).slice(0,2).join('').toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-bold text-foreground mb-1 group-hover:text-primary transition-colors truncate text-lg">
+                          {offer.company_name}
+                        </h3>
+                        <p className="text-sm text-muted-foreground line-clamp-1 font-medium">{offer.title}</p>
+                        {offer.department && (
+                          <p className="text-xs text-muted-foreground/60 mt-1">{offer.department}</p>
+                        )}
+                      </div>
+                      {offer.salary_range && (
+                        <div className="text-right ml-2">
+                          <div className="text-sm font-semibold text-primary">{offer.salary_range}</div>
+                        </div>
+                      )}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-foreground mb-1 group-hover:text-primary transition-colors">
-                        {offer.company_name}
-                      </h3>
-                      <p className="text-sm text-muted-foreground line-clamp-1">{offer.title}</p>
+
+                    <p className="text-sm text-muted-foreground mb-4 line-clamp-3 leading-relaxed">
+                      {offer.description}
+                    </p>
+
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      <span className="px-3 py-1.5 bg-primary/10 text-primary text-xs font-semibold rounded-full shadow-sm">
+                        {offer.interest_tag}
+                      </span>
+                      {offer.paid && (
+                        <span className="px-3 py-1.5 bg-gradient-to-r from-green-500/10 to-emerald-500/10 text-green-600 text-xs font-semibold rounded-full shadow-sm">
+                          💰 Paid
+                        </span>
+                      )}
+                      {offer.remote_possible && (
+                        <span className="px-3 py-1.5 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 text-blue-600 text-xs font-semibold rounded-full shadow-sm">
+                          🏠 Remote
+                        </span>
+                      )}
                     </div>
-                  </div>
 
-                  <p className="text-sm text-muted-foreground mb-4 line-clamp-3">
-                    {offer.description}
-                  </p>
-
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    <span className="px-3 py-1 bg-primary/10 text-primary text-xs font-medium rounded-full">
-                      {offer.interest_tag}
-                    </span>
-                    {offer.paid && (
-                      <span className="px-3 py-1 bg-green-500/10 text-green-600 text-xs font-medium rounded-full">
-                        💰 Paid
-                      </span>
-                    )}
-                    {offer.remote_possible && (
-                      <span className="px-3 py-1 bg-blue-500/10 text-blue-600 text-xs font-medium rounded-full">
-                        🏠 Remote
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="space-y-2 mb-4 text-sm">
-                    {offer.location && (
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <MapPin className="w-4 h-4" />
-                        {offer.location}
+                    {offer.skills_required && offer.skills_required.length > 0 && (
+                      <div className="mb-4 p-3 bg-muted/30 rounded-lg border border-border/50">
+                        <p className="text-xs font-medium text-muted-foreground mb-1.5">Required Skills</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {offer.skills_required.slice(0, 4).map((skill, i) => (
+                            <span key={i} className="px-2 py-0.5 bg-background text-foreground text-xs rounded border border-border">
+                              {skill}
+                            </span>
+                          ))}
+                          {offer.skills_required.length > 4 && (
+                            <span className="px-2 py-0.5 text-muted-foreground text-xs">
+                              +{offer.skills_required.length - 4} more
+                            </span>
+                          )}
+                        </div>
                       </div>
                     )}
-                    {offer.duration_months && (
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Clock className="w-4 h-4" />
-                        {offer.duration_months} months
-                      </div>
-                    )}
-                  </div>
-                </Link>
 
-                <button
-                  onClick={() => handleBookInterview(offer)}
-                  className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-all text-sm font-medium hover:scale-105 active:scale-95"
-                >
-                  Book Interview
-                </button>
+                    <div className="space-y-2 mb-4 text-sm">
+                      {offer.location && (
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <MapPin className="w-4 h-4 text-primary/60" />
+                          <span className="font-medium">{offer.location}</span>
+                        </div>
+                      )}
+                      {offer.duration_months && (
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <Clock className="w-4 h-4 text-primary/60" />
+                          <span className="font-medium">{offer.duration_months} months duration</span>
+                        </div>
+                      )}
+                    </div>
+                  </Link>
+
+                  <button
+                    onClick={() => handleBookInterview(offer)}
+                    aria-label={`Book interview with ${offer.company_name} - ${offer.title}`}
+                    className="w-full px-4 py-3 bg-gradient-to-r from-primary to-primary/90 text-primary-foreground rounded-lg hover:shadow-lg transition-all text-sm font-semibold hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 group/btn"
+                  >
+                    <Calendar className="w-4 h-4 group-hover/btn:scale-110 transition-transform" />
+                    Book Interview
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -483,82 +743,225 @@ export default function StudentOffers() {
       </main>
 
       {/* Booking Modal */}
-      {selectedOffer && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card rounded-xl border border-border max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-card border-b border-border p-6 flex items-start justify-between">
-              <div>
-                <h2 className="text-xl font-bold text-foreground mb-1">
-                  Select Interview Time
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  {selectedOffer.title} at {selectedOffer.company_name}
-                </p>
+        {selectedOffer && (
+        <div ref={modalOverlayRef} onClick={handleOverlayClick} className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div role="dialog" aria-modal="true" aria-label="Select Interview Time" className="bg-card rounded-2xl border border-border/50 max-w-4xl w-full max-h-[85vh] overflow-hidden shadow-2xl animate-scale-in flex flex-col">
+            {/* Modal Header - Compact */}
+            <div className="relative bg-gradient-to-br from-primary/5 via-card to-card border-b border-border/50 p-4 md:p-5 flex-shrink-0">
+              {/* Decorative background pattern */}
+              <div className="absolute inset-0 opacity-5">
+                <div className="absolute top-0 right-0 w-48 h-48 bg-primary rounded-full blur-3xl"></div>
+                <div className="absolute bottom-0 left-0 w-32 h-32 bg-primary rounded-full blur-3xl"></div>
               </div>
-              <button
-                onClick={() => setSelectedOffer(null)}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              
+              <div className="relative flex items-center gap-3 md:gap-4">
+                {/* Company Logo - Compact */}
+                <div className="relative group flex-shrink-0">
+                  <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl flex items-center justify-center overflow-hidden bg-gradient-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-900 shadow-md ring-1 ring-primary/10 group-hover:ring-primary/30 transition-all">
+                    {selectedOffer.company_logo ? (
+                      <img src={selectedOffer.company_logo} alt={`${selectedOffer.company_name} logo`} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-primary/20 to-primary/10 rounded-xl flex items-center justify-center text-primary font-bold text-lg">
+                        {selectedOffer.company_name.split(' ').map(s => s[0]).slice(0,2).join('').toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+                  {/* Verified badge */}
+                  <div className="absolute -bottom-0.5 -right-0.5 bg-green-500 rounded-full p-1 shadow-md ring-2 ring-card">
+                    <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                </div>
+                
+                {/* Header Content - Compact */}
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-lg md:text-xl font-bold text-foreground mb-1 flex items-center gap-2">
+                    <Calendar className="w-4 h-4 md:w-5 md:h-5 text-primary flex-shrink-0" />
+                    <span className="truncate">Book Interview</span>
+                  </h2>
+                  <p className="text-sm font-semibold text-foreground truncate">
+                    {selectedOffer.title}
+                  </p>
+                  <div className="flex items-center gap-3 mt-0.5">
+                    <p className="text-xs text-primary font-semibold flex items-center gap-1.5 truncate">
+                      <Briefcase className="w-3 h-3 flex-shrink-0" />
+                      {selectedOffer.company_name}
+                    </p>
+                    {selectedOffer.location && (
+                      <p className="text-xs text-muted-foreground flex items-center gap-1 truncate">
+                        <MapPin className="w-3 h-3 flex-shrink-0" />
+                        {selectedOffer.location}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Close Button - Compact */}
+                <button
+                  ref={modalCloseRef}
+                  onClick={() => setSelectedOffer(null)}
+                  className="text-muted-foreground hover:text-foreground hover:bg-muted/80 p-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-primary shadow-sm hover:shadow flex-shrink-0"
+                  aria-label="Close dialog"
+                >
+                  <X className="w-4 h-4 md:w-5 md:h-5" />
+                </button>
+              </div>
             </div>
 
-            <div className="p-6">
-              {/* Booking Limit Info */}
+            {/* Modal Body - Scrollable */}
+            <div className="p-4 md:p-6 overflow-y-auto flex-1">
+              {/* Booking Limit Info - Compact */}
               {bookingLimit && (
-                <div className={`mb-4 p-4 rounded-lg border ${
+                <div className={`mb-4 p-3 md:p-4 rounded-xl border backdrop-blur-sm ${
                   bookingLimit.can_book 
-                    ? 'bg-blue-50 border-blue-200' 
-                    : 'bg-red-50 border-red-200'
+                    ? 'bg-gradient-to-br from-blue-50 to-blue-50/50 border-blue-200 dark:from-blue-950/30 dark:to-blue-950/10 dark:border-blue-800/50' 
+                    : 'bg-gradient-to-br from-red-50 to-red-50/50 border-red-200 dark:from-red-950/30 dark:to-red-950/10 dark:border-red-800/50'
                 }`}>
-                  <p className={`text-sm font-medium ${
-                    bookingLimit.can_book ? 'text-blue-900' : 'text-red-900'
-                  }`}>
-                    {bookingLimit.message}
-                  </p>
-                  {bookingLimit.can_book && bookingLimit.current_count === bookingLimit.max_allowed - 1 && (
-                    <p className="text-xs text-orange-600 mt-1">
-                      ⚠️ This will be your last booking for this phase!
-                    </p>
-                  )}
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-lg ${bookingLimit.can_book ? 'bg-blue-500/10' : 'bg-red-500/10'}`}>
+                      {bookingLimit.can_book ? (
+                        <Briefcase className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      ) : (
+                        <X className="w-4 h-4 text-red-600 dark:text-red-400" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <p className={`text-xs md:text-sm font-bold ${
+                          bookingLimit.can_book ? 'text-blue-900 dark:text-blue-100' : 'text-red-900 dark:text-red-100'
+                        }`}>
+                          {bookingLimit.message}
+                        </p>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                          bookingLimit.can_book 
+                            ? 'bg-blue-500/20 text-blue-700 dark:text-blue-300' 
+                            : 'bg-red-500/20 text-red-700 dark:text-red-300'
+                        }`}>
+                          {bookingLimit.current_count}/{bookingLimit.max_allowed}
+                        </span>
+                      </div>
+                      {bookingLimit.can_book && bookingLimit.current_count === bookingLimit.max_allowed - 1 && (
+                        <div className="flex items-center gap-1.5 mt-1.5 text-xs text-orange-700 dark:text-orange-300 font-semibold">
+                          <span>⚠️</span>
+                          <span>Last booking for this phase!</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
 
-              {/* Validation Warning */}
+              {/* Validation Warning - Compact */}
               {validationWarning && (
-                <div className="mb-4 p-4 bg-orange-50 border border-orange-200 rounded-lg">
-                  <p className="text-sm text-orange-900">{validationWarning}</p>
+                <div className="mb-4 p-3 md:p-4 bg-gradient-to-br from-orange-50 to-orange-50/50 border border-orange-200 dark:from-orange-950/30 dark:to-orange-950/10 dark:border-orange-800/50 rounded-xl animate-shake">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-orange-500/10 rounded-lg">
+                      <Clock className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-orange-900 dark:text-orange-100 mb-0.5">Time Conflict</p>
+                      <p className="text-xs text-orange-800 dark:text-orange-200">{validationWarning}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Booking Error - Display API errors */}
+              {bookingError && (
+                <div className="mb-4 p-3 md:p-4 bg-gradient-to-br from-red-50 to-red-50/50 border border-red-200 dark:from-red-950/30 dark:to-red-950/10 dark:border-red-800/50 rounded-xl animate-shake">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 bg-red-500/10 rounded-lg flex-shrink-0">
+                      <X className="w-4 h-4 text-red-600 dark:text-red-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-red-900 dark:text-red-100 mb-0.5">Booking Failed</p>
+                      <p className="text-xs text-red-800 dark:text-red-200">{bookingError}</p>
+                    </div>
+                    <button
+                      onClick={() => setBookingError(null)}
+                      className="p-1 hover:bg-red-100 dark:hover:bg-red-900/20 rounded transition-colors flex-shrink-0"
+                      aria-label="Dismiss error"
+                    >
+                      <X className="w-3 h-3 text-red-600 dark:text-red-400" />
+                    </button>
+                  </div>
                 </div>
               )}
 
               {loadingSlots ? (
                 <div className="flex flex-col items-center justify-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-3"></div>
-                  <p className="text-sm text-muted-foreground animate-pulse">Finding available slots...</p>
+                  <div className="relative mb-4">
+                    <div className="animate-spin rounded-full h-12 w-12 border-3 border-primary/20 border-t-primary"></div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <Calendar className="w-6 h-6 text-primary animate-pulse" />
+                    </div>
+                  </div>
+                  <p className="text-sm text-muted-foreground font-semibold">Finding slots...</p>
                 </div>
               ) : availableSlots.length === 0 ? (
                 <div className="text-center py-12 animate-fade-in">
-                  <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Calendar className="w-8 h-8 text-muted-foreground opacity-50" />
+                  <div className="relative inline-block mb-4">
+                    <div className="w-16 h-16 bg-gradient-to-br from-muted/50 to-muted/20 rounded-2xl flex items-center justify-center shadow-inner">
+                      <Calendar className="w-8 h-8 text-muted-foreground/50" />
+                    </div>
+                    <div className="absolute -top-1 -right-1 bg-orange-500 rounded-full p-1.5 shadow-md">
+                      <X className="w-3 h-3 text-white" />
+                    </div>
                   </div>
-                  <h3 className="font-semibold text-foreground mb-2">No Available Slots</h3>
-                  <p className="text-muted-foreground text-sm mb-4">
-                    All interview slots for this company are currently booked
+                  <h3 className="font-bold text-foreground mb-2 text-base">No Available Slots</h3>
+                  <p className="text-muted-foreground text-xs mb-4 max-w-xs mx-auto">
+                    All slots for <span className="font-semibold text-foreground">{selectedOffer.company_name}</span> are booked.
                   </p>
                   <button
                     onClick={() => setSelectedOffer(null)}
-                    className="px-4 py-2 bg-muted text-foreground rounded-lg hover:bg-muted/80 transition-colors text-sm"
+                    className="px-4 py-2 bg-gradient-to-r from-primary to-primary/90 text-primary-foreground rounded-lg hover:shadow-lg transition-all text-sm font-semibold shadow-sm hover:scale-105 active:scale-95 inline-flex items-center gap-2"
                   >
+                    <ArrowLeft className="w-4 h-4" />
                     Browse Other Offers
                   </button>
                 </div>
               ) : (
                 <>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 mb-4 animate-fade-in">
-                    {availableSlots.map((slot) => {
-                      const spotsLeft = slot.capacity - slot.bookings_count;
+                  {/* Slots Header - Compact */}
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 bg-primary/10 rounded-lg">
+                          <Clock className="w-4 h-4 text-primary" />
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-bold text-foreground">Available Slots</h3>
+                          <p className="text-xs text-muted-foreground">Select your time</p>
+                        </div>
+                      </div>
+                      <span className="text-xs bg-muted px-3 py-1 rounded-full font-semibold">
+                        {availableSlots.length}
+                      </span>
+                    </div>
+                    
+                    {/* Legend - Compact */}
+                    <div className="flex flex-wrap items-center gap-2 p-2 bg-muted/30 rounded-lg text-xs">
+                      <span className="font-medium text-muted-foreground">Legend:</span>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-2 h-2 bg-green-500/20 border border-green-500/30 rounded-full"></div>
+                        <span className="text-muted-foreground">3+ spots</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-2 h-2 bg-orange-500/20 border border-orange-500/30 rounded-full"></div>
+                        <span className="text-muted-foreground">Limited</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Slots Grid - Compact & Responsive */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-3 mb-4 animate-fade-in">
+                    {availableSlots.map((slot, idx) => {
+                      const capacity = slot.capacity || 1;
+                      const spotsLeft = capacity - slot.bookings_count;
                       const isLowCapacity = spotsLeft <= 2;
                       const isSelected = selectedSlotId === slot.id;
+                      const slotDate = new Date(slot.start_time);
 
                       return (
                         <button
@@ -567,59 +970,105 @@ export default function StudentOffers() {
                             setSelectedSlotId(slot.id);
                             checkSlotConflict(slot.id);
                           }}
-                          className={`relative p-3 rounded-lg border-2 transition-all hover:scale-105 ${
+                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedSlotId(slot.id); checkSlotConflict(slot.id); } }}
+                          aria-pressed={isSelected}
+                          tabIndex={0}
+                          style={{ animationDelay: `${idx * 20}ms` }}
+                          className={`relative p-3 rounded-xl border-2 transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary animate-fade-in ${
                             isSelected 
-                              ? 'border-primary bg-primary/5 shadow-lg' 
-                              : 'border-border hover:border-primary bg-background'
+                              ? 'border-primary bg-gradient-to-br from-primary/15 to-primary/5 shadow-lg scale-105' 
+                              : 'border-border hover:border-primary/50 bg-card hover:shadow-md'
                           }`}
                         >
-                          <div className="text-sm font-semibold text-foreground mb-1">
-                            {new Date(slot.start_time).toLocaleTimeString('en-US', {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}{' '}
-                            -{' '}
-                            {new Date(slot.end_time).toLocaleTimeString('en-US', {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
+                          {/* Time Display */}
+                          <div className="mb-2">
+                            <div className="text-sm font-bold text-foreground flex items-center gap-1">
+                              <Clock className="w-3 h-3 text-primary flex-shrink-0" />
+                              <span className="truncate">
+                                {slotDate.toLocaleTimeString('en-US', {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </span>
+                            </div>
+                            <div className="text-xs text-muted-foreground font-medium truncate">
+                              {slotDate.toLocaleDateString('en-US', {
+                                weekday: 'short',
+                                month: 'short',
+                                day: 'numeric',
+                              })}
+                            </div>
                           </div>
-                          <div className="text-xs text-muted-foreground mb-2">
-                            {new Date(slot.start_time).toLocaleDateString('en-US', {
-                              weekday: 'short',
-                              month: 'short',
-                              day: 'numeric',
-                            })}
-                          </div>
-                          <div className={`absolute top-2 right-2 px-2 py-0.5 text-xs rounded-full ${
+
+                          {/* Capacity Badge */}
+                          <div className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-bold rounded-full ${
                             isLowCapacity 
-                              ? 'bg-orange-500/10 text-orange-600' 
-                              : 'bg-green-500/10 text-green-600'
+                              ? 'bg-orange-500/15 text-orange-700 dark:text-orange-300 border border-orange-500/30' 
+                              : 'bg-green-500/15 text-green-700 dark:text-green-300 border border-green-500/30'
                           }`}>
-                            {spotsLeft} left
+                            <div className={`w-1 h-1 rounded-full ${isLowCapacity ? 'bg-orange-500' : 'bg-green-500'} animate-pulse`}></div>
+                            {spotsLeft}
                           </div>
+
+                          {/* Location - Only show if available and slot not too small */}
                           {slot.location && (
-                            <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-                              <MapPin className="w-3 h-3" />
+                            <div className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground mt-2 pt-2 border-t border-border/50">
+                              <MapPin className="w-3 h-3 flex-shrink-0" />
                               <span className="truncate">{slot.location}</span>
                             </div>
                           )}
+
+                          {/* Selected Indicator */}
                           {isSelected && (
-                            <div className="absolute inset-0 rounded-lg ring-2 ring-primary pointer-events-none" />
+                            <div className="absolute -top-1.5 -right-1.5 bg-primary rounded-full p-1 shadow-md ring-2 ring-card">
+                              <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            </div>
                           )}
                         </button>
                       );
                     })}
                   </div>
 
+                  {/* Confirm Button - Compact */}
                   {selectedSlotId && (
-                    <button
-                      onClick={() => confirmBooking(selectedSlotId)}
-                      disabled={!bookingLimit?.can_book || !!validationWarning}
-                      className="w-full px-4 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {validationWarning ? 'Cannot Book - Time Conflict' : 'Confirm Booking'}
-                    </button>
+                    <div className="sticky bottom-0 pt-3 pb-1">
+                      <button
+                        onClick={() => confirmBooking(selectedSlotId)}
+                        disabled={!bookingLimit?.can_book || !!validationWarning}
+                        className="w-full px-4 py-3 bg-gradient-to-r from-primary to-primary/90 text-primary-foreground rounded-xl hover:shadow-xl transition-all duration-300 font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98] shadow-md disabled:hover:scale-100 group relative overflow-hidden"
+                      >
+                        {/* Animated background */}
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-1000"></div>
+                        
+                        <div className="relative flex items-center gap-2">
+                          {validationWarning ? (
+                            <>
+                              <X className="w-5 h-5" />
+                              <span>Time Conflict</span>
+                            </>
+                          ) : (
+                            <>
+                              <Calendar className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                              <span>Confirm Booking</span>
+                              <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                              </svg>
+                            </>
+                          )}
+                        </div>
+                      </button>
+                      
+                      {/* Helper text */}
+                      <p className="text-center text-xs text-muted-foreground mt-2">
+                        {validationWarning ? (
+                          <span className="text-orange-600 dark:text-orange-400 font-medium">Select a different slot</span>
+                        ) : (
+                          <span>You'll receive confirmation by email</span>
+                        )}
+                      </p>
+                    </div>
                   )}
                 </>
               )}

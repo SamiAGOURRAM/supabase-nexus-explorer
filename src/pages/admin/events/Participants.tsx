@@ -41,11 +41,17 @@ export default function EventParticipantsPage() {
       return;
     }
 
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', user.id)
-      .single();
+      .maybeSingle(); // Use maybeSingle() to avoid 406 errors
+
+    if (profileError) {
+      console.error('Profile fetch error:', profileError);
+      navigate('/login');
+      return;
+    }
 
     if (!profile || profile.role !== 'admin') {
       navigate('/offers');
