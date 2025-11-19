@@ -168,15 +168,15 @@ BEGIN
       WHEN NOT v_is_new_company AND NOT v_already_invited THEN 'reinvited'
       ELSE 'already_invited'
     END,
-    'message', CASE 
-      WHEN v_is_new_company AND NOT v_already_invited THEN 
-        '✅ Company created and invited! NO SLOTS generated (create slots manually via Sessions/Offers).'
-      WHEN v_is_new_company AND v_already_invited THEN 
-        '⚠️ Company created but already invited to this event'
-      WHEN NOT v_is_new_company AND NOT v_already_invited THEN 
-        '🎉 Company re-invited! NO SLOTS generated (create slots manually via Sessions/Offers).'
-      ELSE 
-        'ℹ️ Company already invited to this event'
+    'message', CASE
+      WHEN v_is_new_company AND NOT v_already_invited THEN
+        'Company created and invited. No slots were auto-generated. The company will receive an email with a secure magic link to set their password.'
+      WHEN v_is_new_company AND v_already_invited THEN
+        'Company created, but it was already invited to this event. No slots were auto-generated. The company will receive an email with a secure magic link to set their password.'
+      WHEN NOT v_is_new_company AND NOT v_already_invited THEN
+        'Company re-invited successfully. No slots were auto-generated. The company will receive an email with a secure magic link to set their password (if an email is on record).'
+      ELSE
+        'The company is already invited to this event. No additional action was taken.'
     END,
     'next_step', CASE
       WHEN NOT v_auth_user_exists THEN 'send_invite_email'
