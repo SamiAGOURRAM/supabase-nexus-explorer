@@ -8,15 +8,12 @@ const Story = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center mb-24">
           {/* Image Side */}
           <div className="relative">
-            <div className="aspect-[4/3] bg-gradient-to-br from-[#007e40] to-[#005a2d] rounded-2xl overflow-hidden shadow-2xl">
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center text-white p-8">
-                  <div className="text-6xl mb-4">🤝</div>
-                  <p className="text-xl font-semibold">
-                    Building Hospitality Futures
-                  </p>
-                </div>
-              </div>
+            <div className="aspect-[4/3] rounded-2xl overflow-hidden shadow-2xl">
+              <img
+                src="/landing-page/story-section-image.png"
+                alt="SHBM students walking through modern building"
+                className="w-full h-full object-cover"
+              />
             </div>
             {/* Decorative element */}
             <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-[#ffb300] rounded-2xl -z-10" />

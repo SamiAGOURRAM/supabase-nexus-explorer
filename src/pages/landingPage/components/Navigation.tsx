@@ -1,6 +1,6 @@
 import { Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 const Navigation = () => {
   const navigate = useNavigate();
@@ -19,9 +19,9 @@ const Navigation = () => {
 
   const navLinks = [
     { name: "Home", href: "/" },
-    { name: "About", href: "#about" },
+    { name: "About", href: "/about" },
     { name: "Offerings", href: "#offerings" },
-    { name: "Contact", href: "#contact" },
+    { name: "Contact", href: "/contact" },
   ];
 
   return (
@@ -45,19 +45,23 @@ const Navigation = () => {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
-            {navLinks.map((link) => (
-              <a
-                key={link.name}
-                href={link.href}
-                className={`transition-colors duration-200 font-medium ${
-                  isScrolled
-                    ? "text-gray-700 hover:text-[#007e40]"
-                    : "text-white hover:text-[#ffb300]"
-                }`}
-              >
-                {link.name}
-              </a>
-            ))}
+            {navLinks.map((link) => {
+              const isHashLink = link.href.startsWith("#");
+              const className = `transition-colors duration-200 font-medium ${
+                isScrolled
+                  ? "text-gray-700 hover:text-[#007e40]"
+                  : "text-white hover:text-[#ffb300]"
+              }`;
+              return isHashLink ? (
+                <a key={link.name} href={link.href} className={className}>
+                  {link.name}
+                </a>
+              ) : (
+                <Link key={link.name} to={link.href} className={className}>
+                  {link.name}
+                </Link>
+              );
+            })}
           </div>
           <button
             onClick={() => navigate("/login")}
@@ -89,20 +93,33 @@ const Navigation = () => {
             }`}
           >
             <div className="flex flex-col space-y-3">
-              {navLinks.map((link) => (
-                <a
-                  key={link.name}
-                  href={link.href}
-                  className={`transition-colors duration-200 font-medium py-2 ${
-                    isScrolled
-                      ? "text-gray-700 hover:text-[#007e40]"
-                      : "text-white hover:text-[#ffb300]"
-                  }`}
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  {link.name}
-                </a>
-              ))}
+              {navLinks.map((link) => {
+                const isHashLink = link.href.startsWith("#");
+                const className = `transition-colors duration-200 font-medium py-2 ${
+                  isScrolled
+                    ? "text-gray-700 hover:text-[#007e40]"
+                    : "text-white hover:text-[#ffb300]"
+                }`;
+                return isHashLink ? (
+                  <a
+                    key={link.name}
+                    href={link.href}
+                    className={className}
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    {link.name}
+                  </a>
+                ) : (
+                  <Link
+                    key={link.name}
+                    to={link.href}
+                    className={className}
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    {link.name}
+                  </Link>
+                );
+              })}
               <button
                 onClick={() => {
                   navigate("/login");

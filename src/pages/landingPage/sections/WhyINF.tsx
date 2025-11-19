@@ -41,59 +41,94 @@ const WhyINF = () => {
           </p>
         </div>
 
-        {/* Reasons Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-20">
-          {reasons.map((reason, index) => {
-            const Icon = reason.icon;
-            return (
-              <div key={index} className="relative">
-                <div className="bg-gray-50 rounded-2xl p-10 h-full border-2 border-gray-100 hover:border-[#007e40] transition-all duration-300">
-                  {/* Icon */}
-                  <div className="w-16 h-16 bg-gradient-to-br from-[#007e40] to-[#005a2d] rounded-xl flex items-center justify-center mb-6">
-                    <Icon size={32} className="text-white" />
-                  </div>
+        {/* Reasons - Image Left, Text Right */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center mb-16">
+          {/* Image Left */}
+          <div className="order-2 lg:order-1">
+            <div className="aspect-[4/3] rounded-2xl overflow-hidden shadow-xl">
+              <img
+                src="/landing-page/whyinf-2.png"
+                alt="Industry connections - professionals networking"
+                className="w-full h-full object-cover"
+              />
+            </div>
+          </div>
 
-                  {/* Title */}
-                  <h3 className="text-2xl font-bold text-gray-900 mb-4">
-                    {reason.title}
-                  </h3>
+          {/* Text Right */}
+          <div className="order-1 lg:order-2">
+            <h3 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-6">
+              {reasons[0].title}
+            </h3>
+            <p className="text-lg text-gray-700 mb-8 leading-relaxed">
+              Our platform connects students with top companies in the
+              hospitality sector, ensuring you meet the right people for your
+              career advancement.
+            </p>
+            <a
+              href="#"
+              className="text-[#007e40] font-semibold hover:text-[#005a2d] transition-colors flex items-center gap-2 group inline-block"
+            >
+              Learn More
+              <svg
+                className="w-4 h-4 group-hover:translate-x-1 transition-transform"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </a>
+          </div>
+        </div>
 
-                  {/* Description */}
-                  <p className="text-gray-700 mb-6 leading-relaxed">
-                    {reason.description}
-                  </p>
+        {/* Reasons - Text Left, Image Right */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center mb-20">
+          {/* Text Left */}
+          <div>
+            <h3 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-6">
+              {reasons[1].title}
+            </h3>
+            <p className="text-lg text-gray-700 mb-8 leading-relaxed">
+              Organized by students for students, our forum uniquely understands
+              the needs of aspiring professionals, fostering a supportive
+              community.
+            </p>
+            <a
+              href="#"
+              className="text-[#007e40] font-semibold hover:text-[#005a2d] transition-colors flex items-center gap-2 group inline-block"
+            >
+              Learn More
+              <svg
+                className="w-4 h-4 group-hover:translate-x-1 transition-transform"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </a>
+          </div>
 
-                  {/* Features */}
-                  <ul className="space-y-3">
-                    {reason.features.map((feature, idx) => (
-                      <li key={idx} className="flex items-center text-gray-600">
-                        <div className="w-2 h-2 bg-[#ffb300] rounded-full mr-3" />
-                        {feature}
-                      </li>
-                    ))}
-                  </ul>
-
-                  {/* Learn More Button */}
-                  <button className="mt-6 text-[#007e40] font-semibold hover:text-[#005a2d] transition-colors flex items-center gap-2 group">
-                    Learn More
-                    <svg
-                      className="w-4 h-4 group-hover:translate-x-1 transition-transform"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 5l7 7-7 7"
-                      />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+          {/* Image Right */}
+          <div>
+            <div className="aspect-[4/3] rounded-2xl overflow-hidden shadow-xl">
+              <img
+                src="/landing-page/whyinf-1.png"
+                alt="Student-led initiatives - students in classroom"
+                className="w-full h-full object-cover"
+              />
+            </div>
+          </div>
         </div>
 
         {/* Stats Section */}

@@ -7,26 +7,34 @@ const Testimonials = () => {
       role: "Mandarin Oriental Hotel Group",
       quote:
         "INF was my gateway into the hospitality world. It helped me secure an F&B internship at Mandarin Oriental Marrakech, a defining moment that shaped my vision and growth.",
-      image: "👩‍💼",
     },
     {
       name: "Mohamed Ibenbba",
       role: "Relais & Châteaux",
       quote:
         "INF gave me access to my first professional internship with a globally renowned brand. The networking and exposure were invaluable.",
-      image: "👨‍💼",
     },
     {
       name: "Chahd Bouskrirou",
       role: "St. Regis Hotels",
       quote:
         "As a second-year student, INF connected me with industry leaders and led to an internship in Butler Service at St. Regis La Bahia Blanca Resort. Networking truly changes everything.",
-      image: "👩‍🎓",
     },
   ];
 
   return (
-    <section className="py-24 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 relative overflow-hidden">
+    <section className="py-24 relative overflow-hidden">
+      {/* Background Image */}
+      <div
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+        style={{
+          backgroundImage: "url('/landing-page/testimonial-bg.png')",
+        }}
+      />
+
+      {/* Dark Overlay for text readability */}
+      <div className="absolute inset-0 bg-gradient-to-br from-gray-900/80 via-gray-800/80 to-gray-900/80" />
+
       {/* Background Pattern */}
       <div className="absolute inset-0 opacity-5">
         <div
@@ -70,7 +78,6 @@ const Testimonials = () => {
 
               {/* Author */}
               <div className="flex items-center gap-4 pt-6 border-t border-white/20">
-                <div className="text-4xl">{testimonial.image}</div>
                 <div>
                   <div className="font-bold text-white text-lg">
                     {testimonial.name}

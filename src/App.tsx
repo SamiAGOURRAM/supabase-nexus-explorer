@@ -12,6 +12,8 @@ const RECAPTCHA_ENABLED = !!RECAPTCHA_SITE_KEY;
 
 // Lazy load pages for better performance
 const LandingPage = lazy(() => import("./pages/landingPage"));
+const About = lazy(() => import("./pages/About"));
+const Contact = lazy(() => import("./pages/Contact"));
 const SetPassword = lazy(() => import("./pages/auth/SetPassword"));
 const Login = lazy(() => import("./pages/Login"));
 const Signup = lazy(() => import("./pages/Signup"));
@@ -62,6 +64,8 @@ function App() {
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<LandingPage />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/contact" element={<Contact />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
