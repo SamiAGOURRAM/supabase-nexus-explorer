@@ -2,10 +2,12 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/contexts/ToastContext';
-import { ArrowLeft, Briefcase, MapPin, Calendar, Clock, X, Search } from 'lucide-react';
+import { Briefcase, MapPin, Calendar, Clock, X, Search, ArrowLeft } from 'lucide-react';
 import { debug, error as logError } from '@/utils/logger';
 import EmptyState from '@/components/shared/EmptyState';
 import ErrorDisplay from '@/components/shared/ErrorDisplay';
+import StudentLayout from '@/components/student/StudentLayout';
+import { useAuth } from '@/hooks/useAuth';
 
 type Offer = {
   id: string;
@@ -60,6 +62,7 @@ export default function StudentOffers() {
   const [booking, setBooking] = useState(false);
   const navigate = useNavigate();
   const { showSuccess, showError } = useToast();
+  const { signOut } = useAuth('student');
   const modalCloseRef = useRef<HTMLButtonElement | null>(null);
   const modalOverlayRef = useRef<HTMLDivElement | null>(null);
 
@@ -445,22 +448,13 @@ export default function StudentOffers() {
 
   if (loading && offers.length === 0) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
-        <header className="bg-card/80 backdrop-blur-sm border-b border-border">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div className="flex items-center gap-4">
-              <Link to="/student" className="text-muted-foreground hover:text-foreground transition-colors">
-                <ArrowLeft className="w-5 h-5" />
-              </Link>
-              <div>
-                <h1 className="text-2xl font-bold text-foreground">Browse Offers</h1>
-                <p className="text-sm text-muted-foreground mt-1">Find your perfect internship</p>
-              </div>
+      <StudentLayout onSignOut={signOut}>
+        <div className="p-6 md:p-8">
+          <div className="max-w-7xl mx-auto space-y-6">
+            <div>
+              <h1 className="text-3xl md:text-4xl font-bold text-foreground">Browse Offers</h1>
+              <p className="text-muted-foreground text-sm md:text-base mt-1">Find your perfect internship</p>
             </div>
-          </div>
-        </header>
-        
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Skeleton Loading */}
           <div className="space-y-6">
             {/* Event selector skeleton */}
@@ -503,31 +497,24 @@ export default function StudentOffers() {
               ))}
             </div>
           </div>
-        </main>
-      </div>
+          </div>
+        </div>
+      </StudentLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
-      <header className="bg-card/80 backdrop-blur-sm border-b border-border sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center gap-4">
-            <Link 
-              to="/student" 
-              className="p-2 -m-2 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-all"
-              aria-label="Back to dashboard"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold text-foreground bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
-                Browse Offers
-              </h1>
-              <p className="text-sm text-muted-foreground mt-1">Find your perfect internship opportunity</p>
+    <StudentLayout onSignOut={signOut}>
+      <div className="p-6 md:p-8">
+        <div className="max-w-7xl mx-auto space-y-6">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-3xl md:text-4xl font-bold text-foreground">Browse Offers</h1>
+              <p className="text-muted-foreground text-sm md:text-base mt-1">Find your perfect internship opportunity</p>
             </div>
             {filteredOffers.length > 0 && (
-              <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full">
+              <div className="flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full">
                 <Briefcase className="w-4 h-4 text-primary" />
                 <span className="text-sm font-semibold text-primary">
                   {filteredOffers.length} {filteredOffers.length === 1 ? 'Offer' : 'Offers'}
@@ -535,19 +522,16 @@ export default function StudentOffers() {
               </div>
             )}
           </div>
-        </div>
-      </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {error && (
-          <div className="mb-6">
-            <ErrorDisplay error={error} onRetry={loadOffers} />
-          </div>
-        )}
+          {error && (
+            <div>
+              <ErrorDisplay error={error} onRetry={loadOffers} />
+            </div>
+          )}
 
-        {/* Event Selector */}
-        {events.length > 0 && (
-          <div className="bg-card/80 backdrop-blur-sm rounded-xl border border-border shadow-sm hover:shadow-md transition-shadow p-5 mb-6">
+          {/* Event Selector */}
+          {events.length > 0 && (
+            <div className="bg-card/80 backdrop-blur-sm rounded-xl border border-border shadow-sm hover:shadow-md transition-shadow p-5">
             <div className="flex items-center gap-3 mb-3">
               <div className="p-2 bg-primary/10 rounded-lg">
                 <Calendar className="w-4 h-4 text-primary" />
@@ -572,10 +556,10 @@ export default function StudentOffers() {
               ))}
             </select>
           </div>
-        )}
+          )}
 
-        {/* Filters */}
-        <div className="bg-card/80 backdrop-blur-sm rounded-xl border border-border shadow-sm hover:shadow-md transition-shadow p-6 mb-6">
+          {/* Filters */}
+          <div className="bg-card/80 backdrop-blur-sm rounded-xl border border-border shadow-sm hover:shadow-md transition-shadow p-6">
           <div className="flex items-center gap-2 mb-4">
             <Search className="w-5 h-5 text-primary" />
             <h2 className="text-lg font-semibold text-foreground">Filter & Search</h2>
@@ -642,9 +626,9 @@ export default function StudentOffers() {
               </button>
             )}
           </div>
-        </div>
+          </div>
 
-        {/* Offers Grid */}
+          {/* Offers Grid */}
         {filteredOffers.length === 0 ? (
           <EmptyState
             icon={Briefcase}
@@ -777,7 +761,8 @@ export default function StudentOffers() {
             ))}
           </div>
         )}
-      </main>
+        </div>
+      </div>
 
       {/* Booking Modal */}
         {selectedOffer && (
@@ -1118,6 +1103,6 @@ export default function StudentOffers() {
           </div>
         </div>
       )}
-    </div>
+    </StudentLayout>
   );
 }

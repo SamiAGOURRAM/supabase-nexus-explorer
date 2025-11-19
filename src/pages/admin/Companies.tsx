@@ -10,6 +10,7 @@ import ErrorDisplay from '@/components/shared/ErrorDisplay';
 import EmptyState from '@/components/shared/EmptyState';
 import LoadingTable from '@/components/shared/LoadingTable';
 import ImageUpload from '@/components/shared/ImageUpload';
+import Pagination from '@/components/shared/Pagination';
 import { uploadLogo } from '@/utils/fileUpload';
 
 export default function AdminCompanies() {
@@ -31,6 +32,10 @@ export default function AdminCompanies() {
   const [uploadingLogo, setUploadingLogo] = useState<string | null>(null);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
 
   useEffect(() => {
     checkAdminAndLoadCompanies();
@@ -242,6 +247,17 @@ export default function AdminCompanies() {
     );
   });
 
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredCompanies.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedCompanies = filteredCompanies.slice(startIndex, endIndex);
+
   return (
     <AdminLayout onSignOut={signOut}>
       <div className="p-4 sm:p-6 md:p-8">
@@ -308,7 +324,7 @@ export default function AdminCompanies() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/50">
-                    {filteredCompanies.map((company) => {
+                    {paginatedCompanies.map((company) => {
                       const isEditing = editingCompanyId === company.id;
                       const currentCompany = isEditing && editedCompany ? editedCompany : company;
                       
@@ -616,7 +632,7 @@ export default function AdminCompanies() {
 
               {/* Mobile Card View */}
               <div className="md:hidden divide-y divide-border">
-                {filteredCompanies.map((company) => {
+                {paginatedCompanies.map((company) => {
                   const isEditing = editingCompanyId === company.id;
                   const currentCompany = isEditing && editedCompany ? editedCompany : company;
                   
@@ -912,6 +928,19 @@ export default function AdminCompanies() {
                   );
                 })}
               </div>
+              
+              {/* Pagination */}
+              {filteredCompanies.length > 10 && (
+                <div className="px-4 sm:px-6 py-4 border-t border-border">
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={setCurrentPage}
+                    itemsPerPage={itemsPerPage}
+                    totalItems={filteredCompanies.length}
+                  />
+                </div>
+              )}
             </div>
           )}
         </div>

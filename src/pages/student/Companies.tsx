@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import LoadingScreen from '@/components/shared/LoadingScreen';
 import ErrorDisplay from '@/components/shared/ErrorDisplay';
 import EmptyState from '@/components/shared/EmptyState';
+import Pagination from '@/components/shared/Pagination';
 import StudentLayout from '@/components/student/StudentLayout';
 
 type Company = {
@@ -29,6 +30,10 @@ export default function StudentCompanies() {
   const [error, setError] = useState<Error | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const { showError } = useToast();
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 12;
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -114,6 +119,17 @@ export default function StudentCompanies() {
       company.address?.toLowerCase().includes(query)
     );
   });
+
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredCompanies.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedCompanies = filteredCompanies.slice(startIndex, endIndex);
 
   if (authLoading || loading) {
     return <LoadingScreen message="Loading companies..." />;
@@ -201,8 +217,9 @@ export default function StudentCompanies() {
             className="bg-card rounded-xl border border-border p-12"
           />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredCompanies.map((company) => (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {paginatedCompanies.map((company) => (
               <Link
                 key={company.id}
                 to={`/student/companies/${company.id}`}
@@ -263,8 +280,22 @@ export default function StudentCompanies() {
                   )}
                 </div>
               </Link>
-            ))}
-          </div>
+              ))}
+            </div>
+            
+            {/* Pagination */}
+            {filteredCompanies.length > 10 && (
+              <div className="mt-6">
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                  itemsPerPage={itemsPerPage}
+                  totalItems={filteredCompanies.length}
+                />
+              </div>
+            )}
+          </>
         )}
         </div>
       </div>

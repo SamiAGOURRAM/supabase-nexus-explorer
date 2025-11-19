@@ -3,6 +3,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { ArrowLeft, Mail, Phone, FileText, Calendar, Briefcase, User, GraduationCap } from 'lucide-react';
 import { error as logError } from '@/utils/logger';
+import CompanyLayout from '@/components/company/CompanyLayout';
+import { useAuth } from '@/hooks/useAuth';
 
 type StudentProfile = {
   id: string;
@@ -32,6 +34,7 @@ type Booking = {
 };
 
 export default function StudentProfile() {
+  const { signOut } = useAuth('company');
   const [loading, setLoading] = useState(true);
   const [student, setStudent] = useState<StudentProfile | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -200,22 +203,18 @@ export default function StudentProfile() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="bg-card border-b border-border">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+    <CompanyLayout onSignOut={signOut}>
+      <div className="p-6 md:p-8">
+        <div className="max-w-5xl mx-auto space-y-6">
           <div className="flex items-center gap-4">
             <Link to="/company/students" className="text-muted-foreground hover:text-foreground">
               <ArrowLeft className="w-5 h-5" />
             </Link>
             <div>
-              <h1 className="text-2xl font-bold text-foreground">Student Profile</h1>
+              <h1 className="text-2xl md:text-3xl font-bold text-foreground">Student Profile</h1>
               <p className="text-sm text-muted-foreground mt-1">View student details and interview history</p>
             </div>
           </div>
-        </div>
-      </header>
-
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column - Student Info */}
           <div className="lg:col-span-1 space-y-6">
@@ -450,7 +449,8 @@ export default function StudentProfile() {
             </div>
           </div>
         </div>
-      </main>
-    </div>
+        </div>
+      </div>
+    </CompanyLayout>
   );
 }

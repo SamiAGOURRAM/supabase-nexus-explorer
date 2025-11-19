@@ -9,6 +9,7 @@ import ErrorDisplay from '@/components/shared/ErrorDisplay';
 import EmptyState from '@/components/shared/EmptyState';
 import LoadingTable from '@/components/shared/LoadingTable';
 import ImageUpload from '@/components/shared/ImageUpload';
+import Pagination from '@/components/shared/Pagination';
 import { uploadProfilePhoto } from '@/utils/fileUpload';
 
 type Student = {
@@ -61,6 +62,10 @@ export default function AdminStudents() {
   const [uploadingPhoto, setUploadingPhoto] = useState<string | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [languageInput, setLanguageInput] = useState<Record<string, string>>({});
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     checkAdminAndLoadStudents();
@@ -465,6 +470,17 @@ export default function AdminStudents() {
   const uniqueYears = Array.from(new Set(students.map(s => s.year_of_study).filter(Boolean))).sort() as number[];
   const uniqueGraduationYears = Array.from(new Set(students.map(s => s.graduation_year).filter(Boolean))).sort() as number[];
 
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filterCompany, filterProgram, filterYear, filterGraduationYear]);
+
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedStudents = filteredStudents.slice(startIndex, endIndex);
+
   return (
     <AdminLayout onSignOut={signOut}>
       <div className="p-4 sm:p-6 md:p-8">
@@ -665,7 +681,7 @@ export default function AdminStudents() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/50">
-                    {filteredStudents.map((student) => {
+                    {paginatedStudents.map((student) => {
                       const isEditing = editingStudentId === student.id;
                       const currentStudent = isEditing && editedStudent ? editedStudent : student;
                       
@@ -1062,6 +1078,19 @@ export default function AdminStudents() {
                   </tbody>
                 </table>
               </div>
+              
+              {/* Pagination */}
+              {filteredStudents.length > 10 && (
+                <div className="px-4 sm:px-6 py-4 border-t border-border">
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={setCurrentPage}
+                    itemsPerPage={itemsPerPage}
+                    totalItems={filteredStudents.length}
+                  />
+                </div>
+              )}
             </div>
           )}
         </div>

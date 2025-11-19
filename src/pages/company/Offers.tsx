@@ -2,10 +2,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/contexts/ToastContext';
-import { ArrowLeft, Plus, Search, Edit, Trash2, ToggleLeft, ToggleRight, Briefcase } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, ToggleLeft, ToggleRight, Briefcase } from 'lucide-react';
 import LoadingScreen from '@/components/shared/LoadingScreen';
 import ErrorDisplay from '@/components/shared/ErrorDisplay';
 import EmptyState from '@/components/shared/EmptyState';
+import CompanyLayout from '@/components/company/CompanyLayout';
 import { useAuth } from '@/hooks/useAuth';
 
 type Offer = {
@@ -25,7 +26,7 @@ type Offer = {
 };
 
 export default function CompanyOffers() {
-  const { user, loading: authLoading } = useAuth('company');
+  const { user, loading: authLoading, signOut } = useAuth('company');
   const { showSuccess, showError } = useToast();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -210,63 +211,58 @@ export default function CompanyOffers() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-6">
-        <div className="w-full max-w-xl">
-          <ErrorDisplay error={error} onRetry={loadOffers} />
+      <CompanyLayout onSignOut={signOut}>
+        <div className="p-6 md:p-8">
+          <div className="max-w-7xl mx-auto">
+            <ErrorDisplay error={error} onRetry={loadOffers} />
+          </div>
         </div>
-      </div>
+      </CompanyLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="bg-card border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link to="/company" className="text-muted-foreground hover:text-foreground">
-                <ArrowLeft className="w-5 h-5" />
-              </Link>
-              <div>
-                <h1 className="text-2xl font-bold text-foreground">Manage Offers</h1>
-                <p className="text-sm text-muted-foreground mt-1">Create and manage your job postings</p>
-              </div>
+    <CompanyLayout onSignOut={signOut}>
+      <div className="p-6 md:p-8">
+        <div className="max-w-7xl mx-auto space-y-6">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-3xl md:text-4xl font-bold text-foreground">Manage Offers</h1>
+              <p className="text-muted-foreground text-sm md:text-base mt-1">Create and manage your job postings</p>
             </div>
             <Link
               to="/company/offers/new"
-              className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
             >
               <Plus className="w-4 h-4" />
               Create Offer
             </Link>
           </div>
-        </div>
-      </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-card rounded-lg border border-border p-4">
-            <p className="text-sm text-muted-foreground">Total Offers</p>
-            <p className="text-2xl font-bold text-foreground">{stats.total}</p>
+          {/* Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="bg-card rounded-lg border border-border p-4">
+              <p className="text-sm text-muted-foreground">Total Offers</p>
+              <p className="text-2xl font-bold text-foreground">{stats.total}</p>
+            </div>
+            <div className="bg-card rounded-lg border border-border p-4">
+              <p className="text-sm text-muted-foreground">Active</p>
+              <p className="text-2xl font-bold text-green-600">{stats.active}</p>
+            </div>
+            <div className="bg-card rounded-lg border border-border p-4">
+              <p className="text-sm text-muted-foreground">Inactive</p>
+              <p className="text-2xl font-bold text-muted-foreground">{stats.inactive}</p>
+            </div>
+            <div className="bg-card rounded-lg border border-border p-4">
+              <p className="text-sm text-muted-foreground">Total Bookings</p>
+              <p className="text-2xl font-bold text-primary">{stats.totalBookings}</p>
+            </div>
           </div>
-          <div className="bg-card rounded-lg border border-border p-4">
-            <p className="text-sm text-muted-foreground">Active</p>
-            <p className="text-2xl font-bold text-green-600">{stats.active}</p>
-          </div>
-          <div className="bg-card rounded-lg border border-border p-4">
-            <p className="text-sm text-muted-foreground">Inactive</p>
-            <p className="text-2xl font-bold text-muted-foreground">{stats.inactive}</p>
-          </div>
-          <div className="bg-card rounded-lg border border-border p-4">
-            <p className="text-sm text-muted-foreground">Total Bookings</p>
-            <p className="text-2xl font-bold text-primary">{stats.totalBookings}</p>
-          </div>
-        </div>
 
-        {/* Filters */}
-        <div className="bg-card rounded-lg border border-border p-4 mb-6">
-          <div className="flex flex-col md:flex-row gap-4">
+          {/* Filters */}
+          <div className="bg-card rounded-lg border border-border p-4">
+            <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <input
@@ -298,10 +294,10 @@ export default function CompanyOffers() {
               </select>
             </div>
           </div>
-        </div>
+          </div>
 
-        {/* Offers List */}
-        {filteredOffers.length === 0 ? (
+          {/* Offers List */}
+          {filteredOffers.length === 0 ? (
           <EmptyState
             icon={Briefcase}
             title={offers.length === 0 ? 'No offers yet' : 'No offers match your filters'}
@@ -388,8 +384,9 @@ export default function CompanyOffers() {
             ))}
           </div>
         )}
-      </main>
-    </div>
+        </div>
+      </div>
+    </CompanyLayout>
   );
 }
 

@@ -6,6 +6,8 @@ import { ArrowLeft, Building2, MapPin, Globe, Briefcase, Users, Mail, Phone, Use
 import LoadingScreen from '@/components/shared/LoadingScreen';
 import ErrorDisplay from '@/components/shared/ErrorDisplay';
 import NotFound from '@/components/shared/NotFound';
+import StudentLayout from '@/components/student/StudentLayout';
+import { useAuth } from '@/hooks/useAuth';
 
 type Company = {
   id: string;
@@ -40,6 +42,7 @@ type Offer = {
 export default function CompanyProfile() {
   const { companyId } = useParams<{ companyId: string }>();
   const navigate = useNavigate();
+  const { signOut } = useAuth('student');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [company, setCompany] = useState<Company | null>(null);
@@ -151,48 +154,49 @@ export default function CompanyProfile() {
 
   if (error && !company) {
     return (
-      <div className="min-h-screen bg-background">
-        <header className="bg-card border-b border-border">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <Link to="/student/offers" className="text-muted-foreground hover:text-foreground">
+      <StudentLayout onSignOut={signOut}>
+        <div className="p-6 md:p-8">
+          <div className="max-w-7xl mx-auto">
+            <Link to="/student/offers" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6">
               <ArrowLeft className="w-5 h-5" />
+              Back to Offers
             </Link>
+            {error.message.includes('not found') ? (
+              <NotFound resource="Company" backTo="/student/offers" backLabel="Back to Offers" />
+            ) : (
+              <ErrorDisplay error={error} onRetry={loadCompanyProfile} />
+            )}
           </div>
-        </header>
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {error.message.includes('not found') ? (
-            <NotFound resource="Company" backTo="/student/offers" backLabel="Back to Offers" />
-          ) : (
-            <ErrorDisplay error={error} onRetry={loadCompanyProfile} />
-          )}
-        </main>
-      </div>
+        </div>
+      </StudentLayout>
     );
   }
 
   if (!company) {
     return (
-      <NotFound resource="Company" backTo="/student/offers" backLabel="Back to Offers" />
+      <StudentLayout onSignOut={signOut}>
+        <div className="p-6 md:p-8">
+          <div className="max-w-7xl mx-auto">
+            <NotFound resource="Company" backTo="/student/offers" backLabel="Back to Offers" />
+          </div>
+        </div>
+      </StudentLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="bg-card border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+    <StudentLayout onSignOut={signOut}>
+      <div className="p-6 md:p-8">
+        <div className="max-w-7xl mx-auto space-y-6">
           <div className="flex items-center gap-4">
             <Link to="/student/offers" className="text-muted-foreground hover:text-foreground">
               <ArrowLeft className="w-5 h-5" />
             </Link>
             <div>
-              <h1 className="text-2xl font-bold text-foreground">{company.company_name}</h1>
+              <h1 className="text-2xl md:text-3xl font-bold text-foreground">{company.company_name}</h1>
               <p className="text-sm text-muted-foreground mt-1">Company Profile</p>
             </div>
           </div>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Company Header */}
         <div className="bg-card rounded-xl border border-border p-8 mb-6">
           <div className="flex items-start gap-6">
@@ -350,7 +354,8 @@ export default function CompanyProfile() {
             </div>
           )}
         </div>
-      </main>
-    </div>
+        </div>
+      </div>
+    </StudentLayout>
   );
 }

@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { ArrowLeft, Search, Users, FileText } from 'lucide-react';
+import { Search, Users, FileText } from 'lucide-react';
 import { useToast } from '@/contexts/ToastContext';
 import LoadingScreen from '@/components/shared/LoadingScreen';
 import ErrorDisplay from '@/components/shared/ErrorDisplay';
 import EmptyState from '@/components/shared/EmptyState';
+import Pagination from '@/components/shared/Pagination';
+import CompanyLayout from '@/components/company/CompanyLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { warn as logWarn, error as logError } from '@/utils/logger';
 
@@ -26,13 +28,17 @@ type StudentBooking = {
 };
 
 export default function CompanyStudents() {
-  const { user, loading: authLoading } = useAuth('company');
+  const { user, loading: authLoading, signOut } = useAuth('company');
   const { showError } = useToast();
   const [loading, setLoading] = useState(true);
   const [students, setStudents] = useState<StudentBooking[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState<Error | null>(null);
   const [profiles, setProfiles] = useState<any[]>([]);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
 
   const loadStudents = useCallback(async () => {
     if (!user) return;
@@ -189,6 +195,17 @@ export default function CompanyStudents() {
     });
   }, [searchQuery, students]);
 
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedStudents = filteredStudents.slice(startIndex, endIndex);
+
   const stats = useMemo(() => {
     return {
       unique: new Set(students.map((s) => s.student_id)).size,
@@ -207,33 +224,28 @@ export default function CompanyStudents() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-6">
-        <div className="w-full max-w-xl">
-          <ErrorDisplay error={error} onRetry={loadStudents} />
+      <CompanyLayout onSignOut={signOut}>
+        <div className="p-6 md:p-8">
+          <div className="max-w-7xl mx-auto">
+            <ErrorDisplay error={error} onRetry={loadStudents} />
+          </div>
         </div>
-      </div>
+      </CompanyLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="bg-card border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center gap-4">
-            <Link to="/company" className="text-muted-foreground hover:text-foreground">
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">Students</h1>
-              <p className="text-sm text-muted-foreground mt-1">View students who booked interviews</p>
-            </div>
+    <CompanyLayout onSignOut={signOut}>
+      <div className="p-6 md:p-8">
+        <div className="max-w-7xl mx-auto space-y-6">
+          {/* Header */}
+          <div>
+            <h1 className="text-3xl md:text-4xl font-bold text-foreground">Students</h1>
+            <p className="text-muted-foreground text-sm md:text-base mt-1">View students who booked interviews</p>
           </div>
-        </div>
-      </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          {/* Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-card rounded-lg border border-border p-4">
             <p className="text-sm text-muted-foreground">Unique Students</p>
             <p className="text-2xl font-bold text-foreground">{stats.unique}</p>
@@ -246,23 +258,23 @@ export default function CompanyStudents() {
             <p className="text-sm text-muted-foreground">Total Bookings</p>
             <p className="text-2xl font-bold text-primary">{stats.total}</p>
           </div>
-        </div>
-
-        {/* Search */}
-        <div className="bg-card rounded-lg border border-border p-4 mb-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Search students by name, email, or student number..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-            />
           </div>
-        </div>
 
-        {/* Students List */}
+          {/* Search */}
+          <div className="bg-card rounded-lg border border-border p-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search students by name, email, or student number..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+          </div>
+
+          {/* Students List */}
         {filteredStudents.length === 0 ? (
           <EmptyState
             icon={Users}
@@ -289,7 +301,7 @@ export default function CompanyStudents() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {filteredStudents.map((student) => (
+                  {paginatedStudents.map((student) => (
                     <tr key={student.booking_id} className="hover:bg-muted/30 transition-colors">
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-2">
@@ -369,9 +381,23 @@ export default function CompanyStudents() {
                 </tbody>
               </table>
             </div>
+            
+            {/* Pagination */}
+            {filteredStudents.length > 10 && (
+              <div className="px-4 sm:px-6 py-4 border-t border-border">
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                  itemsPerPage={itemsPerPage}
+                  totalItems={filteredStudents.length}
+                />
+              </div>
+            )}
           </div>
         )}
-      </main>
-    </div>
+        </div>
+      </div>
+    </CompanyLayout>
   );
 }

@@ -8,6 +8,8 @@ import { debug, error as logError } from '@/utils/logger';
 import LoadingScreen from '@/components/shared/LoadingScreen';
 import ErrorDisplay from '@/components/shared/ErrorDisplay';
 import NotFound from '@/components/shared/NotFound';
+import StudentLayout from '@/components/student/StudentLayout';
+import { useAuth } from '@/hooks/useAuth';
 
 type Offer = {
   id: string;
@@ -50,6 +52,7 @@ type BookingLimitInfo = {
 export default function OfferDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { signOut } = useAuth('student');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [offer, setOffer] = useState<Offer | null>(null);
@@ -461,48 +464,49 @@ export default function OfferDetail() {
 
   if (error && !offer) {
     return (
-      <div className="min-h-screen bg-background">
-        <header className="bg-card border-b border-border">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <Link to="/student/offers" className="text-muted-foreground hover:text-foreground">
+      <StudentLayout onSignOut={signOut}>
+        <div className="p-6 md:p-8">
+          <div className="max-w-7xl mx-auto">
+            <Link to="/student/offers" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6">
               <ArrowLeft className="w-5 h-5" />
+              Back to Offers
             </Link>
+            {error.message.includes('not found') ? (
+              <NotFound resource="Offer" backTo="/student/offers" backLabel="Back to Offers" />
+            ) : (
+              <ErrorDisplay error={error} onRetry={loadOfferDetail} />
+            )}
           </div>
-        </header>
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {error.message.includes('not found') ? (
-            <NotFound resource="Offer" backTo="/student/offers" backLabel="Back to Offers" />
-          ) : (
-            <ErrorDisplay error={error} onRetry={loadOfferDetail} />
-          )}
-        </main>
-      </div>
+        </div>
+      </StudentLayout>
     );
   }
 
   if (!offer) {
     return (
-      <NotFound resource="Offer" backTo="/student/offers" backLabel="Back to Offers" />
+      <StudentLayout onSignOut={signOut}>
+        <div className="p-6 md:p-8">
+          <div className="max-w-7xl mx-auto">
+            <NotFound resource="Offer" backTo="/student/offers" backLabel="Back to Offers" />
+          </div>
+        </div>
+      </StudentLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="bg-card border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+    <StudentLayout onSignOut={signOut}>
+      <div className="p-6 md:p-8">
+        <div className="max-w-7xl mx-auto space-y-6">
           <div className="flex items-center gap-4">
             <Link to="/student/offers" className="text-muted-foreground hover:text-foreground">
               <ArrowLeft className="w-5 h-5" />
             </Link>
             <div>
-              <h1 className="text-2xl font-bold text-foreground">{offer.title}</h1>
+              <h1 className="text-2xl md:text-3xl font-bold text-foreground">{offer.title}</h1>
               <p className="text-sm text-muted-foreground mt-1">Internship Offer Details</p>
             </div>
           </div>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
@@ -628,7 +632,8 @@ export default function OfferDetail() {
             </div>
           </div>
         </div>
-      </main>
+        </div>
+      </div>
 
       {/* Booking Modal */}
       {showBookingModal && (
@@ -756,6 +761,6 @@ export default function OfferDetail() {
           </div>
         </div>
       )}
-    </div>
+    </StudentLayout>
   );
 }

@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/contexts/ToastContext';
-import { ArrowLeft, Building2, Save, Users, Plus, Trash2, AlertTriangle, Download } from 'lucide-react';
+import { Building2, Save, Users, Plus, Trash2, AlertTriangle, Download } from 'lucide-react';
 import { validateEmail, validatePhoneNumber } from '@/utils/securityUtils';
 import { error as logError } from '@/utils/logger';
 import LoadingScreen from '@/components/shared/LoadingScreen';
 import ErrorDisplay from '@/components/shared/ErrorDisplay';
+import CompanyLayout from '@/components/company/CompanyLayout';
+import { useAuth } from '@/hooks/useAuth';
 import { exportUserData, downloadUserDataAsCsv } from '@/utils/dataExport';
 import ImageUpload from '@/components/shared/ImageUpload';
 import { uploadLogo } from '@/utils/fileUpload';
@@ -33,6 +35,7 @@ type Representative = {
 };
 
 export default function CompanyProfile() {
+  const { signOut } = useAuth('company');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<Error | null>(null);
@@ -464,21 +467,13 @@ export default function CompanyProfile() {
 
   if (error && !profile) {
     return (
-      <div className="min-h-screen bg-background">
-        <header className="bg-card border-b border-border">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div className="flex items-center gap-4">
-              <Link to="/company" className="text-muted-foreground hover:text-foreground">
-                <ArrowLeft className="w-5 h-5" />
-              </Link>
-              <h1 className="text-2xl font-bold text-foreground">Company Profile</h1>
-            </div>
+      <CompanyLayout onSignOut={signOut}>
+        <div className="p-6 md:p-8">
+          <div className="max-w-4xl mx-auto">
+            <ErrorDisplay error={error} onRetry={loadProfile} />
           </div>
-        </header>
-        <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <ErrorDisplay error={error} onRetry={loadProfile} />
-        </main>
-      </div>
+        </div>
+      </CompanyLayout>
     );
   }
 
@@ -487,29 +482,22 @@ export default function CompanyProfile() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="bg-card border-b border-border">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center gap-4">
-            <Link to="/company" className="text-muted-foreground hover:text-foreground">
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
-            <div className="flex items-center gap-3">
-              <Building2 className="w-6 h-6 text-primary" />
-              <h1 className="text-2xl font-bold text-foreground">Company Profile</h1>
+    <CompanyLayout onSignOut={signOut}>
+      <div className="p-6 md:p-8">
+        <div className="max-w-4xl mx-auto space-y-6">
+          {/* Header */}
+          <div className="flex items-center gap-3">
+            <Building2 className="w-6 h-6 text-primary" />
+            <h1 className="text-3xl md:text-4xl font-bold text-foreground">Company Profile</h1>
+          </div>
+
+          {error && (
+            <div className="mb-6">
+              <ErrorDisplay error={error} onRetry={loadProfile} />
             </div>
-          </div>
-        </div>
-      </header>
+          )}
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {error && (
-          <div className="mb-6">
-            <ErrorDisplay error={error} onRetry={loadProfile} />
-          </div>
-        )}
-
-        <div className="bg-card rounded-xl border border-border p-6">
+          <div className="bg-card rounded-xl border border-border p-6">
           <div className="space-y-6">
             {/* Company Logo Upload */}
             <div>
@@ -934,8 +922,9 @@ export default function CompanyProfile() {
             </div>
           </div>
         </div>
-      </main>
-    </div>
+        </div>
+      </div>
+    </CompanyLayout>
   );
 }
 

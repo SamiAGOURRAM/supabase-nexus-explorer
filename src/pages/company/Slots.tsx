@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/contexts/ToastContext';
-import { ArrowLeft, Calendar, Clock, MapPin, Users } from 'lucide-react';
+import { Calendar, Clock, MapPin, Users } from 'lucide-react';
 import { extractFirstFromNested } from '@/utils/supabaseTypes';
 import LoadingScreen from '@/components/shared/LoadingScreen';
 import ErrorDisplay from '@/components/shared/ErrorDisplay';
 import EmptyState from '@/components/shared/EmptyState';
+import CompanyLayout from '@/components/company/CompanyLayout';
+import { useAuth } from '@/hooks/useAuth';
 import { warn as logWarn, error as logError } from '@/utils/logger';
 
 type Booking = {
@@ -37,6 +39,7 @@ type Slot = {
 };
 
 export default function CompanySlots() {
+  const { signOut } = useAuth('company');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [slots, setSlots] = useState<Slot[]>([]);
@@ -213,42 +216,28 @@ export default function CompanySlots() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-background">
-        <header className="bg-card border-b border-border">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div className="flex items-center gap-4">
-              <Link to="/company" className="text-muted-foreground hover:text-foreground">
-                <ArrowLeft className="w-5 h-5" />
-              </Link>
-              <h1 className="text-2xl font-bold text-foreground">Time Slots</h1>
-            </div>
+      <CompanyLayout onSignOut={signOut}>
+        <div className="p-6 md:p-8">
+          <div className="max-w-7xl mx-auto">
+            <ErrorDisplay error={error} onRetry={loadSlots} />
           </div>
-        </header>
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <ErrorDisplay error={error} onRetry={loadSlots} />
-        </main>
-      </div>
+        </div>
+      </CompanyLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="bg-card border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center gap-4">
-            <Link to="/company" className="text-muted-foreground hover:text-foreground">
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">Interview Slots</h1>
-              <p className="text-sm text-muted-foreground mt-1">Manage your interview schedule</p>
-            </div>
+    <CompanyLayout onSignOut={signOut}>
+      <div className="p-6 md:p-8">
+        <div className="max-w-7xl mx-auto space-y-6">
+          {/* Header */}
+          <div>
+            <h1 className="text-3xl md:text-4xl font-bold text-foreground">Interview Slots</h1>
+            <p className="text-muted-foreground text-sm md:text-base mt-1">Manage your interview schedule</p>
           </div>
-        </div>
-      </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {slots.length === 0 ? (
+          {/* Slots List */}
+          {slots.length === 0 ? (
           <EmptyState
             icon={Calendar}
             title="No Interview Slots"
@@ -374,7 +363,8 @@ export default function CompanySlots() {
             })}
           </div>
         )}
-      </main>
-    </div>
+        </div>
+      </div>
+    </CompanyLayout>
   );
 }
