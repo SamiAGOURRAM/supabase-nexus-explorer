@@ -1486,7 +1486,6 @@ export type Database = {
           p_company_name: string
           p_email: string
           p_event_id: string
-          p_force_reinvite?: boolean
           p_industry?: string
           p_website?: string
         }

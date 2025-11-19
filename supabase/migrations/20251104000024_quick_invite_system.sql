@@ -236,7 +236,7 @@ EXCEPTION
 END;
 $$;
 
-COMMENT ON FUNCTION quick_invite_company IS 
+COMMENT ON FUNCTION quick_invite_company(text, text, uuid, text, text) IS 
 '🚀 ONE-STEP INVITE: Email + Name → Company created/updated + Invited + Slots generated + Email sent. Seamless workflow!';
 
 -- =====================================================
