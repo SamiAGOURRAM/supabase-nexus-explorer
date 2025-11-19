@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { ArrowLeft, Search, Download, Building2 } from 'lucide-react';
+import { ArrowLeft, Search, Download, Building2, Mail, UserPlus, CheckCircle } from 'lucide-react';
 
 export default function QuickInvitePage() {
   const { id: eventId } = useParams<{ id: string }>();
@@ -165,9 +165,18 @@ export default function QuickInvitePage() {
 
         if (magicLinkError) {
           console.error('Magic link error:', magicLinkError);
+          
+          // Handle rate limit specifically
+          const isRateLimit = magicLinkError.message?.toLowerCase().includes('rate limit') || 
+                              magicLinkError.message?.toLowerCase().includes('email rate');
+          
+          const errorMessage = isRateLimit
+            ? '\n\n⚠️ Email rate limit reached. The company has been invited successfully, but the magic link email could not be sent at this time. Please wait a few minutes and use the "Re-invite Existing" tab to send the magic link again, or contact the company directly with their login credentials.'
+            : `\n\n⚠️ Magic link email failed: ${magicLinkError.message}. The company has been invited successfully, but please contact them directly to set up their account.`;
+          
           setResult({
             ...result,
-            message: (result.message || '') + `\n\n⚠️ Magic link error: ${magicLinkError.message}`
+            message: (result.message || '') + errorMessage
           });
         } else {
           setResult({
@@ -232,7 +241,7 @@ const handleSearch = async () => {
   try {
     const { data, error } = await supabase.rpc('search_companies_for_invitation', {
       search_query: searchQuery.trim(),
-      event_id_filter: eventId
+      event_id_filter: eventId || undefined
     });
 
     if (error) throw error;
@@ -543,7 +552,7 @@ const handleSearch = async () => {
                 <div className="space-y-3">
                   {searchResults.map((company) => (
                     <div
-                      key={company.company_id}
+                      key={company.id}
                       className="flex items-center justify-between p-4 bg-muted rounded-lg"
                     >
                       <div className="flex items-center gap-3">
@@ -561,15 +570,26 @@ const handleSearch = async () => {
                         </div>
                       </div>
                       {company.already_invited ? (
-                        <span className="px-3 py-1 bg-success/10 text-success text-sm rounded-full">
-                          Already Invited
-                        </span>
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-2 px-3 py-1.5 bg-success/10 text-success text-sm font-medium rounded-full">
+                            <CheckCircle className="w-4 h-4" />
+                            Already Invited
+                          </div>
+                          <button
+                            onClick={() => handleReInvite(company.id, company.company_name)}
+                            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 shadow-md hover:shadow-lg transition-all duration-200 font-medium"
+                          >
+                            <Mail className="w-4 h-4" />
+                            Resend Invite
+                          </button>
+                        </div>
                       ) : (
                         <button
-                          onClick={() => handleReInvite(company.company_id, company.company_name)}
-                          className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition"
+                          onClick={() => handleReInvite(company.id, company.company_name)}
+                          className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-primary to-primary/90 text-primary-foreground rounded-lg hover:from-primary/90 hover:to-primary shadow-md hover:shadow-lg transition-all duration-200 font-medium"
                         >
-                          Re-invite
+                          <UserPlus className="w-4 h-4" />
+                          Invite to Event
                         </button>
                       )}
                     </div>
