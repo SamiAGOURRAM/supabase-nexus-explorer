@@ -44,6 +44,9 @@ export default function AdminStudents() {
   const [error, setError] = useState<Error | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCompany, setFilterCompany] = useState<string>('all');
+  const [filterProgram, setFilterProgram] = useState<string>('all');
+  const [filterYear, setFilterYear] = useState<string>('all');
+  const [filterGraduationYear, setFilterGraduationYear] = useState<string>('all');
   const [companies, setCompanies] = useState<Array<{ id: string; name: string }>>([]);
   const [searchParams] = useSearchParams();
   const eventId = searchParams.get('eventId');
@@ -439,12 +442,32 @@ export default function AdminStudents() {
       if (!hasCompany) return false;
     }
 
+    // Program filter
+    if (filterProgram !== 'all') {
+      if (student.program !== filterProgram) return false;
+    }
+
+    // Year of study filter
+    if (filterYear !== 'all') {
+      if (student.year_of_study !== parseInt(filterYear)) return false;
+    }
+
+    // Graduation year filter
+    if (filterGraduationYear !== 'all') {
+      if (student.graduation_year !== parseInt(filterGraduationYear)) return false;
+    }
+
     return true;
   });
 
+  // Get unique values for filters
+  const uniquePrograms = Array.from(new Set(students.map(s => s.program).filter(Boolean))) as string[];
+  const uniqueYears = Array.from(new Set(students.map(s => s.year_of_study).filter(Boolean))).sort() as number[];
+  const uniqueGraduationYears = Array.from(new Set(students.map(s => s.graduation_year).filter(Boolean))).sort() as number[];
+
   return (
     <AdminLayout onSignOut={signOut}>
-      <div className="p-6 md:p-8">
+      <div className="p-4 sm:p-6 md:p-8">
         <div className="max-w-7xl mx-auto space-y-6">
           {/* Header */}
           <div className="space-y-2">
@@ -469,22 +492,62 @@ export default function AdminStudents() {
               />
             </div>
 
+            {/* Filters */}
+            <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 items-start sm:items-center">
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <Filter className="w-5 h-5 text-primary flex-shrink-0" />
+                <label className="text-sm font-medium text-foreground">Filters:</label>
+              </div>
+              
+              <select
+                value={filterProgram}
+                onChange={(e) => setFilterProgram(e.target.value)}
+                className="w-full sm:w-auto px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground text-sm"
+              >
+                <option value="all">All Programs</option>
+                {uniquePrograms.map(program => (
+                  <option key={program} value={program}>{program}</option>
+                ))}
+              </select>
+
+              <select
+                value={filterYear}
+                onChange={(e) => setFilterYear(e.target.value)}
+                className="w-full sm:w-auto px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground text-sm"
+              >
+                <option value="all">All Years</option>
+                {uniqueYears.map(year => (
+                  <option key={year} value={year.toString()}>Year {year}</option>
+                ))}
+              </select>
+
+              <select
+                value={filterGraduationYear}
+                onChange={(e) => setFilterGraduationYear(e.target.value)}
+                className="w-full sm:w-auto px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground text-sm"
+              >
+                <option value="all">All Graduation Years</option>
+                {uniqueGraduationYears.map(year => (
+                  <option key={year} value={year.toString()}>{year}</option>
+                ))}
+              </select>
+
+              {eventId && (
+                <select
+                  value={filterCompany}
+                  onChange={(e) => setFilterCompany(e.target.value)}
+                  className="w-full sm:w-auto px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground text-sm"
+                >
+                  <option value="all">All Companies</option>
+                  {companies.map(company => (
+                    <option key={company.id} value={company.id}>{company.name}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+
             {eventId && (
               <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Filter className="w-5 h-5 text-primary" />
-                  <label className="text-sm font-medium text-foreground">Filter by Company:</label>
-                  <select
-                    value={filterCompany}
-                    onChange={(e) => setFilterCompany(e.target.value)}
-                    className="px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
-                  >
-                    <option value="all">All Companies</option>
-                    {companies.map(company => (
-                      <option key={company.id} value={company.id}>{company.name}</option>
-                    ))}
-                  </select>
-                </div>
                 <button
                   onClick={exportToCSV}
                   className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
@@ -495,10 +558,13 @@ export default function AdminStudents() {
               </div>
             )}
 
-            {(searchQuery || (eventId && filterCompany !== 'all')) && (
+            {(searchQuery || filterProgram !== 'all' || filterYear !== 'all' || filterGraduationYear !== 'all' || (eventId && filterCompany !== 'all')) && (
               <button
                 onClick={() => {
                   setSearchQuery('');
+                  setFilterProgram('all');
+                  setFilterYear('all');
+                  setFilterGraduationYear('all');
                   setFilterCompany('all');
                 }}
                 className="text-sm text-primary hover:underline"
@@ -567,31 +633,31 @@ export default function AdminStudents() {
             />
           ) : (
             <div className="bg-card border border-border rounded-xl overflow-hidden shadow-elegant">
-              <div className="overflow-x-auto">
-                <table className="w-full">
+              <div className="overflow-x-auto -mx-4 sm:mx-0">
+                <table className="w-full min-w-[800px]">
                   <thead className="bg-muted/50 border-b border-border">
                     <tr>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      <th className="px-4 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                         Student
                       </th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      <th className="px-4 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                         Contact
                       </th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      <th className="px-4 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                         Academic Info
                       </th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      <th className="px-4 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                         Status
                       </th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      <th className="px-4 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                         Actions
                       </th>
                       {eventId && (
                         <>
-                          <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                          <th className="px-4 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                             Interviews
                           </th>
-                          <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                          <th className="px-4 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                             Companies
                           </th>
                         </>
@@ -613,7 +679,7 @@ export default function AdminStudents() {
                           }`}
                         >
                           {/* Student Info Column */}
-                          <td className="px-6 py-4">
+                          <td className="px-4 sm:px-6 py-3 sm:py-4">
                             {isEditing ? (
                               <div className="space-y-3">
                                 <div>
@@ -687,7 +753,7 @@ export default function AdminStudents() {
                           </td>
                           
                           {/* Contact Column */}
-                          <td className="px-6 py-4">
+                          <td className="px-4 sm:px-6 py-3 sm:py-4">
                             {isEditing ? (
                               <div className="space-y-2">
                                 <div>
@@ -754,7 +820,7 @@ export default function AdminStudents() {
                           </td>
                           
                           {/* Academic Info Column */}
-                          <td className="px-6 py-4">
+                          <td className="px-4 sm:px-6 py-3 sm:py-4">
                             {isEditing ? (
                               <div className="space-y-2">
                                 <div>
@@ -888,7 +954,7 @@ export default function AdminStudents() {
                           </td>
                           
                           {/* Status Column */}
-                          <td className="px-6 py-4">
+                          <td className="px-4 sm:px-6 py-3 sm:py-4">
                             {isEditing ? (
                               <div>
                                 <label className="text-xs text-muted-foreground mb-1 block">Status</label>
@@ -914,7 +980,7 @@ export default function AdminStudents() {
                           </td>
                           
                           {/* Actions Column */}
-                          <td className="px-6 py-4">
+                          <td className="px-4 sm:px-6 py-3 sm:py-4">
                             {isEditing ? (
                               <div className="flex flex-col gap-2">
                                 <button
@@ -969,12 +1035,12 @@ export default function AdminStudents() {
                           {/* Event Stats Columns (read-only) */}
                           {eventId && student.event_stats && (
                             <>
-                              <td className="px-6 py-4">
+                              <td className="px-4 sm:px-6 py-3 sm:py-4">
                                 <span className="px-2 py-1 bg-primary/10 text-primary text-sm rounded-full font-medium">
                                   {student.event_stats.total_bookings}
                                 </span>
                               </td>
-                              <td className="px-6 py-4">
+                              <td className="px-4 sm:px-6 py-3 sm:py-4">
                                 <div className="flex flex-wrap gap-1">
                                   {student.event_stats.companies.slice(0, 3).map((company, idx) => (
                                     <span key={idx} className="px-2 py-1 bg-muted text-muted-foreground text-xs rounded">

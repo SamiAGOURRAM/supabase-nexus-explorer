@@ -3,10 +3,11 @@ import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useEmailVerification } from '@/hooks/useEmailVerification';
 import { useToast } from '@/contexts/ToastContext';
-import { Calendar, Briefcase, User, LogOut, Book, AlertCircle, CheckCircle2, Building2 } from 'lucide-react';
+import { Calendar, Briefcase, User, Book, AlertCircle, CheckCircle2, Building2 } from 'lucide-react';
 import { warn, error as logError } from '@/utils/logger';
 import ErrorDisplay from '@/components/shared/ErrorDisplay';
 import LoadingScreen from '@/components/shared/LoadingScreen';
+import StudentLayout from '@/components/student/StudentLayout';
 
 type EventPhaseInfo = {
   eventId: string;
@@ -151,50 +152,26 @@ export default function StudentDashboard() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-background">
-        <header className="bg-card border-b border-border">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <h1 className="text-2xl font-bold text-foreground">Student Dashboard</h1>
+      <StudentLayout onSignOut={handleSignOut}>
+        <div className="p-6 md:p-8">
+          <div className="max-w-7xl mx-auto">
+            <ErrorDisplay error={error} onRetry={checkStudentAndLoadData} />
           </div>
-        </header>
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <ErrorDisplay error={error} onRetry={checkStudentAndLoadData} />
-        </main>
-      </div>
+        </div>
+      </StudentLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="bg-card border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">Student Dashboard</h1>
-              <p className="text-sm text-muted-foreground mt-1">Welcome back!</p>
-            </div>
-            <div className="flex items-center gap-3 self-end md:self-auto">
-              <Link
-                to="/student/profile"
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-foreground hover:bg-primary/10 rounded-lg transition-colors border border-border hover:border-primary"
-              >
-                <User className="w-4 h-4" />
-                Profile
-              </Link>
-              <button
-                onClick={handleSignOut}
-                className="flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <LogOut className="w-4 h-4" />
-                Sign Out
-              </button>
-            </div>
+    <StudentLayout onSignOut={handleSignOut}>
+      <div className="p-6 md:p-8">
+        <div className="max-w-7xl mx-auto space-y-6">
+          <div>
+            <h1 className="text-3xl md:text-4xl font-bold text-foreground">Student Dashboard</h1>
+            <p className="text-muted-foreground text-sm md:text-base mt-1">Welcome back!</p>
           </div>
-        </div>
-      </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Phase Status Card */}
+          {/* Phase Status Card */}
         {phaseInfo && (
           <div className={`rounded-xl border p-6 mb-6 ${
             phaseInfo.currentPhase === 0 
@@ -293,8 +270,9 @@ export default function StudentDashboard() {
             </Link>
           </div>
         </div>
-      </main>
-    </div>
+        </div>
+      </div>
+    </StudentLayout>
   );
 }
 

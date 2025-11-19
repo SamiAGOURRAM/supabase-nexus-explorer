@@ -92,7 +92,7 @@ export default function CompanyDashboard() {
 
   return (
     <CompanyLayout onSignOut={signOut}>
-      <div className="p-8">
+      <div className="p-4 sm:p-6 md:p-8">
         <div className="max-w-7xl mx-auto">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-foreground">{stats?.company_name || 'Company Dashboard'}</h1>

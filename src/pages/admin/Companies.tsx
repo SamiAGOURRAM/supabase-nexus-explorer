@@ -244,7 +244,7 @@ export default function AdminCompanies() {
 
   return (
     <AdminLayout onSignOut={signOut}>
-      <div className="p-6 md:p-8">
+      <div className="p-4 sm:p-6 md:p-8">
         <div className="max-w-7xl mx-auto space-y-6">
           {/* Header */}
           <div className="space-y-2">
@@ -285,23 +285,24 @@ export default function AdminCompanies() {
             />
           ) : (
             <div className="bg-card border border-border rounded-xl overflow-hidden shadow-elegant">
-              <div className="overflow-x-auto">
-                <table className="w-full">
+              {/* Desktop Table View */}
+              <div className="hidden md:block overflow-x-auto -mx-4 sm:mx-0">
+                <table className="w-full min-w-[640px]">
                   <thead className="bg-muted/50 border-b border-border">
                     <tr>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      <th className="px-4 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                         Company
                       </th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      <th className="px-4 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                         Contact
                       </th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      <th className="px-4 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                         Details
                       </th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      <th className="px-4 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                         Status
                       </th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      <th className="px-4 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                         Actions
                       </th>
                     </tr>
@@ -321,7 +322,7 @@ export default function AdminCompanies() {
                           }`}
                         >
                           {/* Company Info Column */}
-                          <td className="px-6 py-4">
+                          <td className="px-4 sm:px-6 py-3 sm:py-4">
                             {isEditing ? (
                               <div className="space-y-3">
                                 <div>
@@ -393,7 +394,7 @@ export default function AdminCompanies() {
                           </td>
                           
                           {/* Contact Column */}
-                          <td className="px-6 py-4">
+                          <td className="px-4 sm:px-6 py-3 sm:py-4">
                             {isEditing ? (
                               <div className="space-y-2">
                                 <div>
@@ -473,7 +474,7 @@ export default function AdminCompanies() {
                           </td>
                           
                           {/* Details Column */}
-                          <td className="px-6 py-4">
+                          <td className="px-4 sm:px-6 py-3 sm:py-4">
                             {isEditing ? (
                               <div className="space-y-2">
                                 <div>
@@ -512,7 +513,7 @@ export default function AdminCompanies() {
                           </td>
                           
                           {/* Status Column */}
-                          <td className="px-6 py-4">
+                          <td className="px-4 sm:px-6 py-3 sm:py-4">
                             <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold ${
                               company.is_verified
                                 ? 'bg-success/10 text-success border border-success/20'
@@ -523,7 +524,7 @@ export default function AdminCompanies() {
                           </td>
                           
                           {/* Actions Column */}
-                          <td className="px-6 py-4">
+                          <td className="px-4 sm:px-6 py-3 sm:py-4">
                             {isEditing ? (
                               <div className="flex flex-col gap-2">
                                 <button
@@ -611,6 +612,305 @@ export default function AdminCompanies() {
                     })}
                   </tbody>
                 </table>
+              </div>
+
+              {/* Mobile Card View */}
+              <div className="md:hidden divide-y divide-border">
+                {filteredCompanies.map((company) => {
+                  const isEditing = editingCompanyId === company.id;
+                  const currentCompany = isEditing && editedCompany ? editedCompany : company;
+                  
+                  return (
+                    <div
+                      key={company.id}
+                      className={`p-4 space-y-4 ${isEditing ? 'bg-primary/5 border-l-4 border-l-primary' : ''}`}
+                    >
+                      {/* Company Header */}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          {currentCompany.logo_url ? (
+                            <img
+                              src={currentCompany.logo_url}
+                              alt={currentCompany.company_name || 'Company'}
+                              className="w-12 h-12 rounded-xl object-cover flex-shrink-0 border border-border"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                              <Building2 className="w-6 h-6 text-primary" />
+                            </div>
+                          )}
+                          <div className="min-w-0 flex-1">
+                            {isEditing ? (
+                              <div className="space-y-2">
+                                <input
+                                  type="text"
+                                  value={currentCompany.company_name || ''}
+                                  onChange={(e) => editedCompany && setEditedCompany({ ...editedCompany, company_name: e.target.value })}
+                                  className="w-full px-2 py-1.5 text-sm font-semibold bg-background border border-input rounded focus:outline-none focus:ring-2 focus:ring-primary"
+                                  placeholder="Company Name"
+                                />
+                                <input
+                                  type="text"
+                                  value={currentCompany.industry || ''}
+                                  onChange={(e) => editedCompany && setEditedCompany({ ...editedCompany, industry: e.target.value || null })}
+                                  className="w-full px-2 py-1 text-xs bg-background border border-input rounded focus:outline-none focus:ring-2 focus:ring-primary"
+                                  placeholder="Industry"
+                                />
+                              </div>
+                            ) : (
+                              <>
+                                <div className="text-sm font-semibold text-foreground truncate">{company.company_name}</div>
+                                {company.industry && (
+                                  <div className="text-xs text-muted-foreground truncate">{company.industry}</div>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        {!isEditing && (
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold flex-shrink-0 ${
+                            company.is_verified
+                              ? 'bg-success/10 text-success border border-success/20'
+                              : 'bg-warning/10 text-warning border border-warning/20'
+                          }`}>
+                            {company.is_verified ? 'Verified' : 'Pending'}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Contact Information */}
+                      {isEditing ? (
+                        <div className="space-y-2">
+                          <div>
+                            <label className="text-xs font-medium text-muted-foreground mb-1 block">Email</label>
+                            <input
+                              type="email"
+                              value={currentCompany.contact_email || ''}
+                              onChange={(e) => editedCompany && setEditedCompany({ ...editedCompany, contact_email: e.target.value || null })}
+                              className="w-full px-2 py-1.5 text-sm bg-background border border-input rounded focus:outline-none focus:ring-2 focus:ring-primary"
+                              placeholder="contact@company.com"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs font-medium text-muted-foreground mb-1 block">Phone</label>
+                            <input
+                              type="tel"
+                              value={currentCompany.contact_phone || ''}
+                              onChange={(e) => editedCompany && setEditedCompany({ ...editedCompany, contact_phone: e.target.value || null })}
+                              className="w-full px-2 py-1.5 text-sm bg-background border border-input rounded focus:outline-none focus:ring-2 focus:ring-primary"
+                              placeholder="+212 6XX XXX XXX"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs font-medium text-muted-foreground mb-1 block">Website</label>
+                            <input
+                              type="url"
+                              value={currentCompany.website || ''}
+                              onChange={(e) => editedCompany && setEditedCompany({ ...editedCompany, website: e.target.value || null })}
+                              className="w-full px-2 py-1.5 text-sm bg-background border border-input rounded focus:outline-none focus:ring-2 focus:ring-primary"
+                              placeholder="https://company.com"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs font-medium text-muted-foreground mb-1 block">Address</label>
+                            <input
+                              type="text"
+                              value={currentCompany.address || ''}
+                              onChange={(e) => editedCompany && setEditedCompany({ ...editedCompany, address: e.target.value || null })}
+                              className="w-full px-2 py-1.5 text-sm bg-background border border-input rounded focus:outline-none focus:ring-2 focus:ring-primary"
+                              placeholder="Company address"
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {(company.contact_email || company.contact_phone) && (
+                            <div className="space-y-1.5">
+                              {company.contact_email && (
+                                <div className="flex items-center gap-2 text-sm">
+                                  <Mail className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                                  <span className="text-foreground truncate">{company.contact_email}</span>
+                                </div>
+                              )}
+                              {company.contact_phone && (
+                                <div className="flex items-center gap-2 text-sm">
+                                  <Phone className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                                  <span className="text-foreground">{company.contact_phone}</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          {(company.website || company.address) && (
+                            <div className="space-y-1.5">
+                              {company.website && (
+                                <div className="flex items-center gap-2 text-sm">
+                                  <Globe className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                                  <a href={company.website} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate text-sm">
+                                    {company.website.replace(/^https?:\/\//, '')}
+                                  </a>
+                                </div>
+                              )}
+                              {company.address && (
+                                <div className="flex items-start gap-2 text-sm">
+                                  <MapPin className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                                  <span className="text-muted-foreground text-xs leading-relaxed">{company.address}</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          {!company.contact_email && !company.contact_phone && !company.website && !company.address && (
+                            <span className="text-xs text-muted-foreground italic">No contact information</span>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Details */}
+                      {isEditing ? (
+                        <div className="space-y-2">
+                          <div>
+                            <label className="text-xs font-medium text-muted-foreground mb-1 block">Description</label>
+                            <textarea
+                              value={currentCompany.description || ''}
+                              onChange={(e) => editedCompany && setEditedCompany({ ...editedCompany, description: e.target.value || null })}
+                              rows={3}
+                              className="w-full px-2 py-1.5 text-sm bg-background border border-input rounded focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                              placeholder="Company description..."
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs font-medium text-muted-foreground mb-1 block">Company Size</label>
+                            <select
+                              value={currentCompany.company_size || ''}
+                              onChange={(e) => editedCompany && setEditedCompany({ ...editedCompany, company_size: e.target.value || null })}
+                              className="w-full px-2 py-1.5 text-sm bg-background border border-input rounded focus:outline-none focus:ring-2 focus:ring-primary"
+                            >
+                              <option value="">Select size</option>
+                              <option value="1-10">1-10 employees</option>
+                              <option value="11-50">11-50 employees</option>
+                              <option value="51-200">51-200 employees</option>
+                              <option value="201-500">201-500 employees</option>
+                              <option value="501-1000">501-1000 employees</option>
+                              <option value="1000+">1000+ employees</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-xs font-medium text-muted-foreground mb-1 block">Logo</label>
+                            <ImageUpload
+                              currentImageUrl={currentCompany.logo_url || null}
+                              onImageSelect={handleLogoSelect}
+                              onImageRemove={() => {
+                                setLogoFile(null);
+                                if (editedCompany) {
+                                  setEditedCompany({ ...editedCompany, logo_url: null });
+                                }
+                              }}
+                              label=""
+                              maxSizeMB={5}
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        (company.description || company.company_size) && (
+                          <div className="space-y-1.5 pt-2 border-t border-border/50">
+                            {company.description && (
+                              <p className="text-xs text-muted-foreground line-clamp-2">{company.description}</p>
+                            )}
+                            {company.company_size && (
+                              <div className="flex items-center gap-2">
+                                <Users className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                                <span className="text-xs text-foreground">{company.company_size} employees</span>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      )}
+
+                      {/* Actions */}
+                      <div className="flex flex-col gap-2 pt-2 border-t border-border/50">
+                        {isEditing ? (
+                          <>
+                            <button
+                              onClick={() => saveCompany(company.id)}
+                              disabled={savingCompanyId === company.id || uploadingLogo === company.id}
+                              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {savingCompanyId === company.id || uploadingLogo === company.id ? (
+                                <>
+                                  <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+                                  Saving...
+                                </>
+                              ) : (
+                                <>
+                                  <Save className="w-4 h-4" />
+                                  Save Changes
+                                </>
+                              )}
+                            </button>
+                            <button
+                              onClick={cancelEditing}
+                              disabled={savingCompanyId === company.id}
+                              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-muted text-foreground rounded-lg text-sm font-medium hover:bg-muted/80 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <X className="w-4 h-4" />
+                              Cancel
+                            </button>
+                          </>
+                        ) : (
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              onClick={() => startEditing(company)}
+                              className="flex items-center justify-center gap-2 px-3 py-2 bg-primary/10 text-primary rounded-lg text-sm font-medium hover:bg-primary/20"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                              Edit
+                            </button>
+                            {!company.is_verified ? (
+                              <button
+                                onClick={() => handleVerifyCompany(company.id, true)}
+                                disabled={verifying === company.id}
+                                className="px-3 py-2 bg-success text-success-foreground rounded-lg text-sm font-semibold hover:bg-success/90 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                              >
+                                {verifying === company.id ? (
+                                  <>
+                                    <div className="w-4 h-4 border-2 border-success-foreground border-t-transparent rounded-full animate-spin" />
+                                    Verifying...
+                                  </>
+                                ) : (
+                                  <>
+                                    <CheckCircle className="w-4 h-4" />
+                                    Verify
+                                  </>
+                                )}
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => {
+                                  if (confirm('Are you sure you want to unverify this company? Their offers will no longer be visible to students.')) {
+                                    handleVerifyCompany(company.id, false);
+                                  }
+                                }}
+                                disabled={verifying === company.id}
+                                className="px-3 py-2 bg-destructive/10 text-destructive rounded-lg text-sm font-semibold hover:bg-destructive/20 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 border border-destructive/20"
+                              >
+                                {verifying === company.id ? (
+                                  <>
+                                    <div className="w-4 h-4 border-2 border-destructive border-t-transparent rounded-full animate-spin" />
+                                    Updating...
+                                  </>
+                                ) : (
+                                  <>
+                                    <X className="w-4 h-4" />
+                                    Unverify
+                                  </>
+                                )}
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

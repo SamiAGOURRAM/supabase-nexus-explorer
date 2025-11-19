@@ -165,7 +165,7 @@ export default function AdminEvents() {
 
   return (
     <AdminLayout onSignOut={signOut}>
-      <div className="p-8">
+      <div className="p-4 sm:p-6 md:p-8">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -183,7 +183,7 @@ export default function AdminEvents() {
 
           {/* Create Event Form */}
           {showCreateForm && (
-          <div className="bg-card rounded-xl border border-border p-6 mb-8">
+          <div className="bg-card rounded-xl border border-border p-4 sm:p-6 mb-8">
             <h2 className="text-xl font-semibold text-foreground mb-4">Create New Event</h2>
             <form onSubmit={handleCreateEvent} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -331,17 +331,17 @@ export default function AdminEvents() {
                 key={event.id}
                 className="bg-card border border-border rounded-xl p-6 hover:border-primary hover:shadow-elegant transition-all"
               >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <Calendar className="w-8 h-8 text-primary" />
-                    <div>
-                      <h3 className="text-xl font-semibold text-foreground">{event.name}</h3>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <Calendar className="w-8 h-8 text-primary flex-shrink-0" />
+                    <div className="min-w-0">
+                      <h3 className="text-lg sm:text-xl font-semibold text-foreground truncate">{event.name}</h3>
                       <p className="text-sm text-muted-foreground mt-1">
                         {new Date(event.date).toLocaleDateString()} {event.location && `• ${event.location}`}
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                       event.is_active
                         ? 'bg-success/10 text-success'
@@ -381,13 +381,13 @@ export default function AdminEvents() {
                 )}
 
                 {/* Management Links */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3 mt-4">
                   <Link
                     to={`/admin/events/${event.id}/quick-invite`}
-                    className="flex items-center gap-2 px-4 py-3 bg-primary/5 border border-primary/20 rounded-lg hover:bg-primary/10 transition-colors group"
+                    className="flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 bg-primary/5 border border-primary/20 rounded-lg hover:bg-primary/10 transition-colors group"
                   >
-                    <Users className="w-5 h-5 text-primary" />
-                    <span className="text-sm font-medium text-foreground">Quick Invite</span>
+                    <Users className="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0" />
+                    <span className="text-xs sm:text-sm font-medium text-foreground text-center">Quick Invite</span>
                   </Link>
                   <Link
                     to={`/admin/events/${event.id}/phases`}
@@ -470,7 +470,12 @@ export default function AdminEvents() {
                     Cancel
                   </button>
                   <button
-                    onClick={() => performToggleActive(deactivateConfirm.eventId, true)}
+                    onClick={() => {
+                      const event = events.find(e => e.id === deactivateConfirm.eventId);
+                      if (event) {
+                        performToggleActive(deactivateConfirm.eventId, event.is_active);
+                      }
+                    }}
                     disabled={togglingId === deactivateConfirm.eventId}
                     className="px-4 py-2 bg-warning text-warning-foreground rounded-lg hover:bg-warning/90 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                   >

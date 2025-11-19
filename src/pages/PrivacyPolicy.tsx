@@ -165,7 +165,7 @@ export default function PrivacyPolicy() {
               <div className="border-l-4 border-primary pl-4">
                 <h3 className="font-semibold text-foreground mb-1">Right to Data Portability</h3>
                 <p className="text-muted-foreground text-sm">
-                  You can export your data in a machine-readable format (JSON) from your profile page.
+                  You can export your data in a machine-readable format (CSV) from your profile page.
                 </p>
               </div>
             </div>

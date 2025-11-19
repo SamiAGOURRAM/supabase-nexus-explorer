@@ -241,7 +241,6 @@ export default function OfferDetail() {
     
     debug('[DEBUG] ALL SLOTS for company (no filters):', {
       total: allSlots?.length || 0,
-      samples: allSlots?.slice(0, 3),
       breakdown: {
         active: allSlots?.filter(s => s.is_active).length || 0,
         inactive: allSlots?.filter(s => !s.is_active).length || 0,
@@ -263,9 +262,7 @@ export default function OfferDetail() {
 
     debug('[OfferDetail] FILTERED QUERY RESULT (future only):', {
       error: slotsError,
-      data: slotsData,
-      count: slotsData?.length || 0,
-      sample: slotsData?.[0]
+      count: slotsData?.length || 0
     });
 
     // If no future slots, get ALL active slots (including past ones)
@@ -283,13 +280,12 @@ export default function OfferDetail() {
       slotsError = allSlotsError;
       
       debug('[OfferDetail] ALL ACTIVE SLOTS (including past):', {
-        count: slotsData?.length || 0,
-        samples: slotsData?.slice(0, 3)
+        count: slotsData?.length || 0
       });
     }
     if (slotsError) {
       logError('[OfferDetail] Error fetching slots:', slotsError);
-      alert(`Error fetching slots: ${slotsError.message}`);
+      showError(`Error fetching slots: ${slotsError.message}`);
     }
 
     if (slotsData) {

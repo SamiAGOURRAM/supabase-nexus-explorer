@@ -7,7 +7,7 @@ import LoadingScreen from '@/components/shared/LoadingScreen';
 import ErrorDisplay from '@/components/shared/ErrorDisplay';
 import EmptyState from '@/components/shared/EmptyState';
 import { useAuth } from '@/hooks/useAuth';
-import { debug, warn as logWarn, error as logError } from '@/utils/logger';
+import { warn as logWarn, error as logError } from '@/utils/logger';
 
 type StudentBooking = {
   booking_id: string;
@@ -66,12 +66,9 @@ export default function CompanyStudents() {
       }
 
       if (!slots || slots.length === 0) {
-        debug('📊 No slots found for company:', company.id);
         setStudents([]);
         return;
       }
-
-      debug('📊 Found slots for company:', slots.length);
 
       const slotIds = slots.map((s) => s.id);
       
@@ -107,12 +104,9 @@ export default function CompanyStudents() {
       }
 
       if (!bookings || bookings.length === 0) {
-        debug('📊 No bookings found for company slots');
         setStudents([]);
         return;
       }
-
-      debug('📊 Found bookings:', bookings.length);
 
       const studentIds = [...new Set(bookings.map((b) => b.student_id))];
       
@@ -163,19 +157,6 @@ export default function CompanyStudents() {
         (a, b) => new Date(b.slot_time).getTime() - new Date(a.slot_time).getTime()
       );
 
-      // Debug logging (development only)
-      debug('📊 Company Students Data:', {
-        companyId: company.id,
-        slotsCount: slots.length,
-        offerIdsCount: offerIds.length,
-        bookingsCount: bookings.length,
-        studentsCount: studentIds.length,
-        profilesCount: profiles.length,
-        studentsDataCount: studentsData.length,
-        sampleStudent: studentsData[0] || null,
-        sampleBooking: bookings[0] || null,
-        sampleSlot: slots[0] || null
-      });
 
       setStudents(studentsData);
     } catch (err: any) {

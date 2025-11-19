@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { checkRateLimitDirect, recordFailedAttempt, clearRateLimit } from '@/hooks/useRateLimit';
 import { useCaptcha, getCaptchaConfig } from '@/hooks/useCaptcha';
+import { debug, error as logError } from '@/utils/logger';
 
 // Password validation regex patterns
 const PASSWORD_REQUIREMENTS = {
@@ -239,7 +240,7 @@ export default function Signup() {
         }
         
         if (signupError.message.includes('Database error') || signupError.message.includes('saving new user')) {
-          console.error('Database error during signup - trigger may have failed:', signupError);
+          logError('Database error during signup - trigger may have failed:', signupError);
           throw new Error('Account creation failed. Please try again or contact support if the issue persists.');
         }
         
@@ -269,13 +270,13 @@ export default function Signup() {
           .eq('id', data.user.id);
 
         if (consentError) {
-          console.error('Error updating consent:', consentError);
+          logError('Error updating consent:', consentError);
           // Non-critical error, continue with signup
         }
       }
 
-      console.log('✅ Account created successfully for:', sanitizedEmail);
-      console.log('📧 Check your email for verification link');
+      debug('✅ Account created successfully for:', sanitizedEmail);
+      debug('📧 Check your email for verification link');
       
       // Clear rate limit on success
       await clearRateLimit(sanitizedEmail);

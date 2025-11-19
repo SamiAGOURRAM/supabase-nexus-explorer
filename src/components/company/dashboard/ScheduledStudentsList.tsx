@@ -18,7 +18,7 @@ import type { ScheduledStudent } from '@/hooks/useCompanyStats';
 export default function ScheduledStudentsList({ students }: { students: ScheduledStudent[] }) {
   return (
     <div className="bg-card rounded-xl border border-border p-6">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
         <h2 className="text-xl font-bold text-foreground">Scheduled Interviews</h2>
         <Link to="/company/students" className="text-sm text-primary hover:text-primary/80 transition-colors">
           View All Students

@@ -39,7 +39,7 @@ export default function Home() {
           events: eventsCount ?? 0,
         });
       } catch (error) {
-        console.error('Failed to load live stats:', error);
+        // Error is already handled by setting statsError state
         if (isMounted) {
           setStatsError('Live stats are temporarily unavailable.');
         }
@@ -58,9 +58,9 @@ export default function Home() {
 
   const statCards = useMemo(
     () => [
-      { label: 'Active offers', value: liveStats.offers, helper: 'Open for booking' },
-      { label: 'Verified partners', value: liveStats.companies, helper: 'Hospitality leaders' },
-      { label: 'Events in motion', value: liveStats.events, helper: 'This season' },
+      { label: 'Active offers', value: liveStats.offers, helper: 'Available for booking' },
+      { label: 'Verified companies', value: liveStats.companies, helper: 'Partner organizations' },
+      { label: 'Active events', value: liveStats.events, helper: 'Currently running' },
     ],
     [liveStats]
   );

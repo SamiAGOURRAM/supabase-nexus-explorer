@@ -7,7 +7,7 @@ import { validateEmail, validatePhoneNumber } from '@/utils/securityUtils';
 import { error as logError } from '@/utils/logger';
 import LoadingScreen from '@/components/shared/LoadingScreen';
 import ErrorDisplay from '@/components/shared/ErrorDisplay';
-import { exportUserData, downloadUserDataAsJson } from '@/utils/dataExport';
+import { exportUserData, downloadUserDataAsCsv } from '@/utils/dataExport';
 import ImageUpload from '@/components/shared/ImageUpload';
 import { uploadLogo } from '@/utils/fileUpload';
 
@@ -357,9 +357,17 @@ export default function CompanyProfile() {
     
     setExportingData(true);
     try {
-      const userData = await exportUserData(profile.id);
+      // Get the user's profile ID from auth (not the company ID)
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        showError('You must be logged in to export your data.');
+        setExportingData(false);
+        return;
+      }
+
+      const userData = await exportUserData(user.id);
       if (userData) {
-        downloadUserDataAsJson(userData);
+        downloadUserDataAsCsv(userData);
         showSuccess('Your data has been exported successfully!');
       } else {
         showError('Failed to export data. Please try again.');

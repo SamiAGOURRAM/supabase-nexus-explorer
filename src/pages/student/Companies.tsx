@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/contexts/ToastContext';
 import { Building2, Search, CheckCircle, MapPin, Globe, Briefcase } from 'lucide-react';
@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import LoadingScreen from '@/components/shared/LoadingScreen';
 import ErrorDisplay from '@/components/shared/ErrorDisplay';
 import EmptyState from '@/components/shared/EmptyState';
+import StudentLayout from '@/components/student/StudentLayout';
 
 type Company = {
   id: string;
@@ -22,11 +23,17 @@ type Company = {
 
 export default function StudentCompanies() {
   const { user, loading: authLoading } = useAuth('student');
+  const navigate = useNavigate();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const { showError } = useToast();
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    navigate('/');
+  };
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -114,39 +121,24 @@ export default function StudentCompanies() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-background">
-        <header className="bg-card border-b border-border">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <h1 className="text-2xl font-bold text-foreground">Browse Companies</h1>
+      <StudentLayout onSignOut={handleSignOut}>
+        <div className="p-6 md:p-8">
+          <div className="max-w-7xl mx-auto">
+            <ErrorDisplay error={error} onRetry={loadCompanies} />
           </div>
-        </header>
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <ErrorDisplay error={error} onRetry={loadCompanies} />
-        </main>
-      </div>
+        </div>
+      </StudentLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="bg-card border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">Browse Companies</h1>
-              <p className="text-sm text-muted-foreground mt-1">Explore verified companies participating in the event</p>
-            </div>
-            <Link
-              to="/student"
-              className="text-sm text-primary hover:text-primary/80 transition-colors"
-            >
-              ← Back to Dashboard
-            </Link>
+    <StudentLayout onSignOut={handleSignOut}>
+      <div className="p-6 md:p-8">
+        <div className="max-w-7xl mx-auto space-y-6">
+          <div>
+            <h1 className="text-3xl md:text-4xl font-bold text-foreground">Browse Companies</h1>
+            <p className="text-muted-foreground text-sm md:text-base mt-1">Explore verified companies participating in the event</p>
           </div>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Search */}
         <div className="mb-6">
           <div className="relative">
@@ -274,8 +266,9 @@ export default function StudentCompanies() {
             ))}
           </div>
         )}
-      </main>
-    </div>
+        </div>
+      </div>
+    </StudentLayout>
   );
 }
 

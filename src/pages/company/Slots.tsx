@@ -7,7 +7,7 @@ import { extractFirstFromNested } from '@/utils/supabaseTypes';
 import LoadingScreen from '@/components/shared/LoadingScreen';
 import ErrorDisplay from '@/components/shared/ErrorDisplay';
 import EmptyState from '@/components/shared/EmptyState';
-import { debug, warn as logWarn, error as logError } from '@/utils/logger';
+import { warn as logWarn, error as logError } from '@/utils/logger';
 
 type Booking = {
   id: string;
@@ -93,8 +93,7 @@ export default function CompanySlots() {
         throw new Error(`Failed to load slots: ${slotsError.message}`);
       }
 
-      // Debug: Log slots to see offer_id (development only)
-      debug('📅 Company Slots:', eventSlots?.map(s => ({ id: s.id, offer_id: s.offer_id, start_time: s.start_time })));
+      // Debug: Log slots to see offer_id (development only) - disabled to reduce console noise
 
       if (eventSlots && eventSlots.length > 0) {
       // Get event details
@@ -105,6 +104,33 @@ export default function CompanySlots() {
         .in('id', eventIds);
 
       const eventMap = new Map(events?.map(e => [e.id, e]) || []);
+      
+          // Batch fetch all offers for all slots to reduce queries and warnings
+          const offerIds = [...new Set(eventSlots.map(s => s.offer_id).filter((id): id is string => id !== null))];
+          const offerMap = new Map<string, string>();
+          
+          if (offerIds.length > 0) {
+            const { data: offers, error: offersError } = await supabase
+              .from('offers')
+              .select('id, title')
+              .in('id', offerIds);
+            
+            if (offersError) {
+              logError('Failed to load offers:', offersError);
+            } else if (offers) {
+              offers.forEach(offer => {
+                offerMap.set(offer.id, offer.title);
+              });
+              
+              // Log missing offers only once as a summary (development only)
+              if (import.meta.env.DEV) {
+                const missingOfferIds = offerIds.filter(id => !offerMap.has(id));
+                if (missingOfferIds.length > 0) {
+                  logWarn(`Found ${missingOfferIds.length} slot(s) with missing offers: ${missingOfferIds.slice(0, 3).join(', ')}${missingOfferIds.length > 3 ? '...' : ''}`);
+                }
+              }
+            }
+          }
       
           // Get bookings with student and offer info
           // Use the slot's offer_id directly since we already have it
@@ -121,27 +147,8 @@ export default function CompanySlots() {
                 .eq('slot_id', slot.id)
                 .eq('status', 'confirmed');
 
-          // Get offer information for this slot (use slot's offer_id directly)
-          let offerTitle = null;
-          if (slot.offer_id) {
-            const { data: offer, error: offerError } = await supabase
-              .from('offers')
-              .select('id, title')
-              .eq('id', slot.offer_id)
-              .maybeSingle();
-            
-            if (offerError) {
-              logWarn(`Failed to load offer ${slot.offer_id}:`, offerError);
-            }
-            
-            if (offer) {
-              offerTitle = offer.title;
-            } else {
-              logWarn(`Offer ${slot.offer_id} not found for slot ${slot.id}`);
-            }
-          } else {
-            logWarn(`Slot ${slot.id} has no offer_id`);
-          }
+          // Get offer information from the pre-fetched map
+          const offerTitle = slot.offer_id ? offerMap.get(slot.offer_id) || null : null;
           
           // Transform bookings to match our Booking type
           // Handle nested profiles array (Supabase !inner join returns arrays)

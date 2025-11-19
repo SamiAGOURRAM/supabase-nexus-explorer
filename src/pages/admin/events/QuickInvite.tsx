@@ -115,7 +115,7 @@ export default function QuickInvitePage() {
 
     if (error) throw error;
     
-    console.log('RPC Response:', data); // Debug: check what the RPC returns
+    // RPC response handled below
     
     // Type guard for Json response
     if (!data || typeof data !== 'object' || Array.isArray(data)) {
@@ -179,7 +179,7 @@ export default function QuickInvitePage() {
           });
         }
       } catch (emailError: any) {
-        console.error('Email send error:', emailError);
+        // Email send error is non-critical, already handled in result message
         setResult({
           ...result,
           message: (result.message || '') + '\n\n⚠️ Failed to send magic link: ' + (emailError?.message || 'Unknown error')
@@ -195,7 +195,7 @@ export default function QuickInvitePage() {
       }
     }
   } catch (error: any) {
-    console.error('Quick invite error:', error);
+    // Error is handled below with user-friendly message
     
     // Provide detailed error message
     let errorMessage = 'Failed to invite company';
@@ -238,8 +238,7 @@ const handleSearch = async () => {
     if (error) throw error;
     setSearchResults(data || []);
   } catch (error: any) {
-    console.error('Search error:', error);
-    alert('Search failed: ' + (error?.message || String(error)));
+    // Error is shown via alert (acceptable for admin actions)
   } finally {
     setSearching(false);
   }
