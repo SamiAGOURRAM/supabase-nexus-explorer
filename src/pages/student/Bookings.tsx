@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/contexts/ToastContext';
-import { ArrowLeft, Calendar, Clock, MapPin, Building2, Briefcase } from 'lucide-react';
+import { Calendar, Clock, MapPin, Building2, Briefcase } from 'lucide-react';
 import LoadingScreen from '@/components/shared/LoadingScreen';
 import ErrorDisplay from '@/components/shared/ErrorDisplay';
 import EmptyState from '@/components/shared/EmptyState';
 import { useAuth } from '@/hooks/useAuth';
+import StudentLayout from '@/components/student/StudentLayout';
 
 type Booking = {
   id: string;
@@ -21,6 +22,7 @@ type Booking = {
 
 export default function StudentBookings() {
   const { user, loading: authLoading } = useAuth('student');
+  const navigate = useNavigate();
   const { showSuccess, showError } = useToast();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -28,6 +30,11 @@ export default function StudentBookings() {
   const [events, setEvents] = useState<Array<{ id: string; name: string; date: string }>>([]);
   const [selectedEventId, setSelectedEventId] = useState<string>('all');
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    navigate('/');
+  };
 
   const loadBookings = useCallback(
     async (studentId: string, eventFilter?: string, manageLoading = true) => {
@@ -194,48 +201,31 @@ export default function StudentBookings() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-background">
-        <header className="bg-card border-b border-border">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div className="flex items-center gap-4">
-              <Link to="/student" className="text-muted-foreground hover:text-foreground">
-                <ArrowLeft className="w-5 h-5" />
-              </Link>
-              <h1 className="text-2xl font-bold text-foreground">My Bookings</h1>
-            </div>
+      <StudentLayout onSignOut={handleSignOut}>
+        <div className="p-6 md:p-8">
+          <div className="max-w-7xl mx-auto">
+            <ErrorDisplay
+              error={error}
+              onRetry={async () => {
+                if (user) {
+                  await loadBookings(user.id, selectedEventId);
+                }
+              }}
+            />
           </div>
-        </header>
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <ErrorDisplay
-            error={error}
-            onRetry={async () => {
-              if (user) {
-                await loadBookings(user.id, selectedEventId);
-              }
-            }}
-          />
-        </main>
-      </div>
+        </div>
+      </StudentLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="bg-card border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center gap-4">
-            <Link to="/student" className="text-muted-foreground hover:text-foreground">
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">My Bookings</h1>
-              <p className="text-sm text-muted-foreground mt-1">Manage your interview appointments</p>
-            </div>
+    <StudentLayout onSignOut={handleSignOut}>
+      <div className="p-6 md:p-8">
+        <div className="max-w-7xl mx-auto space-y-6">
+          <div>
+            <h1 className="text-3xl md:text-4xl font-bold text-foreground">My Bookings</h1>
+            <p className="text-muted-foreground text-sm md:text-base mt-1">Manage your interview appointments</p>
           </div>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Event Selector */}
         {events.length > 0 && (
           <div className="bg-card rounded-xl border border-border p-4 mb-6">
@@ -399,7 +389,8 @@ export default function StudentBookings() {
             className="bg-card rounded-xl border border-border p-8"
           />
         )}
-      </main>
-    </div>
+        </div>
+      </div>
+    </StudentLayout>
   );
 }

@@ -9,7 +9,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/contexts/ToastContext';
-import { ArrowLeft, User, Save, GraduationCap, Phone, FileText, Mail, Languages, Briefcase, Linkedin, BookOpen, Calendar, X, Trash2, AlertTriangle } from 'lucide-react';
+import { User, Save, GraduationCap, Phone, FileText, Mail, Languages, Briefcase, Linkedin, BookOpen, Calendar, X, Trash2, AlertTriangle, Download, Building2, Clock, MapPin } from 'lucide-react';
 import { validatePhoneNumber } from '@/utils/securityUtils';
 import { error as logError } from '@/utils/logger';
 import LoadingScreen from '@/components/shared/LoadingScreen';
@@ -17,6 +17,8 @@ import ErrorDisplay from '@/components/shared/ErrorDisplay';
 import ImageUpload from '@/components/shared/ImageUpload';
 import FileUpload from '@/components/shared/FileUpload';
 import { uploadProfilePhoto, uploadResume } from '@/utils/fileUpload';
+import { exportUserData, downloadUserDataAsCsv } from '@/utils/dataExport';
+import StudentLayout from '@/components/student/StudentLayout';
 
 type StudentProfile = {
   id: string;
@@ -34,9 +36,11 @@ type StudentProfile = {
   linkedin_url: string | null;
   resume_url: string | null;
   year_of_study: number | null;
+  is_deprioritized: boolean;
 };
 
 export default function StudentProfile() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<Error | null>(null);
@@ -46,16 +50,29 @@ export default function StudentProfile() {
   const [uploadingResume, setUploadingResume] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [resumeFile, setResumeFile] = useState<File | null>(null);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    navigate('/');
+  };
   const [languageInput, setLanguageInput] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
-  const navigate = useNavigate();
+  const [exportingData, setExportingData] = useState(false);
+  const [bookings, setBookings] = useState<any[]>([]);
+  const [loadingBookings, setLoadingBookings] = useState(false);
   const { showSuccess, showError } = useToast();
 
   useEffect(() => {
     loadProfile();
   }, []);
+
+  useEffect(() => {
+    if (profile?.id) {
+      loadBookings();
+    }
+  }, [profile?.id]);
 
   const loadProfile = async () => {
     try {
@@ -67,7 +84,7 @@ export default function StudentProfile() {
 
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select('id, email, full_name, phone, student_number, specialization, graduation_year, cv_url, profile_photo_url, languages_spoken, program, biography, linkedin_url, resume_url, year_of_study')
+        .select('id, email, full_name, phone, student_number, specialization, graduation_year, cv_url, profile_photo_url, languages_spoken, program, biography, linkedin_url, resume_url, year_of_study, is_deprioritized')
         .eq('id', user.id)
         .maybeSingle();
 
@@ -98,6 +115,7 @@ export default function StudentProfile() {
         resume_url: profileDataAny.resume_url || null,
         year_of_study: profileDataAny.year_of_study || null,
         profile_photo_url: profileDataAny.profile_photo_url || null,
+        is_deprioritized: profileDataAny.is_deprioritized || false,
       };
 
       setProfile(profileWithDefaults);
@@ -271,6 +289,7 @@ export default function StudentProfile() {
           linkedin_url: finalLinkedinUrl,
           resume_url: resumeUrl,
           year_of_study: profile.year_of_study || null,
+          is_deprioritized: profile.is_deprioritized,
         })
         .eq('id', profile.id);
 
@@ -294,6 +313,76 @@ export default function StudentProfile() {
       setSaving(false);
       setUploadingPhoto(false);
       setUploadingResume(false);
+    }
+  };
+
+  const loadBookings = async () => {
+    if (!profile?.id) return;
+    
+    setLoadingBookings(true);
+    try {
+      const { data, error: rpcError } = await supabase.rpc('fn_get_student_bookings', {
+        p_student_id: profile.id,
+      });
+
+      if (rpcError) {
+        logError('Error loading bookings:', rpcError);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        // Fetch slot details to get location information
+        const slotIds = data.map((b: any) => b.slot_id).filter(Boolean);
+        let slotMap = new Map();
+        
+        if (slotIds.length > 0) {
+          const { data: slots } = await supabase
+            .from('event_slots')
+            .select('id, location')
+            .in('id', slotIds);
+          
+          if (slots) {
+            slotMap = new Map(slots.map((s: any) => [s.id, s.location]));
+          }
+        }
+
+        const formattedBookings = data.map((booking: any) => ({
+          id: booking.booking_id,
+          status: booking.status,
+          slot_time: booking.slot_time,
+          slot_location: booking.slot_location || slotMap.get(booking.slot_id) || null,
+          company_name: booking.company_name,
+          offer_title: booking.offer_title,
+          notes: booking.notes || null,
+        }));
+        setBookings(formattedBookings);
+      } else {
+        setBookings([]);
+      }
+    } catch (err: any) {
+      logError('Error loading bookings:', err);
+    } finally {
+      setLoadingBookings(false);
+    }
+  };
+
+  const handleExportData = async () => {
+    if (!profile) return;
+    
+    setExportingData(true);
+    try {
+      const userData = await exportUserData(profile.id);
+      if (userData) {
+        downloadUserDataAsCsv(userData);
+        showSuccess('Your data has been exported successfully!');
+      } else {
+        showError('Failed to export data. Please try again.');
+      }
+    } catch (err: any) {
+      logError('Error exporting data:', err);
+      showError('Failed to export data. Please try again.');
+    } finally {
+      setExportingData(false);
     }
   };
 
@@ -375,21 +464,13 @@ export default function StudentProfile() {
 
   if (error && !profile) {
     return (
-      <div className="min-h-screen bg-background">
-        <header className="bg-card border-b border-border">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div className="flex items-center gap-4">
-              <Link to="/student" className="text-muted-foreground hover:text-foreground">
-                <ArrowLeft className="w-5 h-5" />
-              </Link>
-              <h1 className="text-2xl font-bold text-foreground">My Profile</h1>
-            </div>
+      <StudentLayout onSignOut={handleSignOut}>
+        <div className="p-6 md:p-8">
+          <div className="max-w-4xl mx-auto">
+            <ErrorDisplay error={error} onRetry={loadProfile} />
           </div>
-        </header>
-        <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <ErrorDisplay error={error} onRetry={loadProfile} />
-        </main>
-      </div>
+        </div>
+      </StudentLayout>
     );
   }
 
@@ -401,22 +482,13 @@ export default function StudentProfile() {
   const graduationYears = Array.from({ length: 11 }, (_, i) => currentYear - 5 + i);
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="bg-card border-b border-border">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center gap-4">
-            <Link to="/student" className="text-muted-foreground hover:text-foreground">
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
-            <div className="flex items-center gap-3">
-              <User className="w-6 h-6 text-primary" />
-              <h1 className="text-2xl font-bold text-foreground">My Profile</h1>
-            </div>
+    <StudentLayout onSignOut={handleSignOut}>
+      <div className="p-6 md:p-8">
+        <div className="max-w-4xl mx-auto space-y-6">
+          <div className="flex items-center gap-3">
+            <User className="w-6 h-6 text-primary" />
+            <h1 className="text-3xl md:text-4xl font-bold text-foreground">My Profile</h1>
           </div>
-        </div>
-      </header>
-
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {error && (
           <div className="mb-6">
             <ErrorDisplay error={error} onRetry={loadProfile} />
@@ -722,21 +794,163 @@ export default function StudentProfile() {
               </p>
             </div>
 
-            <div className="flex justify-end gap-3 pt-4 border-t border-border">
-              <Link
-                to="/student"
-                className="px-6 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Cancel
-              </Link>
+            {/* Internship Status */}
+            <div className="bg-muted/30 border border-border/50 rounded-xl p-6">
+              <div className="flex items-start gap-3">
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-foreground mb-3">Internship Status</h3>
+                  <div className="flex items-start gap-3">
+                    <div className="flex items-center h-5 mt-0.5">
+                      <input
+                        id="is_deprioritized"
+                        type="checkbox"
+                        checked={profile.is_deprioritized}
+                        onChange={(e) => setProfile({ ...profile, is_deprioritized: e.target.checked })}
+                        className="w-4 h-4 text-primary border-border rounded focus:ring-primary"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="is_deprioritized" className="font-medium text-foreground cursor-pointer">
+                        I have already secured an internship
+                      </label>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Check this box if you have already found an internship. This will mark your profile as "Secured Internship" to recruiters, 
+                        indicating that you are not actively looking. You can still participate in the event.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Interview History Section */}
+            <div className="bg-card rounded-xl border border-border p-6">
+              <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                <Calendar className="w-5 h-5" />
+                Interview History
+              </h3>
+
+              {loadingBookings ? (
+                <div className="text-center py-8">
+                  <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">Loading interview history...</p>
+                </div>
+              ) : bookings.length === 0 ? (
+                <div className="text-center py-12">
+                  <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+                  <p className="text-muted-foreground mb-4">No interviews scheduled yet</p>
+                  <Link
+                    to="/student/offers"
+                    className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary hover:text-primary/80 transition-colors"
+                  >
+                    Browse Offers
+                  </Link>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {bookings.map((booking) => {
+                    const slotDate = booking.slot_time ? new Date(booking.slot_time) : null;
+                    const isPast = slotDate ? slotDate < new Date() : false;
+                    const isCancelled = booking.status === 'cancelled';
+
+                    return (
+                      <div
+                        key={booking.id}
+                        className={`p-4 rounded-lg border ${
+                          isCancelled
+                            ? 'bg-muted/30 border-border opacity-60'
+                            : isPast
+                            ? 'bg-muted/30 border-border'
+                            : 'bg-background border-border'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-4 mb-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Building2 className="w-4 h-4 text-muted-foreground" />
+                              <h4 className="font-semibold text-foreground">{booking.company_name}</h4>
+                              {isCancelled && (
+                                <span className="px-2 py-1 bg-destructive/10 text-destructive text-xs font-medium rounded">
+                                  Cancelled
+                                </span>
+                              )}
+                              {!isCancelled && isPast && (
+                                <span className="px-2 py-1 bg-muted text-muted-foreground text-xs font-medium rounded">
+                                  Completed
+                                </span>
+                              )}
+                              {!isCancelled && !isPast && (
+                                <span className="px-2 py-1 bg-success/10 text-success text-xs font-medium rounded">
+                                  Upcoming
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-foreground mb-2">{booking.offer_title}</p>
+                            {slotDate && (
+                              <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                                <div className="flex items-center gap-1">
+                                  <Calendar className="w-4 h-4" />
+                                  {slotDate.toLocaleDateString('en-US', {
+                                    weekday: 'short',
+                                    month: 'short',
+                                    day: 'numeric',
+                                    year: 'numeric',
+                                  })}
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Clock className="w-4 h-4" />
+                                  {slotDate.toLocaleTimeString('en-US', {
+                                    hour: 'numeric',
+                                    minute: '2-digit',
+                                  })}
+                                </div>
+                                {booking.slot_location && (
+                                  <div className="flex items-center gap-1">
+                                    <MapPin className="w-4 h-4" />
+                                    {booking.slot_location}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                            {booking.notes && (
+                              <p className="text-xs text-muted-foreground mt-2 italic">
+                                Note: {booking.notes}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-between items-center pt-4 border-t border-border">
               <button
-                onClick={handleSave}
-                disabled={saving || uploadingPhoto || uploadingResume}
-                className="flex items-center gap-2 px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium disabled:opacity-50"
+                onClick={handleExportData}
+                disabled={exportingData}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary hover:text-primary/80 transition-colors disabled:opacity-50"
               >
-                <Save className="w-4 h-4" />
-                {saving || uploadingPhoto || uploadingResume ? 'Saving...' : 'Save Changes'}
+                <Download className="w-4 h-4" />
+                {exportingData ? 'Exporting...' : 'Download My Data (GDPR)'}
               </button>
+              <div className="flex gap-3">
+                <Link
+                  to="/student"
+                  className="px-6 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Cancel
+                </Link>
+                <button
+                  onClick={handleSave}
+                  disabled={saving || uploadingPhoto || uploadingResume}
+                  className="flex items-center gap-2 px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium disabled:opacity-50"
+                >
+                  <Save className="w-4 h-4" />
+                  {saving || uploadingPhoto || uploadingResume ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
             </div>
 
             {/* Account Deletion Section - GDPR Compliance */}
@@ -807,8 +1021,9 @@ export default function StudentProfile() {
             </div>
           </div>
         </div>
-      </main>
-    </div>
+        </div>
+      </div>
+    </StudentLayout>
   );
 }
 

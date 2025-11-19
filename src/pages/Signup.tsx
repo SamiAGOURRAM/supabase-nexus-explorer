@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { checkRateLimitDirect, recordFailedAttempt, clearRateLimit } from '@/hooks/useRateLimit';
 import { useCaptcha, getCaptchaConfig } from '@/hooks/useCaptcha';
+import { debug, error as logError } from '@/utils/logger';
 
 // Password validation regex patterns
 const PASSWORD_REQUIREMENTS = {
@@ -41,7 +42,7 @@ export default function Signup() {
     confirmPassword: '',
     full_name: '',
     phone: '',
-    is_deprioritized: false,
+    consent: false, // GDPR consent
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -203,6 +204,11 @@ export default function Signup() {
         throw new Error('Invalid phone number format. Use format: +212 6XX XXX XXX or 06XX XXX XXX');
       }
 
+      // GDPR: Validate consent
+      if (!formData.consent) {
+        throw new Error('You must consent to the processing of your data to create an account.');
+      }
+
       // Determine role based on email domain
       // Note: Database enum only supports 'student', 'company', 'admin'
       // We use 'student' for both UM6P and Gmail accounts
@@ -218,7 +224,8 @@ export default function Signup() {
             full_name: sanitizedName,
             role: role,
             phone: sanitizedPhone || null,
-            is_deprioritized: formData.is_deprioritized,
+            consent_given: true, // GDPR consent
+            consent_version: '1.0', // Privacy policy version
           },
         },
       });
@@ -233,7 +240,7 @@ export default function Signup() {
         }
         
         if (signupError.message.includes('Database error') || signupError.message.includes('saving new user')) {
-          console.error('Database error during signup - trigger may have failed:', signupError);
+          logError('Database error during signup - trigger may have failed:', signupError);
           throw new Error('Account creation failed. Please try again or contact support if the issue persists.');
         }
         
@@ -250,8 +257,26 @@ export default function Signup() {
         throw new Error('Failed to create user account');
       }
 
-      console.log('✅ Account created successfully for:', sanitizedEmail);
-      console.log('📧 Check your email for verification link');
+      // Update profile with consent information (after profile is created by trigger)
+      // The trigger will create the profile, then we update it with consent
+      if (data.user.id) {
+        const { error: consentError } = await supabase
+          .from('profiles')
+          .update({
+            consent_given: true,
+            consent_date: new Date().toISOString(),
+            consent_version: '1.0',
+          })
+          .eq('id', data.user.id);
+
+        if (consentError) {
+          logError('Error updating consent:', consentError);
+          // Non-critical error, continue with signup
+        }
+      }
+
+      debug('✅ Account created successfully for:', sanitizedEmail);
+      debug('📧 Check your email for verification link');
       
       // Clear rate limit on success
       await clearRateLimit(sanitizedEmail);
@@ -354,6 +379,38 @@ export default function Signup() {
                 @um6p.ma or @gmail.com (for testing) accepted
               </span>
             </div>
+          </div>
+
+          {/* GDPR: Purpose Statement */}
+          <div className="mb-6 rounded-xl border border-primary/20 bg-primary/5 p-4">
+            <p className="text-sm text-foreground mb-2">
+              <strong>Purpose of Data Collection:</strong>
+            </p>
+            <p className="text-xs text-muted-foreground mb-3">
+              We collect your information to connect you with companies for internship opportunities 
+              during the INF event. Your data will only be used for matching purposes and event management.
+            </p>
+            <Link 
+              to="/privacy-policy" 
+              className="text-xs text-primary hover:underline font-medium"
+            >
+              Read our Privacy Policy →
+            </Link>
+          </div>
+
+          {/* GDPR: Data Sharing Notice */}
+          <div className="mb-6 rounded-xl border border-warning/20 bg-warning/5 p-4">
+            <p className="text-sm font-semibold text-foreground mb-2">Data Sharing:</p>
+            <p className="text-xs text-muted-foreground mb-2">
+              Your profile information will be shared with:
+            </p>
+            <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside ml-2 mb-2">
+              <li>UM6P departments (SHBM, Career Center) for event management</li>
+              <li>Verified companies participating in the INF event</li>
+            </ul>
+            <p className="text-xs text-muted-foreground">
+              Your data will not be sold or used for commercial purposes outside the INF event.
+            </p>
           </div>
 
           {/* Error Message */}
@@ -510,30 +567,33 @@ export default function Signup() {
               {formData.phone && !validatePhone(formData.phone) && (
                 <p className="text-xs text-destructive mt-1 flex items-center gap-1">
                   <XCircle className="w-3 h-3" />
-                  Invalid phone format
+                  Invalid phone format. Use format: +212 6XX XXX XXX or 06XX XXX XXX
                 </p>
               )}
             </div>
 
-            {/* Deprioritized Warning */}
-            <div className="bg-warning/10 border border-warning/20 p-4 rounded-lg">
-              <label className="flex items-start cursor-pointer">
+            {/* GDPR: Consent Checkbox */}
+            <div className="flex items-start gap-3 p-4 bg-muted/30 rounded-lg border border-border/50">
+              <div className="flex items-center h-5 mt-0.5">
                 <input
+                  id="consent"
+                  name="consent"
                   type="checkbox"
-                  checked={formData.is_deprioritized}
-                  onChange={(e) => setFormData({ ...formData, is_deprioritized: e.target.checked })}
-                  className="mt-1 mr-3 w-4 h-4 text-primary border-input rounded focus:ring-ring"
+                  checked={formData.consent}
+                  onChange={(e) => setFormData({ ...formData, consent: e.target.checked })}
+                  className="w-4 h-4 text-primary border-border rounded focus:ring-primary"
+                  required
                 />
-                <div>
-                  <div className="font-medium text-foreground">I already have an internship</div>
-                  <div className="text-sm text-muted-foreground mt-1">
-                    ⚠️ IMPORTANT: If you check this box, you will NOT be able to book during Phase 1.
-                    You can only book during Phase 2.
-                  </div>
-                </div>
-              </label>
+              </div>
+              <div className="text-sm">
+                <label htmlFor="consent" className="font-medium text-foreground">
+                  I agree to the processing of my personal data
+                </label>
+                <p className="text-muted-foreground mt-1 text-xs">
+                  By creating an account, you agree to our <Link to="/privacy-policy" className="text-primary hover:underline">Privacy Policy</Link> and consent to share your profile information with participating companies.
+                </p>
+              </div>
             </div>
-
             <button
               type="submit"
               disabled={loading}

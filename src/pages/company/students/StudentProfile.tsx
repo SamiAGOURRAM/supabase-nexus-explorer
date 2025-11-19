@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { ArrowLeft, Mail, Phone, FileText, Calendar, Briefcase, User, GraduationCap } from 'lucide-react';
+import { error as logError } from '@/utils/logger';
 
 type StudentProfile = {
   id: string;
@@ -84,29 +85,23 @@ export default function StudentProfile() {
       return;
     }
 
-    // Debug: Log profile data to see what we're getting (development only)
-    if (import.meta.env.DEV) {
-      // Using direct console.log here since it's already gated by DEV check
-      // and this is in a company view page, not critical path
-      console.log('📋 Student Profile Data:', profile);
-      console.log('📋 Academic Info:', {
-        specialization: profile.specialization,
-        year_of_study: profile.year_of_study,
-        graduation_year: profile.graduation_year,
-        program: profile.program,
-        languages: profile.languages_spoken
-      });
-    }
 
     setStudent(profile as unknown as StudentProfile);
 
     // Get company's offers
-    const { data: offers } = await supabase
+    const { data: offers, error: offersError } = await supabase
       .from('offers')
       .select('id, title')
       .eq('company_id', company.id);
 
+    if (offersError) {
+      logError('Error fetching offers:', offersError);
+      setLoading(false);
+      return;
+    }
+
     if (!offers || offers.length === 0) {
+      setBookings([]);
       setLoading(false);
       return;
     }
@@ -114,51 +109,81 @@ export default function StudentProfile() {
     const offerIds = offers.map(o => o.id);
     const offerMap = new Map(offers.map(o => [o.id, o.title]));
 
-    // Get bookings for this student with company's offers
-    // Use bookings table and join through event_slots to get offer_id
-    const { data: bookingsData } = await supabase
+    // Get bookings for this student
+    const { data: bookingsData, error: bookingsError } = await supabase
       .from('bookings')
-      .select(`
-        id,
-        slot_id,
-        status,
-        student_notes,
-        event_slots!inner (
-          offer_id
-        )
-      `)
-      .eq('student_id', id || '')
-      .in('event_slots.offer_id', offerIds);
+      .select('id, slot_id, status, student_notes')
+      .eq('student_id', id || '');
 
-    if (bookingsData && bookingsData.length > 0) {
-      // Get slot details
-      const slotIds = bookingsData.map(b => b.slot_id);
-      const { data: slots } = await supabase
-        .from('event_slots')
-        .select('id, start_time, location')
-        .in('id', slotIds);
-
-      const slotMap = new Map(slots?.map(s => [s.id, { time: s.start_time, location: s.location }]) || []);
-
-      const formattedBookings: Booking[] = bookingsData.map(booking => {
-        const slot = slotMap.get(booking.slot_id);
-        const offerId = (booking.event_slots as any)?.offer_id;
-        return {
-          id: booking.id,
-          offer_title: offerMap.get(offerId) || 'Unknown',
-          slot_time: slot?.time || '',
-          slot_location: slot?.location || null,
-          status: booking.status,
-          notes: booking.student_notes || null,
-        };
-      });
-
-      // Sort by time
-      formattedBookings.sort((a, b) => new Date(b.slot_time).getTime() - new Date(a.slot_time).getTime());
-
-      setBookings(formattedBookings);
+    if (bookingsError) {
+      logError('Error fetching bookings:', bookingsError);
+      setBookings([]);
+      setLoading(false);
+      return;
     }
 
+    if (!bookingsData || bookingsData.length === 0) {
+      setBookings([]);
+      setLoading(false);
+      return;
+    }
+
+    // Get slot details and filter by company's offers
+    const slotIds = bookingsData.map(b => b.slot_id).filter(Boolean);
+    
+    if (slotIds.length === 0) {
+      setBookings([]);
+      setLoading(false);
+      return;
+    }
+
+    const { data: slots, error: slotsError } = await supabase
+      .from('event_slots')
+      .select('id, start_time, location, offer_id')
+      .in('id', slotIds)
+      .in('offer_id', offerIds);
+
+    if (slotsError) {
+      logError('Error fetching slots:', slotsError);
+      setBookings([]);
+      setLoading(false);
+      return;
+    }
+
+    if (!slots || slots.length === 0) {
+      setBookings([]);
+      setLoading(false);
+      return;
+    }
+
+    // Create map for quick lookup
+    const bookingSlotMap = new Map(bookingsData.map(b => [b.slot_id, b]));
+
+    // Filter bookings to only include those with slots that belong to company's offers
+    const formattedBookings: Booking[] = [];
+    
+    for (const slot of slots) {
+      const booking = bookingSlotMap.get(slot.id);
+      if (booking && slot.offer_id) {
+        formattedBookings.push({
+          id: booking.id,
+          offer_title: offerMap.get(slot.offer_id) || 'Unknown Offer',
+          slot_time: slot.start_time || '',
+          slot_location: slot.location || null,
+          status: booking.status,
+          notes: booking.student_notes || null,
+        });
+      }
+    }
+
+    // Sort by time (most recent first)
+    formattedBookings.sort((a, b) => {
+      const timeA = a.slot_time ? new Date(a.slot_time).getTime() : 0;
+      const timeB = b.slot_time ? new Date(b.slot_time).getTime() : 0;
+      return timeB - timeA;
+    });
+
+    setBookings(formattedBookings);
     setLoading(false);
   };
 

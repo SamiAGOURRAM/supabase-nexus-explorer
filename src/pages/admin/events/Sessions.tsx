@@ -341,7 +341,7 @@ export default function SessionManagement() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* INF Slot Generator */}
         <div className="bg-gradient-to-r from-primary/10 to-primary/5 rounded-xl border-2 border-primary/20 p-6 mb-8">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
             <div>
               <h2 className="text-lg font-semibold text-foreground">INF Event Slot Generator</h2>
               <p className="text-sm text-muted-foreground mt-1">
@@ -350,7 +350,7 @@ export default function SessionManagement() {
             </div>
             <button
               onClick={() => setShowINFGenerator(!showINFGenerator)}
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition"
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition w-full sm:w-auto"
             >
               {showINFGenerator ? 'Hide Generator' : 'Generate INF Slots'}
             </button>
@@ -433,17 +433,17 @@ export default function SessionManagement() {
                 </ul>
               </div>
 
-              <div className="flex justify-end gap-3">
+              <div className="flex flex-col sm:flex-row justify-end gap-3">
                 <button
                   onClick={() => setShowINFGenerator(false)}
-                  className="px-6 py-2 border border-border rounded-lg hover:bg-muted transition"
+                  className="px-6 py-2 border border-border rounded-lg hover:bg-muted transition w-full sm:w-auto"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={generateINFSlots}
                   disabled={generatingINF}
-                  className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition disabled:opacity-50"
+                  className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition disabled:opacity-50 w-full sm:w-auto"
                 >
                   {generatingINF ? 'Generating...' : 'Generate INF Slots'}
                 </button>
@@ -453,7 +453,7 @@ export default function SessionManagement() {
         </div>
 
         <div className="bg-card rounded-xl border border-border p-6 mb-8">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
             <div>
               <h2 className="text-lg font-semibold text-foreground">Sessions ({sessions.length})</h2>
               <p className="text-sm text-muted-foreground mt-1">
@@ -462,7 +462,7 @@ export default function SessionManagement() {
             </div>
             <button
               onClick={() => setShowAddForm(true)}
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition"
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition w-full sm:w-auto"
             >
               + Add Session
             </button>

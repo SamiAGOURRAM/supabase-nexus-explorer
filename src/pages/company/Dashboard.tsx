@@ -7,7 +7,7 @@ import { useToast } from '@/contexts/ToastContext';
 import LoadingScreen from '@/components/shared/LoadingScreen';
 import SkeletonLoader from '@/components/shared/SkeletonLoader';
 import ErrorDisplay from '@/components/shared/ErrorDisplay';
-import CompanyHeader from '@/components/company/dashboard/CompanyHeader';
+import CompanyLayout from '@/components/company/CompanyLayout';
 import CompanyEventSelector from '@/components/company/dashboard/CompanyEventSelector';
 import CompanyStatsGrid from '@/components/company/dashboard/CompanyStatsGrid';
 import ScheduledStudentsList from '@/components/company/dashboard/ScheduledStudentsList';
@@ -91,13 +91,15 @@ export default function CompanyDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <CompanyHeader 
-        companyName={stats?.company_name || null} 
-        onSignOut={signOut} 
-      />
+    <CompanyLayout onSignOut={signOut}>
+      <div className="p-4 sm:p-6 md:p-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-foreground">{stats?.company_name || 'Company Dashboard'}</h1>
+            <p className="text-muted-foreground">Manage your recruitment activities</p>
+          </div>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
         {events.length === 0 ? (
           <EmptyEventsState />
         ) : (
@@ -147,7 +149,9 @@ export default function CompanyDashboard() {
             )}
           </>
         )}
-      </main>
-    </div>
+
+        </div>
+      </div>
+    </CompanyLayout>
   );
 }

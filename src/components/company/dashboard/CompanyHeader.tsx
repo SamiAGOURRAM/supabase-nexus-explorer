@@ -23,14 +23,14 @@ export default function CompanyHeader({
   return (
     <header className="bg-card border-b border-border">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div>
               <h1 className="text-2xl font-bold text-foreground">{companyName || 'Company Dashboard'}</h1>
               <p className="text-sm text-muted-foreground mt-1">Manage your recruitment</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 self-end md:self-auto">
             <Link
               to="/company/profile"
               className="flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:text-foreground border border-border rounded-lg hover:border-primary transition-colors"

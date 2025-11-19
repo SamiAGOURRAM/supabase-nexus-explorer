@@ -2,11 +2,14 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/contexts/ToastContext';
-import { ArrowLeft, Building2, Save, Users, Plus, Trash2, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Building2, Save, Users, Plus, Trash2, AlertTriangle, Download } from 'lucide-react';
 import { validateEmail, validatePhoneNumber } from '@/utils/securityUtils';
 import { error as logError } from '@/utils/logger';
 import LoadingScreen from '@/components/shared/LoadingScreen';
 import ErrorDisplay from '@/components/shared/ErrorDisplay';
+import { exportUserData, downloadUserDataAsCsv } from '@/utils/dataExport';
+import ImageUpload from '@/components/shared/ImageUpload';
+import { uploadLogo } from '@/utils/fileUpload';
 
 type CompanyProfile = {
   id: string;
@@ -41,6 +44,9 @@ export default function CompanyProfile() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [exportingData, setExportingData] = useState(false);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const navigate = useNavigate();
   const { showSuccess, showError } = useToast();
 
@@ -232,18 +238,37 @@ export default function CompanyProfile() {
     setSaving(true);
 
     try {
+      // Upload logo if a new file was selected
+      let logoUrl = profile.logo_url;
+      if (logoFile) {
+        setUploadingLogo(true);
+        const uploadResult = await uploadLogo(logoFile, profile.id);
+        if (uploadResult.error) {
+          throw new Error(uploadResult.error);
+        }
+        logoUrl = uploadResult.url;
+        setUploadingLogo(false);
+      }
+
+      const updateData: any = {
+        company_name: profile.company_name.trim(),
+        industry: profile.industry?.trim() || null,
+        description: profile.description?.trim() || null,
+        website: profile.website?.trim() || null,
+        contact_email: profile.contact_email?.trim() || null,
+        contact_phone: profile.contact_phone?.trim() || null,
+        address: profile.address?.trim() || null,
+        company_size: profile.company_size || null,
+      };
+
+      // Only update logo_url if it changed
+      if (logoUrl !== profile.logo_url) {
+        updateData.logo_url = logoUrl;
+      }
+
       const { error } = await supabase
         .from('companies')
-        .update({
-          company_name: profile.company_name.trim(),
-          industry: profile.industry?.trim() || null,
-          description: profile.description?.trim() || null,
-          website: profile.website?.trim() || null,
-          contact_email: profile.contact_email?.trim() || null,
-          contact_phone: profile.contact_phone?.trim() || null,
-          address: profile.address?.trim() || null,
-          company_size: profile.company_size || null,
-        })
+        .update(updateData)
         .eq('id', profile.id);
 
       if (error) {
@@ -312,6 +337,8 @@ export default function CompanyProfile() {
       }
 
       showSuccess('Profile updated successfully!');
+      // Clear logo file after successful upload
+      setLogoFile(null);
       // Reload to get updated data
       await loadProfile();
     } catch (err: any) {
@@ -321,6 +348,35 @@ export default function CompanyProfile() {
       showError(errorMessage.message);
     } finally {
       setSaving(false);
+      setUploadingLogo(false);
+    }
+  };
+
+  const handleExportData = async () => {
+    if (!profile) return;
+    
+    setExportingData(true);
+    try {
+      // Get the user's profile ID from auth (not the company ID)
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        showError('You must be logged in to export your data.');
+        setExportingData(false);
+        return;
+      }
+
+      const userData = await exportUserData(user.id);
+      if (userData) {
+        downloadUserDataAsCsv(userData);
+        showSuccess('Your data has been exported successfully!');
+      } else {
+        showError('Failed to export data. Please try again.');
+      }
+    } catch (err: any) {
+      logError('Error exporting data:', err);
+      showError('Failed to export data. Please try again.');
+    } finally {
+      setExportingData(false);
     }
   };
 
@@ -342,17 +398,34 @@ export default function CompanyProfile() {
       if (logoUrl) {
         try {
           // Extract path from URL - handle both signed URLs and direct paths
+          // Using profile-photos bucket with path structure: company/{companyId}/{filename}
           let logoPath: string | null = null;
-          if (logoUrl.includes('/storage/v1/object/public/company-logos/')) {
-            logoPath = logoUrl.split('/storage/v1/object/public/company-logos/')[1].split('?')[0];
+          if (logoUrl.includes('/storage/v1/object/public/profile-photos/')) {
+            logoPath = logoUrl.split('/storage/v1/object/public/profile-photos/')[1].split('?')[0];
+          } else if (logoUrl.includes('/profile-photos/')) {
+            logoPath = logoUrl.split('/profile-photos/')[1].split('?')[0];
           } else if (logoUrl.includes('/company-logos/')) {
+            // Legacy support for old company-logos bucket
             logoPath = logoUrl.split('/company-logos/')[1].split('?')[0];
           } else {
-            logoPath = logoUrl.split('/').slice(-2).join('/');
+            // Try to extract path - might be in format company/{companyId}/{filename}
+            const parts = logoUrl.split('/');
+            const profilePhotosIndex = parts.findIndex(p => p === 'profile-photos');
+            if (profilePhotosIndex >= 0 && profilePhotosIndex < parts.length - 1) {
+              logoPath = parts.slice(profilePhotosIndex + 1).join('/').split('?')[0];
+            } else {
+              logoPath = parts.slice(-3).join('/').split('?')[0]; // company/{id}/{file}
+            }
           }
           
           if (logoPath) {
-            await supabase.storage.from('company-logos').remove([logoPath]);
+            // Try profile-photos first (current), fallback to company-logos (legacy)
+            try {
+              await supabase.storage.from('profile-photos').remove([logoPath]);
+            } catch {
+              // If it fails, try legacy bucket (in case old logos exist)
+              await supabase.storage.from('company-logos').remove([logoPath]);
+            }
           }
         } catch (err) {
           // Non-critical error - log but continue with deletion
@@ -438,6 +511,26 @@ export default function CompanyProfile() {
 
         <div className="bg-card rounded-xl border border-border p-6">
           <div className="space-y-6">
+            {/* Company Logo Upload */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Company Logo
+              </label>
+              <ImageUpload
+                currentImageUrl={profile.logo_url || null}
+                onImageSelect={(file) => setLogoFile(file)}
+                onImageRemove={() => {
+                  setLogoFile(null);
+                  setProfile({ ...profile, logo_url: null });
+                }}
+                label="Upload company logo"
+                maxSizeMB={5}
+              />
+              <p className="mt-2 text-xs text-muted-foreground">
+                Upload your company logo. Supported formats: JPEG, PNG, WebP. Max size: 5MB.
+              </p>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-foreground mb-2">
                 Company Name *
@@ -745,21 +838,31 @@ export default function CompanyProfile() {
               )}
             </div>
 
-            <div className="flex justify-end gap-3 pt-4 border-t border-border">
-              <Link
-                to="/company"
-                className="px-6 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Cancel
-              </Link>
+            <div className="flex justify-between items-center pt-4 border-t border-border">
               <button
-                onClick={handleSave}
-                disabled={saving}
-                className="flex items-center gap-2 px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium disabled:opacity-50"
+                onClick={handleExportData}
+                disabled={exportingData}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary hover:text-primary/80 transition-colors disabled:opacity-50"
               >
-                <Save className="w-4 h-4" />
-                {saving ? 'Saving...' : 'Save Changes'}
+                <Download className="w-4 h-4" />
+                {exportingData ? 'Exporting...' : 'Download My Data (GDPR)'}
               </button>
+              <div className="flex gap-3">
+                <Link
+                  to="/company"
+                  className="px-6 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Cancel
+                </Link>
+                <button
+                  onClick={handleSave}
+                  disabled={saving || uploadingLogo}
+                  className="flex items-center gap-2 px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium disabled:opacity-50"
+                >
+                  <Save className="w-4 h-4" />
+                  {saving || uploadingLogo ? (uploadingLogo ? 'Uploading logo...' : 'Saving...') : 'Save Changes'}
+                </button>
+              </div>
             </div>
 
             {/* Account Deletion Section - GDPR Compliance */}

@@ -50,6 +50,11 @@ export type Company = {
   industry?: string | null;
   description?: string | null;
   website?: string | null;
+  logo_url?: string | null;
+  contact_email?: string | null;
+  contact_phone?: string | null;
+  address?: string | null;
+  company_size?: string | null;
   is_verified: boolean;
   verified_at?: string | null;
   created_at: string;

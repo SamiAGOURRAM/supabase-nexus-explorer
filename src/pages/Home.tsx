@@ -1,6 +1,80 @@
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { supabase } from '@/lib/supabase';
+import { useUser } from '@/contexts/UserContext';
 
 export default function Home() {
+  const { user, profile } = useUser();
+  const [liveStats, setLiveStats] = useState({ offers: 0, companies: 0, events: 0 });
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [statsError, setStatsError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadStats = async () => {
+      try {
+        setStatsError(null);
+        setStatsLoading(true);
+
+        const [
+          { count: offersCount, error: offersError },
+          { count: companiesCount, error: companiesError },
+          { count: eventsCount, error: eventsError },
+        ] = await Promise.all([
+          supabase.from('offers').select('*', { count: 'exact', head: true }).eq('is_active', true),
+          supabase.from('companies').select('*', { count: 'exact', head: true }).eq('is_verified', true),
+          supabase.from('events').select('*', { count: 'exact', head: true }).eq('is_active', true),
+        ]);
+
+        if (!isMounted) return;
+
+        if (offersError || companiesError || eventsError) {
+          throw offersError || companiesError || eventsError;
+        }
+
+        setLiveStats({
+          offers: offersCount ?? 0,
+          companies: companiesCount ?? 0,
+          events: eventsCount ?? 0,
+        });
+      } catch (error) {
+        // Error is already handled by setting statsError state
+        if (isMounted) {
+          setStatsError('Live stats are temporarily unavailable.');
+        }
+      } finally {
+        if (isMounted) {
+          setStatsLoading(false);
+        }
+      }
+    };
+
+    loadStats();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const statCards = useMemo(
+    () => [
+      { label: 'Active offers', value: liveStats.offers, helper: 'Available for booking' },
+      { label: 'Verified companies', value: liveStats.companies, helper: 'Partner organizations' },
+      { label: 'Active events', value: liveStats.events, helper: 'Currently running' },
+    ],
+    [liveStats]
+  );
+
+  const getDashboardLink = () => {
+    if (!profile) return '/login';
+    switch (profile.role) {
+      case 'admin': return '/admin';
+      case 'company': return '/company';
+      case 'student': return '/student';
+      default: return '/login';
+    }
+  };
+
   return (
     <div className="min-h-screen" style={{ fontFamily: "'Open Sans', sans-serif" }}>
       {/* Header */}
@@ -12,7 +86,13 @@ export default function Home() {
             </h1>
             <nav className="hidden md:flex items-center space-x-8">
               <Link to="/offers" className="text-gray-800 hover:text-yellow-700 transition-colors">Offerings</Link>
-              <Link to="/login" className="text-gray-800 hover:text-yellow-700 transition-colors">Login</Link>
+              {user ? (
+                <Link to={getDashboardLink()} className="text-gray-800 hover:text-yellow-700 transition-colors font-medium">
+                  Dashboard
+                </Link>
+              ) : (
+                <Link to="/login" className="text-gray-800 hover:text-yellow-700 transition-colors">Login</Link>
+              )}
             </nav>
           </div>
         </div>
@@ -39,6 +119,33 @@ export default function Home() {
           >
             LEARN MORE
           </Link>
+
+          <div className="mt-12 grid gap-4 md:grid-cols-3">
+            {statCards.map((card) => (
+              <div
+                key={card.label}
+                className="rounded-2xl border border-white/60 bg-white/70 p-6 text-left shadow-soft backdrop-blur"
+              >
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-yellow-800">{card.label}</p>
+                {statsLoading ? (
+                  <div className="mt-3 h-8 w-20 animate-pulse rounded-full bg-amber-100/70" />
+                ) : (
+                  <p
+                    className="mt-3 text-3xl font-bold text-gray-900"
+                    aria-live="polite"
+                  >
+                    {card.value.toLocaleString()}
+                  </p>
+                )}
+                <p className="mt-1 text-sm text-gray-600">{card.helper}</p>
+              </div>
+            ))}
+          </div>
+          {statsError && (
+            <p className="mt-4 text-sm font-medium text-red-700" role="status">
+              {statsError}
+            </p>
+          )}
         </div>
       </section>
 
@@ -249,10 +356,21 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="bg-white border-t border-gray-200 py-8 px-4">
-        <div className="max-w-7xl mx-auto text-center">
-          <p className="text-gray-700 text-sm">
-            Copyright © 2025 Internship & Networking Forum |
-          </p>
+        <div className="max-w-7xl mx-auto">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-gray-700">
+            <p>
+              Copyright © 2025 Internship & Networking Forum
+            </p>
+            <div className="flex items-center gap-4">
+              <Link to="/privacy-policy" className="hover:text-yellow-700 transition-colors">
+                Privacy Policy
+              </Link>
+              <span className="text-gray-400">|</span>
+              <a href="mailto:nexus@um6p.ma" className="hover:text-yellow-700 transition-colors">
+                Contact
+              </a>
+            </div>
+          </div>
         </div>
       </footer>
     </div>

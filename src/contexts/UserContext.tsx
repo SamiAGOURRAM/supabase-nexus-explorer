@@ -1,12 +1,13 @@
 import { createContext, useCallback, useContext, useEffect, useState, ReactNode } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
+import { type UserRole } from '@/utils/constants';
 
 export type ProfileSummary = {
   id: string;
   email: string;
   full_name: string | null;
-  role: string;
+  role: UserRole;
 };
 
 type UserContextValue = {

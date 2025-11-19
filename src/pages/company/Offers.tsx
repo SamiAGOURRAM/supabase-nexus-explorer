@@ -122,6 +122,11 @@ export default function CompanyOffers() {
   }, [authLoading, loadOffers]);
 
   const toggleOfferStatus = async (offerId: string, currentStatus: boolean) => {
+    if (currentStatus) {
+      if (!confirm('Are you sure you want to deactivate this offer? Students will no longer be able to view or apply to it.')) {
+        return;
+      }
+    }
     try {
       setTogglingId(offerId);
       const { error } = await supabase

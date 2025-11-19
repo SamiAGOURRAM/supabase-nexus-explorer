@@ -3,10 +3,11 @@ import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useEmailVerification } from '@/hooks/useEmailVerification';
 import { useToast } from '@/contexts/ToastContext';
-import { Calendar, Briefcase, User, LogOut, Book, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Calendar, Briefcase, User, Book, AlertCircle, CheckCircle2, Building2 } from 'lucide-react';
 import { warn, error as logError } from '@/utils/logger';
 import ErrorDisplay from '@/components/shared/ErrorDisplay';
 import LoadingScreen from '@/components/shared/LoadingScreen';
+import StudentLayout from '@/components/student/StudentLayout';
 
 type EventPhaseInfo = {
   eventId: string;
@@ -151,50 +152,26 @@ export default function StudentDashboard() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-background">
-        <header className="bg-card border-b border-border">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <h1 className="text-2xl font-bold text-foreground">Student Dashboard</h1>
+      <StudentLayout onSignOut={handleSignOut}>
+        <div className="p-6 md:p-8">
+          <div className="max-w-7xl mx-auto">
+            <ErrorDisplay error={error} onRetry={checkStudentAndLoadData} />
           </div>
-        </header>
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <ErrorDisplay error={error} onRetry={checkStudentAndLoadData} />
-        </main>
-      </div>
+        </div>
+      </StudentLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="bg-card border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">Student Dashboard</h1>
-              <p className="text-sm text-muted-foreground mt-1">Welcome back!</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <Link
-                to="/student/profile"
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-foreground hover:bg-primary/10 rounded-lg transition-colors border border-border hover:border-primary"
-              >
-                <User className="w-4 h-4" />
-                Profile
-              </Link>
-              <button
-                onClick={handleSignOut}
-                className="flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <LogOut className="w-4 h-4" />
-                Sign Out
-              </button>
-            </div>
+    <StudentLayout onSignOut={handleSignOut}>
+      <div className="p-6 md:p-8">
+        <div className="max-w-7xl mx-auto space-y-6">
+          <div>
+            <h1 className="text-3xl md:text-4xl font-bold text-foreground">Student Dashboard</h1>
+            <p className="text-muted-foreground text-sm md:text-base mt-1">Welcome back!</p>
           </div>
-        </div>
-      </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Phase Status Card */}
+          {/* Phase Status Card */}
         {phaseInfo && (
           <div className={`rounded-xl border p-6 mb-6 ${
             phaseInfo.currentPhase === 0 
@@ -275,11 +252,16 @@ export default function StudentDashboard() {
 
         <div className="bg-card rounded-xl border border-border p-6">
           <h2 className="text-lg font-semibold text-foreground mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Link to="/student/offers" className="p-4 bg-primary/5 border border-primary/20 rounded-lg hover:bg-primary/10 transition-colors">
               <Book className="w-8 h-8 text-primary mb-2" />
               <h3 className="font-semibold text-foreground mb-1">Browse Offers</h3>
               <p className="text-sm text-muted-foreground">Explore available internship opportunities</p>
+            </Link>
+            <Link to="/student/companies" className="p-4 bg-info/5 border border-info/20 rounded-lg hover:bg-info/10 transition-colors">
+              <Building2 className="w-8 h-8 text-info mb-2" />
+              <h3 className="font-semibold text-foreground mb-1">Browse Companies</h3>
+              <p className="text-sm text-muted-foreground">View all verified companies</p>
             </Link>
             <Link to="/student/bookings" className="p-4 bg-success/5 border border-success/20 rounded-lg hover:bg-success/10 transition-colors">
               <Calendar className="w-8 h-8 text-success mb-2" />
@@ -288,8 +270,9 @@ export default function StudentDashboard() {
             </Link>
           </div>
         </div>
-      </main>
-    </div>
+        </div>
+      </div>
+    </StudentLayout>
   );
 }
 

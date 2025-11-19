@@ -138,7 +138,7 @@ export default function AdminBookings() {
 
   return (
     <AdminLayout onSignOut={signOut}>
-      <div className="p-8">
+      <div className="p-4 sm:p-6 md:p-8">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="mb-8">
@@ -202,23 +202,24 @@ export default function AdminBookings() {
             />
           ) : (
             <div className="bg-card border border-border rounded-xl overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full">
+              {/* Desktop Table */}
+              <div className="hidden md:block overflow-x-auto -mx-4 sm:mx-0">
+                <table className="w-full min-w-[700px]">
                   <thead className="bg-muted">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                         Student
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                         Company
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                         Time Slot
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                         Status
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                         Actions
                       </th>
                     </tr>
@@ -226,7 +227,7 @@ export default function AdminBookings() {
                   <tbody className="divide-y divide-border">
                     {filteredBookings.map((booking) => (
                       <tr key={booking.id} className="hover:bg-muted/50">
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-4 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center mr-3">
                               <User className="w-5 h-5 text-primary" />
@@ -237,13 +238,13 @@ export default function AdminBookings() {
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-4 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                           <div className="flex items-center text-sm text-foreground">
                             <Building2 className="w-4 h-4 mr-2 text-muted-foreground" />
                             {booking.event_slots.companies.company_name}
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-4 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                           <div className="text-sm text-foreground">
                             <div className="flex items-center gap-1">
                               <Calendar className="w-3 h-3" />
@@ -254,7 +255,7 @@ export default function AdminBookings() {
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-4 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                           <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                             booking.status === 'confirmed'
                               ? 'bg-success/10 text-success'
@@ -276,6 +277,58 @@ export default function AdminBookings() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+
+              {/* Mobile Card View */}
+              <div className="md:hidden divide-y divide-border">
+                {filteredBookings.map((booking) => (
+                  <div key={booking.id} className="p-4 space-y-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center">
+                        <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center mr-3">
+                          <User className="w-5 h-5 text-primary" />
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium text-foreground">{booking.profiles.full_name}</div>
+                          <div className="text-xs text-muted-foreground">{booking.profiles.email}</div>
+                        </div>
+                      </div>
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                        booking.status === 'confirmed'
+                          ? 'bg-success/10 text-success'
+                          : 'bg-warning/10 text-warning'
+                      }`}>
+                        {booking.status}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div className="flex items-center text-foreground">
+                        <Building2 className="w-4 h-4 mr-2 text-muted-foreground" />
+                        <span className="truncate">{booking.event_slots.companies.company_name}</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-1 text-foreground">
+                          <Calendar className="w-3 h-3 text-muted-foreground" />
+                          {new Date(booking.event_slots.start_time).toLocaleDateString()}
+                        </div>
+                        <div className="text-xs text-muted-foreground ml-4">
+                          {new Date(booking.event_slots.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 flex justify-end">
+                      <button
+                        onClick={() => handleCancelBooking(booking.id)}
+                        className="px-3 py-1.5 bg-destructive/10 text-destructive rounded-lg text-xs font-medium hover:bg-destructive/20 transition-colors flex items-center gap-1"
+                      >
+                        <X className="w-3 h-3" />
+                        Cancel Booking
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}

@@ -1,29 +1,28 @@
 import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, 
-  Calendar, 
-  Building2, 
-  Users, 
   Briefcase, 
+  Building2, 
+  Calendar, 
+  User,
   LogOut,
-  Clock,
   Menu,
   X
 } from 'lucide-react';
 import { useState } from 'react';
 
-interface AdminSidebarProps {
+interface StudentSidebarProps {
   onSignOut: () => void;
 }
 
-export default function AdminSidebar({ onSignOut }: AdminSidebarProps) {
+export default function StudentSidebar({ onSignOut }: StudentSidebarProps) {
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
 
   const isActive = (path: string) => {
-    if (path === '/admin') {
-      // Dashboard should be highlighted when on /admin exactly
-      return location.pathname === '/admin';
+    if (path === '/student') {
+      // Dashboard should be highlighted when on /student exactly
+      return location.pathname === '/student';
     }
     return location.pathname === path || location.pathname.startsWith(path + '/');
   };
@@ -31,33 +30,28 @@ export default function AdminSidebar({ onSignOut }: AdminSidebarProps) {
   const navItems = [
     {
       title: 'Dashboard',
-      path: '/admin',
+      path: '/student',
       icon: LayoutDashboard,
     },
     {
-      title: 'Events',
-      path: '/admin/events',
-      icon: Calendar,
-    },
-    {
-      title: 'Companies',
-      path: '/admin/companies',
-      icon: Building2,
-    },
-    {
-      title: 'Students',
-      path: '/admin/students',
-      icon: Users,
-    },
-    {
       title: 'Offers',
-      path: '/admin/offers',
+      path: '/student/offers',
       icon: Briefcase,
     },
     {
+      title: 'Companies',
+      path: '/student/companies',
+      icon: Building2,
+    },
+    {
       title: 'Bookings',
-      path: '/admin/bookings',
-      icon: Clock,
+      path: '/student/bookings',
+      icon: Calendar,
+    },
+    {
+      title: 'Profile',
+      path: '/student/profile',
+      icon: User,
     },
   ];
 
@@ -89,8 +83,8 @@ export default function AdminSidebar({ onSignOut }: AdminSidebarProps) {
         {/* Logo/Header */}
         <div className="p-6 border-b border-border flex justify-between items-center">
           <div>
-            <h2 className="text-xl font-bold text-foreground">Admin Panel</h2>
-            <p className="text-xs text-muted-foreground mt-1">Control Center</p>
+            <h2 className="text-xl font-bold text-foreground">Student Portal</h2>
+            <p className="text-xs text-muted-foreground mt-1">Dashboard</p>
           </div>
         </div>
 

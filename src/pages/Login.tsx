@@ -29,6 +29,7 @@ import type { LucideIcon } from 'lucide-react';
 import { checkRateLimitDirect, recordFailedAttempt, clearRateLimit } from '@/hooks/useRateLimit';
 
 import { useCaptcha, getCaptchaConfig } from '@/hooks/useCaptcha';
+import { debug, error as logError, warn } from '@/utils/logger';
 
 
 
@@ -152,7 +153,7 @@ const LOGIN_HIGHLIGHTS: Highlight[] = [
 
       } catch (error) {
 
-        console.error('Error checking user:', error);
+        logError('Error checking user:', error);
 
         // Don't redirect on error, let user login manually
 
@@ -237,7 +238,7 @@ const LOGIN_HIGHLIGHTS: Highlight[] = [
 
           }
 
-          console.log('✅ CAPTCHA verified');
+          debug('✅ CAPTCHA verified');
 
         }
 
@@ -374,7 +375,7 @@ const LOGIN_HIGHLIGHTS: Highlight[] = [
 
           if (profileError) {
 
-            console.warn(`Profile check attempt ${retries + 1} error:`, profileError);
+            warn(`Profile check attempt ${retries + 1} error:`, profileError);
 
           } else if (profileData) {
 
@@ -394,7 +395,7 @@ const LOGIN_HIGHLIGHTS: Highlight[] = [
 
         // If profile still doesn't exist after retries, try to create it manually
         if (!profile) {
-          console.warn('Profile not found after retries. Attempting to create profile...');
+          warn('Profile not found after retries. Attempting to create profile...');
           
           try {
             // Try to create profile using the helper function
@@ -404,7 +405,7 @@ const LOGIN_HIGHLIGHTS: Highlight[] = [
             } as any);
             
             if (createError) {
-              console.error('Failed to create profile:', createError);
+              logError('Failed to create profile:', createError);
               // Still redirect to offers - user can browse but may have limited access
               navigate('/offers', { replace: true });
               return;
@@ -418,15 +419,15 @@ const LOGIN_HIGHLIGHTS: Highlight[] = [
               .maybeSingle();
             
             if (newProfileError || !newProfileData) {
-              console.error('Failed to fetch newly created profile:', newProfileError);
+              logError('Failed to fetch newly created profile:', newProfileError);
               navigate('/offers', { replace: true });
               return;
             }
             
             profile = newProfileData;
-            console.log('✅ Profile created successfully');
+            debug('✅ Profile created successfully');
           } catch (err) {
-            console.error('Error creating profile:', err);
+            logError('Error creating profile:', err);
             // Redirect to offers as fallback
             navigate('/offers', { replace: true });
             return;
@@ -439,15 +440,13 @@ const LOGIN_HIGHLIGHTS: Highlight[] = [
 
         if (profile && profile.role) {
 
-          console.log('✅ Login successful, user role:', profile.role);
-
-          
-
-          // Check role matches login type
+          // Check role matches login type BEFORE logging success
 
           if (profile.role === 'admin') {
 
-            console.log('Redirecting admin to dashboard');
+            debug('✅ Login successful, user role: admin');
+
+            debug('Redirecting admin to dashboard');
 
             redirectUser(profile.role);
 
@@ -457,7 +456,7 @@ const LOGIN_HIGHLIGHTS: Highlight[] = [
 
 
 
-          // Allow students to sign in
+          // Check if role matches login type
 
           if (loginAs === 'student' && profile.role !== 'student') {
 
@@ -483,9 +482,11 @@ const LOGIN_HIGHLIGHTS: Highlight[] = [
 
           
 
-          // Redirect based on role
+          // Role matches - log success and redirect
 
-          console.log('Redirecting user to role-based dashboard');
+          debug('✅ Login successful, user role:', profile.role);
+
+          debug('Redirecting user to role-based dashboard');
 
           // Set loading to false before redirect to prevent further submissions
           setLoading(false);
@@ -499,7 +500,7 @@ const LOGIN_HIGHLIGHTS: Highlight[] = [
 
           // No profile found - redirect to offers page as fallback
 
-          console.warn('Profile not found after all attempts, redirecting to offers page');
+          warn('Profile not found after all attempts, redirecting to offers page');
 
           navigate('/offers', { replace: true });
 
@@ -507,7 +508,7 @@ const LOGIN_HIGHLIGHTS: Highlight[] = [
 
       } catch (err: any) {
 
-        console.error('Login error:', err);
+        logError('Login error:', err);
 
         setError(err.message || 'An error occurred during login. Please try again.');
 
@@ -892,6 +893,22 @@ const LOGIN_HIGHLIGHTS: Highlight[] = [
                   Companies are onboarded by invitation. Reach out to your UM6P contact if you need access.
 
                 </p>
+
+                <div className="pt-4 border-t border-border">
+
+                  <p className="text-xs text-muted-foreground text-center">
+
+                    By signing in, you agree to our{' '}
+
+                    <Link to="/privacy-policy" className="text-primary hover:underline font-medium">
+
+                      Privacy Policy
+
+                    </Link>
+
+                  </p>
+
+                </div>
 
               </div>
 

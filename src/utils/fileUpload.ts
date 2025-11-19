@@ -168,6 +168,68 @@ export async function deleteFile(
 }
 
 /**
+ * Upload a company logo to Supabase Storage
+ * @param file - The image file to upload
+ * @param companyId - The company ID (for folder organization)
+ * @returns The public URL of the uploaded file
+ */
+export async function uploadLogo(
+  file: File,
+  companyId: string
+): Promise<UploadResult> {
+  try {
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      throw new Error('Invalid file type. Please upload a JPEG, PNG, or WebP image.');
+    }
+
+    // Validate file size (5MB max)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      throw new Error('File size exceeds 5MB limit. Please upload a smaller image.');
+    }
+
+    // Generate unique filename
+    // Path should be: company/{companyId}/{timestamp}.{ext}
+    // This structure allows RLS policies to distinguish company logos from user photos
+    const fileExt = file.name.split('.').pop();
+    const fileName = `company/${companyId}/${Date.now()}.${fileExt}`;
+
+    // Upload file
+    // Using profile-photos bucket (which already exists) for company logos
+    // We organize by prefix: company/{companyId}/...
+    const { error } = await supabase.storage
+      .from('profile-photos')
+      .upload(fileName, file, {
+        cacheControl: '3600',
+        upsert: false
+      });
+
+    if (error) {
+      throw error;
+    }
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from('profile-photos')
+      .getPublicUrl(fileName);
+
+    return {
+      url: urlData.publicUrl,
+      path: fileName
+    };
+  } catch (error: any) {
+    console.error('Error uploading company logo:', error);
+    return {
+      url: '',
+      path: '',
+      error: error.message || 'Failed to upload company logo'
+    };
+  }
+}
+
+/**
  * Get a signed URL for a resume file
  * @param path - The file path in the resumes bucket
  * @param expiresIn - Expiration time in seconds (default: 1 hour)

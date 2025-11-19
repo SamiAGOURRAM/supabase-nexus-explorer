@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/contexts/ToastContext';
-import { Calendar, Users, Clock, Target, Trash2, Power } from 'lucide-react';
+import { Calendar, Users, Clock, Target, Trash2, Power, X, AlertTriangle } from 'lucide-react';
 import type { Event } from '@/types/database';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { useAuth } from '@/hooks/useAuth';
@@ -20,6 +20,7 @@ export default function AdminEvents() {
   const [creating, setCreating] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deactivateConfirm, setDeactivateConfirm] = useState<{ eventId: string; eventName: string } | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     date: '',
@@ -99,6 +100,19 @@ export default function AdminEvents() {
   };
 
   const handleToggleActive = async (eventId: string, currentStatus: boolean) => {
+    if (currentStatus) {
+      // Show confirmation modal for deactivation
+      const event = events.find(e => e.id === eventId);
+      if (event) {
+        setDeactivateConfirm({ eventId, eventName: event.name });
+      }
+      return;
+    }
+    // Activate directly without confirmation
+    await performToggleActive(eventId, false);
+  };
+
+  const performToggleActive = async (eventId: string, currentStatus: boolean) => {
     try {
       setTogglingId(eventId);
       const { error } = await supabase
@@ -109,6 +123,7 @@ export default function AdminEvents() {
       if (error) throw error;
       showSuccess(`Event ${!currentStatus ? 'activated' : 'deactivated'} successfully`);
       await loadEvents();
+      setDeactivateConfirm(null);
     } catch (err: any) {
       console.error('Error toggling event status:', err);
       showError(err.message || 'Failed to update event status. Please try again.');
@@ -150,17 +165,17 @@ export default function AdminEvents() {
 
   return (
     <AdminLayout onSignOut={signOut}>
-      <div className="p-8">
+      <div className="p-4 sm:p-6 md:p-8">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
-          <div className="mb-8 flex items-center justify-between">
+          <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h1 className="text-3xl font-bold text-foreground mb-2">Events Management</h1>
               <p className="text-muted-foreground">Create and manage recruitment events</p>
             </div>
             <button
               onClick={() => setShowCreateForm(!showCreateForm)}
-              className="bg-primary text-primary-foreground px-6 py-3 rounded-lg hover:bg-primary/90 transition font-medium"
+              className="bg-primary text-primary-foreground px-6 py-3 rounded-lg hover:bg-primary/90 transition font-medium w-full sm:w-auto"
             >
               {showCreateForm ? '✕ Cancel' : '+ Create New Event'}
             </button>
@@ -168,7 +183,7 @@ export default function AdminEvents() {
 
           {/* Create Event Form */}
           {showCreateForm && (
-          <div className="bg-card rounded-xl border border-border p-6 mb-8">
+          <div className="bg-card rounded-xl border border-border p-4 sm:p-6 mb-8">
             <h2 className="text-xl font-semibold text-foreground mb-4">Create New Event</h2>
             <form onSubmit={handleCreateEvent} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -316,17 +331,17 @@ export default function AdminEvents() {
                 key={event.id}
                 className="bg-card border border-border rounded-xl p-6 hover:border-primary hover:shadow-elegant transition-all"
               >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <Calendar className="w-8 h-8 text-primary" />
-                    <div>
-                      <h3 className="text-xl font-semibold text-foreground">{event.name}</h3>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <Calendar className="w-8 h-8 text-primary flex-shrink-0" />
+                    <div className="min-w-0">
+                      <h3 className="text-lg sm:text-xl font-semibold text-foreground truncate">{event.name}</h3>
                       <p className="text-sm text-muted-foreground mt-1">
                         {new Date(event.date).toLocaleDateString()} {event.location && `• ${event.location}`}
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                       event.is_active
                         ? 'bg-success/10 text-success'
@@ -366,13 +381,13 @@ export default function AdminEvents() {
                 )}
 
                 {/* Management Links */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3 mt-4">
                   <Link
                     to={`/admin/events/${event.id}/quick-invite`}
-                    className="flex items-center gap-2 px-4 py-3 bg-primary/5 border border-primary/20 rounded-lg hover:bg-primary/10 transition-colors group"
+                    className="flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 bg-primary/5 border border-primary/20 rounded-lg hover:bg-primary/10 transition-colors group"
                   >
-                    <Users className="w-5 h-5 text-primary" />
-                    <span className="text-sm font-medium text-foreground">Quick Invite</span>
+                    <Users className="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0" />
+                    <span className="text-xs sm:text-sm font-medium text-foreground text-center">Quick Invite</span>
                   </Link>
                   <Link
                     to={`/admin/events/${event.id}/phases`}
@@ -403,14 +418,14 @@ export default function AdminEvents() {
                     <span className="text-sm font-medium text-foreground">Slots</span>
                   </Link>
                   <Link
-                    to={`/admin/events/${event.id}/companies`}
+                    to={`/admin/companies?eventId=${event.id}`}
                     className="flex items-center gap-2 px-4 py-3 bg-success/5 border border-success/20 rounded-lg hover:bg-success/10 transition-colors"
                   >
                     <Users className="w-5 h-5 text-success" />
                     <span className="text-sm font-medium text-foreground">Companies</span>
                   </Link>
                   <Link
-                    to={`/admin/events/${event.id}/students`}
+                    to={`/admin/students?eventId=${event.id}`}
                     className="flex items-center gap-2 px-4 py-3 bg-primary/5 border border-primary/20 rounded-lg hover:bg-primary/10 transition-colors"
                   >
                     <Users className="w-5 h-5 text-primary" />
@@ -419,6 +434,63 @@ export default function AdminEvents() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Deactivate Confirmation Modal */}
+        {deactivateConfirm && (
+          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-card rounded-xl border border-border max-w-md w-full shadow-elegant">
+              <div className="p-6">
+                <div className="flex items-start gap-4 mb-4">
+                  <div className="w-12 h-12 bg-warning/10 rounded-full flex items-center justify-center flex-shrink-0">
+                    <AlertTriangle className="w-6 h-6 text-warning" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-foreground mb-2">Deactivate Event</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Are you sure you want to deactivate <strong>"{deactivateConfirm.eventName}"</strong>?
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      Students will no longer be able to view or book slots for this event. You can reactivate it later.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setDeactivateConfirm(null)}
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                <div className="flex gap-3 justify-end">
+                  <button
+                    onClick={() => setDeactivateConfirm(null)}
+                    className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      const event = events.find(e => e.id === deactivateConfirm.eventId);
+                      if (event) {
+                        performToggleActive(deactivateConfirm.eventId, event.is_active);
+                      }
+                    }}
+                    disabled={togglingId === deactivateConfirm.eventId}
+                    className="px-4 py-2 bg-warning text-warning-foreground rounded-lg hover:bg-warning/90 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {togglingId === deactivateConfirm.eventId ? (
+                      <span className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-warning-foreground border-t-transparent rounded-full animate-spin" />
+                        Deactivating...
+                      </span>
+                    ) : (
+                      'Deactivate Event'
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
         </div>

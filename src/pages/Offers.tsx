@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { Building2, MapPin, Calendar, Briefcase, LogIn, UserPlus, Sparkles, Filter as FilterIcon, ArrowRight } from 'lucide-react';
@@ -33,13 +33,11 @@ export default function Offers() {
   const [offers, setOffers] = useState<OfferWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterValue>('all');
+  const [companyFilter, setCompanyFilter] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<any>(null);
   const navigate = useNavigate();
-
-  useEffect(() => {
-    checkUser();
-    loadOffers();
-  }, []);
 
   const checkUser = async () => {
     const {
@@ -48,8 +46,9 @@ export default function Offers() {
     setUser(user);
   };
 
-  const loadOffers = async () => {
+  const loadOffers = useCallback(async () => {
     try {
+      setError(null);
       const { data, error } = await supabase
         .from('offers')
         .select(`
@@ -64,15 +63,52 @@ export default function Offers() {
       setOffers((data as OfferWithDetails[]) || []);
     } catch (error) {
       console.error('Error loading offers:', error);
+      setError('Unable to load offers right now. Please try again.');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    checkUser();
+    loadOffers();
+  }, [loadOffers]);
+
+  const companyOptions = useMemo(() => {
+    const companies = new Set<string>();
+    offers.forEach((offer) => {
+      if (offer.companies?.company_name) {
+        companies.add(offer.companies.company_name);
+      }
+    });
+    return Array.from(companies).sort((a, b) => a.localeCompare(b));
+  }, [offers]);
 
   const filteredOffers = useMemo(() => {
-    if (filter === 'all') return offers;
-    return offers.filter((offer) => offer.interest_tag === filter);
-  }, [offers, filter]);
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+    return offers.filter((offer) => {
+      const matchesType = filter === 'all' || offer.interest_tag === filter;
+      const matchesCompany =
+        companyFilter === 'all' ||
+        offer.companies?.company_name === companyFilter;
+      const matchesSearch =
+        normalizedSearch.length === 0 ||
+        [
+          offer.title,
+          offer.description,
+          offer.companies?.company_name ?? '',
+          offer.events?.location ?? '',
+          offer.events?.name ?? '',
+        ].some((field) =>
+          field.toLowerCase().includes(normalizedSearch)
+        );
+
+      return matchesType && matchesCompany && matchesSearch;
+    });
+  }, [offers, filter, companyFilter, searchTerm]);
+
+  const filtersActive =
+    filter !== 'all' || companyFilter !== 'all' || searchTerm.trim().length > 0;
 
   const heroStats = useMemo(() => {
     const companyCount = new Set(offers.map((offer) => offer.company_id)).size;
@@ -85,6 +121,12 @@ export default function Offers() {
     ];
   }, [offers]);
 
+  const handleClearFilters = () => {
+    setFilter('all');
+    setCompanyFilter('all');
+    setSearchTerm('');
+  };
+
   const dashboardRoute = useMemo(() => {
     if (!user) return '/student';
     const role = user?.app_metadata?.role || user?.user_metadata?.role;
@@ -92,6 +134,8 @@ export default function Offers() {
     if (role === 'company') return '/company';
     return '/student';
   }, [user]);
+
+  const showEmptyState = !loading && filteredOffers.length === 0;
 
   const handleOfferClick = (offerId: string) => {
     if (user) {
@@ -224,32 +268,101 @@ export default function Offers() {
           </div>
         </section>
 
-        {/* Filters */}
-        <section className="mt-12" aria-label="Filter offers">
-          <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-            <FilterIcon className="h-4 w-4" />
-            Refine by focus area
+        {error && (
+          <div
+            role="alert"
+            aria-live="polite"
+            className="mt-8 rounded-2xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive"
+          >
+            <div className="flex items-center justify-between gap-4">
+              <p>{error}</p>
+              <button
+                type="button"
+                onClick={loadOffers}
+                className="rounded-lg border border-destructive/30 px-3 py-1 text-xs font-semibold text-destructive hover:border-destructive/60"
+              >
+                Try again
+              </button>
+            </div>
           </div>
-          <div className="grid gap-3 sm:grid-cols-3">
-            {FILTER_OPTIONS.map((option) => {
-              const isActive = filter === option.value;
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                  aria-pressed={isActive}
-                  onClick={() => setFilter(option.value)}
-                  className={`rounded-2xl border px-5 py-4 text-left transition-all ${
-                    isActive
-                      ? 'border-primary bg-primary text-primary-foreground shadow-soft'
-                      : 'border-border bg-card/80 text-muted-foreground hover:border-primary/70 hover:text-foreground'
-                  }`}
-                >
-                  <p className="text-sm font-semibold">{option.label}</p>
-                  <p className="mt-1 text-xs opacity-80">{option.helper}</p>
-                </button>
-              );
-            })}
+        )}
+
+        {/* Filters */}
+        <section className="mt-12 space-y-6" aria-label="Filter offers">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end">
+            <div className="flex-1">
+              <label htmlFor="offer-search" className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">
+                Search opportunities
+              </label>
+              <div className="relative mt-2">
+                <input
+                  id="offer-search"
+                  type="search"
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  placeholder="Search by role, company, or location"
+                  className="w-full rounded-2xl border border-border bg-card/70 px-4 py-3 pr-12 text-sm text-foreground shadow-soft transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
+                />
+                <Sparkles className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-primary" />
+              </div>
+            </div>
+
+            <div className="w-full lg:w-64">
+              <label htmlFor="company-filter" className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">
+                Partner company
+              </label>
+              <select
+                id="company-filter"
+                value={companyFilter}
+                onChange={(event) => setCompanyFilter(event.target.value)}
+                className="mt-2 w-full rounded-2xl border border-border bg-card/70 px-4 py-3 text-sm text-foreground shadow-soft focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
+              >
+                <option value="all">All partners</option>
+                {companyOptions.map((company) => (
+                  <option key={company} value={company}>
+                    {company}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {filtersActive && (
+              <button
+                type="button"
+                onClick={handleClearFilters}
+                className="inline-flex h-12 items-center justify-center rounded-2xl border border-border px-4 text-sm font-semibold text-muted-foreground transition hover:border-primary hover:text-primary"
+              >
+                Reset filters
+              </button>
+            )}
+          </div>
+
+          <div>
+            <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+              <FilterIcon className="h-4 w-4" />
+              Refine by focus area
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {FILTER_OPTIONS.map((option) => {
+                const isActive = filter === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    aria-pressed={isActive}
+                    onClick={() => setFilter(option.value)}
+                    className={`rounded-2xl border px-5 py-4 text-left transition-all ${
+                      isActive
+                        ? 'border-primary bg-primary text-primary-foreground shadow-soft'
+                        : 'border-border bg-card/80 text-muted-foreground hover:border-primary/70 hover:text-foreground'
+                    }`}
+                  >
+                    <p className="text-sm font-semibold">{option.label}</p>
+                    <p className="mt-1 text-xs opacity-80">{option.helper}</p>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </section>
 
@@ -257,17 +370,19 @@ export default function Offers() {
         <section id="offers-list" className="mt-10">
           {loading ? (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {Array.from({ length: 6 }).map((_, index) => (
-                <div key={index} className="animate-pulse rounded-2xl border border-border/70 bg-card/80 p-6">
-                  <div className="h-4 w-1/3 rounded bg-muted/60" />
-                  <div className="mt-4 h-6 w-2/3 rounded bg-muted/60" />
-                  <div className="mt-2 h-4 w-full rounded bg-muted/50" />
-                  <div className="mt-2 h-4 w-3/4 rounded bg-muted/40" />
-                  <div className="mt-6 h-4 w-1/4 rounded bg-muted/50" />
+              {[0, 1, 2, 3].map((index) => (
+                <div key={index} className="rounded-2xl border border-border/70 bg-card/80 p-6">
+                  <div className="h-4 w-24 rounded bg-muted/50" />
+                  <div className="mt-4 h-6 w-3/4 rounded bg-muted/60" />
+                  <div className="mt-3 space-y-2">
+                    <div className="h-4 w-full rounded bg-muted/40" />
+                    <div className="h-4 w-2/3 rounded bg-muted/30" />
+                  </div>
+                  <div className="mt-6 h-9 w-full rounded bg-muted/40" />
                 </div>
               ))}
             </div>
-          ) : filteredOffers.length === 0 ? (
+          ) : showEmptyState ? (
             <div className="rounded-2xl border border-dashed border-border/80 bg-card/70 p-10 text-center">
               <Briefcase className="mx-auto h-12 w-12 text-muted-foreground" />
               <h3 className="mt-4 text-xl font-semibold text-foreground">No offers match that filter</h3>

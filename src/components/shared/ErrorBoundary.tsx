@@ -14,6 +14,7 @@
 import { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertCircle, RefreshCw, Home } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { error as logError } from '@/utils/logger';
 
 interface Props {
   children: ReactNode;
@@ -46,8 +47,8 @@ class ErrorBoundaryClass extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // Log error to console (in production, send to error reporting service)
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    // Log error (in production, send to error reporting service)
+    logError('ErrorBoundary caught an error:', error, errorInfo);
     
     this.setState({
       error,
