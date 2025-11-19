@@ -1,9 +1,24 @@
 import { Award, Heart, Target } from "lucide-react";
+import DecorativeShape from "../components/DecorativeShape";
 
 const Story = () => {
   return (
-    <section id="about" className="py-24 bg-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section id="about" className="py-24 bg-white relative overflow-hidden">
+      {/* Decorative Shapes */}
+      <DecorativeShape
+        position="top-right"
+        size="lg"
+        opacity={0.1}
+        rotation={90}
+      />
+      <DecorativeShape
+        position="bottom-left"
+        size="md"
+        opacity={0.08}
+        rotation={0}
+      />
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Main Story */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center mb-24">
           {/* Image Side */}
@@ -40,7 +55,7 @@ const Story = () => {
         </div>
 
         {/* Core Values */}
-        <div className="mt-16">
+        <div className="mt-16  ">
           <div className="text-center mb-12">
             <h3 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
               Our Core Values

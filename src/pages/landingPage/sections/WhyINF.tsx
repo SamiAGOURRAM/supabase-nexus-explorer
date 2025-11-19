@@ -1,4 +1,5 @@
 import { Building2, Handshake, TrendingUp, Users2 } from "lucide-react";
+import DecorativeShape from "../components/DecorativeShape";
 
 const WhyINF = () => {
   const reasons = [
@@ -27,8 +28,28 @@ const WhyINF = () => {
   ];
 
   return (
-    <section className="py-24 bg-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section className="py-24 bg-white relative overflow-hidden">
+      {/* Decorative Shapes */}
+      <DecorativeShape
+        position="top-left"
+        size="md"
+        opacity={0.1}
+        rotation={0}
+      />
+      <DecorativeShape
+        position="top-right"
+        size="sm"
+        opacity={0.08}
+        rotation={90}
+      />
+      <DecorativeShape
+        position="bottom-right"
+        size="md"
+        opacity={0.08}
+        rotation={-90}
+      />
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Section Header */}
         <div className="text-center mb-16">
           <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4">
@@ -44,7 +65,7 @@ const WhyINF = () => {
         {/* Reasons - Image Left, Text Right */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center mb-16">
           {/* Image Left */}
-          <div className="order-2 lg:order-1">
+          <div className="order-2 lg:order-1 relative">
             <div className="aspect-[4/3] rounded-2xl overflow-hidden shadow-xl">
               <img
                 src="/landing-page/whyinf-2.png"
@@ -52,6 +73,8 @@ const WhyINF = () => {
                 className="w-full h-full object-cover"
               />
             </div>
+            {/* Decorative element */}
+            <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-[#007e40] rounded-2xl -z-10" />
           </div>
 
           {/* Text Right */}
@@ -120,7 +143,7 @@ const WhyINF = () => {
           </div>
 
           {/* Image Right */}
-          <div>
+          <div className="relative">
             <div className="aspect-[4/3] rounded-2xl overflow-hidden shadow-xl">
               <img
                 src="/landing-page/whyinf-1.png"
@@ -128,6 +151,8 @@ const WhyINF = () => {
                 className="w-full h-full object-cover"
               />
             </div>
+            {/* Decorative element */}
+            <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-[#f8231d] rounded-2xl -z-10" />
           </div>
         </div>
 

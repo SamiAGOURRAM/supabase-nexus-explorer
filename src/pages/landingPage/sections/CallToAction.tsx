@@ -68,15 +68,14 @@ const CallToAction = () => {
         {/* Additional Info */}
         <div className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-3xl mx-auto">
           {[
-            { label: "Free Registration", emoji: "✓" },
-            { label: "Instant Access", emoji: "⚡" },
-            { label: "Exclusive Opportunities", emoji: "🎯" },
+            { label: "Free Registration" },
+            { label: "Instant Access" },
+            { label: "Exclusive Opportunities" },
           ].map((item, index) => (
             <div
               key={index}
               className="flex items-center justify-center gap-2 text-white/90 bg-white/10 backdrop-blur-sm rounded-lg py-3 px-4 border border-white/20"
             >
-              <span className="text-xl">{item.emoji}</span>
               <span className="font-medium">{item.label}</span>
             </div>
           ))}

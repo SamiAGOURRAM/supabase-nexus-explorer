@@ -1,7 +1,23 @@
+import DecorativeShape from "../../landingPage/components/DecorativeShape";
+
 const AboutStory = () => {
   return (
-    <section className="py-24 bg-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section className="py-24 bg-white relative overflow-hidden">
+      {/* Decorative Shapes */}
+      <DecorativeShape
+        position="top-right"
+        size="lg"
+        opacity={0.1}
+        rotation={90}
+      />
+      <DecorativeShape
+        position="bottom-left"
+        size="md"
+        opacity={0.08}
+        rotation={0}
+      />
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           {/* Image Side */}
           <div className="relative">

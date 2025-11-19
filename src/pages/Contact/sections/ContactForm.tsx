@@ -1,5 +1,6 @@
 import { Instagram, Mail, MapPin, Phone } from "lucide-react";
 import { useState } from "react";
+import DecorativeShape from "../../landingPage/components/DecorativeShape";
 
 const ContactForm = () => {
   const [formData, setFormData] = useState({
@@ -24,8 +25,28 @@ const ContactForm = () => {
   };
 
   return (
-    <section className="py-24 bg-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section className="py-24 bg-white relative overflow-hidden">
+      {/* Decorative Shapes */}
+      <DecorativeShape
+        position="top-left"
+        size="md"
+        opacity={0.1}
+        rotation={0}
+      />
+      <DecorativeShape
+        position="top-right"
+        size="sm"
+        opacity={0.08}
+        rotation={90}
+      />
+      <DecorativeShape
+        position="bottom-right"
+        size="md"
+        opacity={0.08}
+        rotation={0}
+      />
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
           {/* Left Column - Contact Information */}
           <div>

@@ -1,8 +1,24 @@
 import { Sparkles } from "lucide-react";
+import DecorativeShape from "../../landingPage/components/DecorativeShape";
 
 const ContactHero = () => {
   return (
     <section className="relative min-h-[50vh] flex items-center justify-center overflow-hidden">
+      {/* Decorative Shapes */}
+      <DecorativeShape
+        position="top-right"
+        size="lg"
+        opacity={0.15}
+        rotation={90}
+        zIndex={2}
+      />
+      <DecorativeShape
+        position="top-left"
+        size="md"
+        opacity={0.1}
+        rotation={0}
+        zIndex={2}
+      />
       {/* Background GIF */}
       <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"

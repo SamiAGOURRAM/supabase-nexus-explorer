@@ -1,4 +1,5 @@
 import { Award, Heart, Target } from "lucide-react";
+import DecorativeShape from "../../landingPage/components/DecorativeShape";
 
 const AboutValues = () => {
   const values = [
@@ -26,8 +27,28 @@ const AboutValues = () => {
   ];
 
   return (
-    <section className="py-24 bg-[#f5f5f0]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section className="py-24 bg-[#f5f5f0] relative overflow-hidden">
+      {/* Decorative Shapes */}
+      <DecorativeShape
+        position="top-left"
+        size="md"
+        opacity={0.1}
+        rotation={0}
+      />
+      <DecorativeShape
+        position="top-right"
+        size="sm"
+        opacity={0.08}
+        rotation={90}
+      />
+      <DecorativeShape
+        position="bottom-right"
+        size="md"
+        opacity={0.08}
+        rotation={-90}
+      />
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="text-center mb-12">
           <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4">
             Our Core Values
