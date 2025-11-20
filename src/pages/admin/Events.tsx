@@ -74,7 +74,8 @@ export default function AdminEvents() {
       setCreating(true);
       const { error } = await supabase
         .from('events')
-        .insert([formData]);
+        .insert([formData])
+        .select();
 
       if (error) throw error;
 
@@ -118,7 +119,8 @@ export default function AdminEvents() {
       const { error } = await supabase
         .from('events')
         .update({ is_active: !currentStatus })
-        .eq('id', eventId);
+        .eq('id', eventId)
+        .select();
 
       if (error) throw error;
       showSuccess(`Event ${!currentStatus ? 'activated' : 'deactivated'} successfully`);

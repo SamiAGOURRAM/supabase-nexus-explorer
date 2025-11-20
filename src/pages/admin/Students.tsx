@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/contexts/ToastContext';
@@ -11,6 +11,7 @@ import LoadingTable from '@/components/shared/LoadingTable';
 import ImageUpload from '@/components/shared/ImageUpload';
 import Pagination from '@/components/shared/Pagination';
 import { uploadProfilePhoto } from '@/utils/fileUpload';
+import { error as logError } from '@/utils/logger';
 
 type Student = {
   id: string;
@@ -22,6 +23,7 @@ type Student = {
   graduation_year: number | null;
   is_deprioritized: boolean;
   created_at: string;
+  updated_at?: string; // For cache busting and detecting changes
   profile_photo_url?: string | null;
   languages_spoken?: string[] | null;
   program?: string | null;
@@ -112,7 +114,7 @@ export default function AdminStudents() {
     }
   };
 
-  const loadStudents = async () => {
+  const loadStudents = useCallback(async () => {
     try {
       // If eventId is present, load event details first
       if (eventId) {
@@ -159,13 +161,19 @@ export default function AdminStudents() {
       
       // Fetch full details for student profiles
       const studentIds = studentProfiles.map((p: any) => p.id);
+      
+      // Fetch fresh data - ensure we get all fields including updated_at if it exists
       const { data: fullStudentProfiles, error: fullError } = await supabase
         .from('profiles')
-        .select('id, email, full_name, phone, student_number, specialization, graduation_year, cv_url, is_deprioritized, created_at, profile_photo_url, languages_spoken, program, biography, linkedin_url, resume_url, year_of_study')
+        .select('id, email, full_name, phone, student_number, specialization, graduation_year, cv_url, is_deprioritized, created_at, updated_at, profile_photo_url, languages_spoken, program, biography, linkedin_url, resume_url, year_of_study')
         .in('id', studentIds)
         .order('created_at', { ascending: false });
       
-      if (fullError) throw fullError;
+      if (fullError) {
+        console.error('Error loading full student profiles:', fullError);
+        throw fullError;
+      }
+      
 
       // If eventId is present, fetch bookings and calculate stats
       let studentStats: Record<string, { total_bookings: number; companies: Array<{ id: string; name: string }>; sessions: string[] }> = {};
@@ -256,7 +264,7 @@ export default function AdminStudents() {
         }
       }
       
-      // Map to Student type
+      // Map to Student type - include updated_at for cache busting
       const mappedStudents: Student[] = (fullStudentProfiles || []).map((s: any) => ({
         id: s.id,
         email: s.email,
@@ -267,6 +275,7 @@ export default function AdminStudents() {
         graduation_year: s.graduation_year || null,
         is_deprioritized: s.is_deprioritized || false,
         created_at: s.created_at,
+        updated_at: s.updated_at || s.created_at, // Include updated_at from database
         profile_photo_url: s.profile_photo_url || null,
         languages_spoken: s.languages_spoken || null,
         program: s.program || null,
@@ -278,7 +287,8 @@ export default function AdminStudents() {
         event_stats: eventId ? (studentStats[s.id] || { total_bookings: 0, companies: [], sessions: [] }) : undefined
       }));
       
-      setStudents(mappedStudents);
+      // Force state update by creating a new array reference
+      setStudents([...mappedStudents]);
       setError(null);
     } catch (err: any) {
       console.error('Error loading students:', err);
@@ -287,36 +297,73 @@ export default function AdminStudents() {
       showError('Failed to load students. Please try again.');
       setStudents([]);
     }
-  };
+  }, [eventId, showError]);
 
-  const handleToggleDeprioritized = async (studentId: string, currentStatus: boolean) => {
+  const handleToggleDeprioritized = useCallback(async (studentId: string, currentStatus: boolean) => {
+    const newStatus = !currentStatus;
+    
     try {
-      const { error } = await supabase
+      // Update database
+      const { error: updateError, data: updateData } = await supabase
         .from('profiles')
-        .update({ is_deprioritized: !currentStatus })
-        .eq('id', studentId);
+        .update({ is_deprioritized: newStatus })
+        .eq('id', studentId)
+        .select();
 
-      if (error) throw error;
-      showSuccess(`Student ${!currentStatus ? 'deprioritized' : 'prioritized'} successfully`);
-      await loadStudents();
+      if (updateError) {
+        logError('Database error toggling deprioritized:', updateError);
+        throw updateError;
+      }
+
+      if (!updateData || updateData.length === 0) {
+        throw new Error('Update failed: You may not have permission to update this profile.');
+      }
+
+      // Update local state IMMEDIATELY with the new status (optimistic update)
+      // This ensures the UI updates instantly and the change persists
+      setStudents(prevStudents => {
+        const updated = prevStudents.map(s => 
+          s.id === studentId 
+            ? { ...s, is_deprioritized: newStatus, updated_at: new Date().toISOString() }
+            : s
+        );
+        // Return a new array reference to ensure React detects the change
+        return [...updated];
+      });
+
+      showSuccess(`Student ${newStatus ? 'deprioritized' : 'prioritized'} successfully`);
+      
+      // Optionally verify in the background (non-blocking)
+      // Background verification removed to prevent state flickering/reversion
+      // The optimistic update above is sufficient as we trust the DB update succeeded if no error was thrown
     } catch (err: any) {
-      console.error('Error updating student:', err);
+      logError('Error updating student deprioritization status:', err);
       showError(err.message || 'Failed to update student status');
+      
+      // Revert the optimistic update on error
+      setStudents(prevStudents => 
+        prevStudents.map(s => 
+          s.id === studentId 
+            ? { ...s, is_deprioritized: currentStatus }
+            : s
+        )
+      );
     }
-  };
+  }, [showSuccess, showError]);
 
-  const startEditing = (student: Student) => {
+  const startEditing = useCallback((student: Student) => {
     setEditingStudentId(student.id);
     setEditedStudent({ ...student });
     setLanguageInput({ [student.id]: '' });
-  };
+    setPhotoFile(null); // Reset photo file when starting new edit
+  }, []);
 
-  const cancelEditing = () => {
+  const cancelEditing = useCallback(() => {
     setEditingStudentId(null);
     setEditedStudent(null);
     setPhotoFile(null);
     setLanguageInput({});
-  };
+  }, []);
 
   const addLanguage = (studentId: string) => {
     if (!editedStudent || !languageInput[studentId]?.trim()) return;
@@ -340,32 +387,55 @@ export default function AdminStudents() {
     });
   };
 
-  const handlePhotoSelect = (file: File) => {
+  const handlePhotoSelect = useCallback((file: File) => {
     setPhotoFile(file);
-  };
+  }, []);
 
-  const saveStudent = async (studentId: string) => {
-    if (!editedStudent) return;
+  const saveStudent = useCallback(async (studentId: string) => {
+    if (!editedStudent) {
+      showError('No changes to save. Please edit the student first.');
+      return;
+    }
+
+    if (editingStudentId !== studentId) {
+      showError('Editing state mismatch. Please try again.');
+      return;
+    }
 
     try {
       setSavingStudentId(studentId);
+      
+      // Basic validation
+      if (!editedStudent.full_name || editedStudent.full_name.trim().length < 2) {
+        throw new Error('Full name must be at least 2 characters');
+      }
+
+      if (!editedStudent.email || !editedStudent.email.includes('@')) {
+        throw new Error('Please enter a valid email address');
+      }
       
       // Upload photo if selected
       let profilePhotoUrl = editedStudent.profile_photo_url;
       if (photoFile) {
         setUploadingPhoto(studentId);
-        const uploadResult = await uploadProfilePhoto(photoFile, studentId);
-        if (uploadResult.error) {
-          throw new Error(uploadResult.error);
+        try {
+          const uploadResult = await uploadProfilePhoto(photoFile, studentId);
+          if (uploadResult.error) {
+            throw new Error(uploadResult.error);
+          }
+          profilePhotoUrl = uploadResult.url;
+        } catch (uploadErr: any) {
+          logError('Photo upload error:', uploadErr);
+          throw new Error(`Failed to upload photo: ${uploadErr.message}`);
+        } finally {
+          setUploadingPhoto(null);
         }
-        profilePhotoUrl = uploadResult.url;
-        setUploadingPhoto(null);
       }
 
-      // Prepare update data
+      // Prepare update data - ensure all fields are properly included
       const updateData: any = {
-        full_name: editedStudent.full_name?.trim() || '',
-        email: editedStudent.email?.trim() || '',
+        full_name: editedStudent.full_name.trim(),
+        email: editedStudent.email.trim(),
         phone: editedStudent.phone?.trim() || null,
         student_number: editedStudent.student_number?.trim() || null,
         specialization: editedStudent.specialization?.trim() || null,
@@ -377,31 +447,84 @@ export default function AdminStudents() {
         linkedin_url: editedStudent.linkedin_url?.trim() || null,
         resume_url: editedStudent.resume_url?.trim() || null,
         cv_url: editedStudent.cv_url?.trim() || null,
-        is_deprioritized: editedStudent.is_deprioritized || false,
+        is_deprioritized: editedStudent.is_deprioritized ?? false,
       };
 
-      if (profilePhotoUrl !== undefined) {
+      // Always include profile_photo_url if it exists or was updated
+      if (profilePhotoUrl !== undefined && profilePhotoUrl !== null) {
         updateData.profile_photo_url = profilePhotoUrl;
       }
 
-      const { error } = await supabase
+      // Update database
+      const { error: updateError, data: savedData } = await supabase
         .from('profiles')
         .update(updateData)
-        .eq('id', studentId);
+        .eq('id', studentId)
+        .select();
 
-      if (error) throw error;
+      if (updateError) {
+        logError('Database error saving student:', updateError);
+        throw updateError;
+      }
 
+      if (!savedData || savedData.length === 0) {
+        throw new Error('Update failed: You may not have permission to update this profile.');
+      }
+
+      // Update local state IMMEDIATELY with the data we just saved (optimistic update)
+      // We know what we sent to the database, so we can use that directly
+      // This ensures the UI updates instantly and the values persist
+      setStudents(prevStudents => {
+        const updated = prevStudents.map(s => {
+          if (s.id === studentId) {
+            // Create updated student with the exact data we just saved
+            const updatedStudent: Student = {
+              ...s,
+              full_name: updateData.full_name,
+              email: updateData.email,
+              phone: updateData.phone,
+              student_number: updateData.student_number,
+              specialization: updateData.specialization,
+              graduation_year: updateData.graduation_year,
+              program: updateData.program,
+              year_of_study: updateData.year_of_study,
+              languages_spoken: updateData.languages_spoken,
+              biography: updateData.biography,
+              linkedin_url: updateData.linkedin_url,
+              resume_url: updateData.resume_url,
+              cv_url: updateData.cv_url,
+              is_deprioritized: updateData.is_deprioritized,
+              profile_photo_url: updateData.profile_photo_url || s.profile_photo_url || null,
+              updated_at: new Date().toISOString(), // Mark as updated for cache busting
+              // Preserve event_stats and other computed fields
+              event_stats: s.event_stats
+            };
+            return updatedStudent;
+          }
+          return s;
+        });
+        // Return a new array reference to ensure React detects the change
+        return [...updated];
+      });
+      
       showSuccess('Student profile updated successfully');
+      
+      // Cancel editing to exit edit mode
       cancelEditing();
-      await loadStudents();
+      
+      // Optionally verify the update in the background (non-blocking)
+      // This helps catch any issues but doesn't affect the UI
+      // Background verification removed to prevent state flickering/reversion
+      // The optimistic update above is sufficient as we trust the DB update succeeded if no error was thrown
     } catch (err: any) {
-      console.error('Error saving student:', err);
+      logError('Error saving student:', err);
       showError(err.message || 'Failed to update student profile');
     } finally {
       setSavingStudentId(null);
       setUploadingPhoto(null);
+      // Don't clear photoFile here - let cancelEditing handle it
     }
-  };
+  }, [editedStudent, editingStudentId, photoFile, showSuccess, showError, cancelEditing, loadStudents]);
 
   const exportToCSV = () => {
     if (!eventId) return;
@@ -685,9 +808,13 @@ export default function AdminStudents() {
                       const isEditing = editingStudentId === student.id;
                       const currentStudent = isEditing && editedStudent ? editedStudent : student;
                       
+                      // Create a unique key that includes data fields to force re-render when data changes
+                      const dataHash = `${student.student_number || ''}-${student.specialization || ''}-${student.year_of_study || ''}-${student.graduation_year || ''}-${(student.languages_spoken || []).join(',')}`;
+                      const rowKey = `${student.id}-${student.updated_at || student.created_at}-${dataHash}`;
+                      
                       return (
                         <tr 
-                          key={student.id} 
+                          key={rowKey}
                           className={`transition-colors duration-150 ${
                             isEditing 
                               ? 'bg-primary/5 border-l-4 border-l-primary' 
@@ -996,13 +1123,24 @@ export default function AdminStudents() {
                           </td>
                           
                           {/* Actions Column */}
-                          <td className="px-4 sm:px-6 py-3 sm:py-4">
+                          <td className="px-4 sm:px-6 py-3 sm:py-4" onClick={(e) => e.stopPropagation()}>
                             {isEditing ? (
                               <div className="flex flex-col gap-2">
                                 <button
-                                  onClick={() => saveStudent(student.id)}
-                                  disabled={savingStudentId === student.id || uploadingPhoto === student.id}
-                                  className="flex items-center justify-center gap-1 px-3 py-1.5 bg-primary text-primary-foreground rounded text-xs font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    if (editedStudent && editingStudentId === student.id) {
+                                      saveStudent(student.id).catch((err) => {
+                                        logError('Error in saveStudent:', err);
+                                      });
+                                    } else {
+                                      showError('Cannot save. Please try editing again.');
+                                    }
+                                  }}
+                                  disabled={savingStudentId === student.id || uploadingPhoto === student.id || !editedStudent}
+                                  className="flex items-center justify-center gap-1 px-3 py-1.5 bg-primary text-primary-foreground rounded text-xs font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                                 >
                                   {savingStudentId === student.id || uploadingPhoto === student.id ? (
                                     <>
@@ -1017,9 +1155,14 @@ export default function AdminStudents() {
                                   )}
                                 </button>
                                 <button
-                                  onClick={cancelEditing}
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    cancelEditing();
+                                  }}
                                   disabled={savingStudentId === student.id}
-                                  className="flex items-center justify-center gap-1 px-3 py-1.5 bg-muted text-foreground rounded text-xs font-medium hover:bg-muted/80 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  className="flex items-center justify-center gap-1 px-3 py-1.5 bg-muted text-foreground rounded text-xs font-medium hover:bg-muted/80 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                                 >
                                   <X className="w-3 h-3" />
                                   Cancel
@@ -1028,15 +1171,28 @@ export default function AdminStudents() {
                             ) : (
                               <div className="flex flex-col gap-2">
                                 <button
-                                  onClick={() => startEditing(student)}
-                                  className="flex items-center justify-center gap-1 px-3 py-1.5 bg-primary/10 text-primary rounded text-xs font-medium hover:bg-primary/20"
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    startEditing(student);
+                                  }}
+                                  className="flex items-center justify-center gap-1 px-3 py-1.5 bg-primary/10 text-primary rounded text-xs font-medium hover:bg-primary/20 cursor-pointer"
                                 >
                                   <Edit2 className="w-3 h-3" />
                                   Edit
                                 </button>
                                 <button
-                                  onClick={() => handleToggleDeprioritized(student.id, student.is_deprioritized)}
-                                  className={`px-3 py-1.5 rounded text-xs font-semibold transition-all duration-200 ${
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleToggleDeprioritized(student.id, student.is_deprioritized).catch((err) => {
+                                      logError('Error in handleToggleDeprioritized:', err);
+                                    });
+                                  }}
+                                  disabled={savingStudentId === student.id}
+                                  className={`px-3 py-1.5 rounded text-xs font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer ${
                                     student.is_deprioritized
                                       ? 'bg-success/10 text-success hover:bg-success/20 border border-success/20'
                                       : 'bg-warning/10 text-warning hover:bg-warning/20 border border-warning/20'

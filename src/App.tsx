@@ -38,6 +38,8 @@ const AdminEvents = lazy(() => import("./pages/admin/Events"));
 const AdminCompanies = lazy(() => import("./pages/admin/Companies"));
 const AdminStudents = lazy(() => import("./pages/admin/Students"));
 const AdminOffers = lazy(() => import("./pages/admin/Offers"));
+const AdminCreateOffer = lazy(() => import("./pages/admin/offers/CreateOffer"));
+const AdminEditOffer = lazy(() => import("./pages/admin/offers/EditOffer"));
 const AdminBookings = lazy(() => import("./pages/admin/Bookings"));
 const QuickInvite = lazy(() => import("./pages/admin/events/QuickInvite"));
 const Participants = lazy(() => import("./pages/admin/events/Participants"));
@@ -83,21 +85,23 @@ function AppRoutes() {
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           
           {/* Admin Routes */}
-          <Route path="/admin" element={<AdminDashboard />} />
-          <Route path="/admin/events" element={<AdminEvents />} />
-          <Route path="/admin/events/:id/quick-invite" element={<QuickInvite />} />
-          <Route path="/admin/events/:id/participants" element={<Participants />} />
-          <Route path="/admin/events/:id/sessions" element={<Sessions />} />
-          <Route path="/admin/events/:id/phases" element={<Phases />} />
-          <Route path="/admin/events/:id/schedule" element={<EventSchedule />} />
-          <Route path="/admin/events/:id/slots" element={<EventSlots />} />
-          <Route path="/admin/events/:id/companies" element={<EventCompanies />} />
-          <Route path="/admin/events/:id/companies/:companyId" element={<CompanyDetail />} />
-          <Route path="/admin/events/:id/students" element={<EventStudents />} />
-          <Route path="/admin/companies" element={<AdminCompanies />} />
-          <Route path="/admin/students" element={<AdminStudents />} />
-          <Route path="/admin/offers" element={<AdminOffers />} />
-          <Route path="/admin/bookings" element={<AdminBookings />} />
+          <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
+          <Route path="/admin/events" element={<ProtectedRoute><AdminEvents /></ProtectedRoute>} />
+          <Route path="/admin/events/:id/quick-invite" element={<ProtectedRoute><QuickInvite /></ProtectedRoute>} />
+          <Route path="/admin/events/:id/participants" element={<ProtectedRoute><Participants /></ProtectedRoute>} />
+          <Route path="/admin/events/:id/sessions" element={<ProtectedRoute><Sessions /></ProtectedRoute>} />
+          <Route path="/admin/events/:id/phases" element={<ProtectedRoute><Phases /></ProtectedRoute>} />
+          <Route path="/admin/events/:id/schedule" element={<ProtectedRoute><EventSchedule /></ProtectedRoute>} />
+          <Route path="/admin/events/:id/slots" element={<ProtectedRoute><EventSlots /></ProtectedRoute>} />
+          <Route path="/admin/events/:id/companies" element={<ProtectedRoute><EventCompanies /></ProtectedRoute>} />
+          <Route path="/admin/events/:id/companies/:companyId" element={<ProtectedRoute><CompanyDetail /></ProtectedRoute>} />
+          <Route path="/admin/events/:id/students" element={<ProtectedRoute><EventStudents /></ProtectedRoute>} />
+          <Route path="/admin/companies" element={<ProtectedRoute><AdminCompanies /></ProtectedRoute>} />
+          <Route path="/admin/students" element={<ProtectedRoute><AdminStudents /></ProtectedRoute>} />
+          <Route path="/admin/offers" element={<ProtectedRoute><AdminOffers /></ProtectedRoute>} />
+          <Route path="/admin/offers/new" element={<ProtectedRoute><AdminCreateOffer /></ProtectedRoute>} />
+          <Route path="/admin/offers/:id/edit" element={<ProtectedRoute><AdminEditOffer /></ProtectedRoute>} />
+          <Route path="/admin/bookings" element={<ProtectedRoute><AdminBookings /></ProtectedRoute>} />
           
           {/* Student Routes - Protected & Require Email Verification */}
           <Route path="/student" element={<ProtectedRoute><StudentDashboard /></ProtectedRoute>} />

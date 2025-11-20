@@ -151,6 +151,7 @@ export default function StudentBookings() {
       setCancellingId(bookingId);
       if (!user) {
         showError('You must be logged in to cancel a booking');
+        setCancellingId(null);
         return;
       }
 
@@ -159,13 +160,24 @@ export default function StudentBookings() {
         p_student_id: user.id
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('RPC error:', error);
+        throw new Error(error.message || 'Failed to cancel booking');
+      }
 
-      if (data && data.length > 0 && data[0].success) {
-        showSuccess(data[0].message || 'Booking cancelled successfully');
+      // Check if we got a valid response
+      if (!data || !Array.isArray(data) || data.length === 0) {
+        throw new Error('Invalid response from server');
+      }
+
+      const result = data[0];
+      if (result.success) {
+        showSuccess(result.message || 'Booking cancelled successfully');
+        // Reload bookings to reflect the cancellation
         await loadBookings(user.id, selectedEventId, false);
       } else {
-        throw new Error(data[0]?.message || 'Failed to cancel booking');
+        // Function returned success: false with an error message
+        throw new Error(result.message || 'Failed to cancel booking');
       }
     } catch (error: any) {
       console.error('Error cancelling booking:', error);

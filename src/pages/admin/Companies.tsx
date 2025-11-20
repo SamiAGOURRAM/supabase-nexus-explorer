@@ -150,7 +150,8 @@ export default function AdminCompanies() {
       const { error } = await supabase
         .from('companies')
         .update({ is_verified: verify })
-        .eq('id', companyId);
+        .eq('id', companyId)
+        .select();
 
       if (error) {
         throw new Error(`Failed to verify company: ${error.message}`);
@@ -220,7 +221,8 @@ export default function AdminCompanies() {
       const { error } = await supabase
         .from('companies')
         .update(updateData)
-        .eq('id', companyId);
+        .eq('id', companyId)
+        .select();
 
       if (error) throw error;
 

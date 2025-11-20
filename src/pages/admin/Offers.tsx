@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/contexts/ToastContext';
-import { Briefcase, Building2, Search, Eye, EyeOff, Trash2 } from 'lucide-react';
+import { Briefcase, Building2, Search, Eye, EyeOff, Trash2, Plus, Edit2 } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { useAuth } from '@/hooks/useAuth';
 import ErrorDisplay from '@/components/shared/ErrorDisplay';
@@ -24,6 +25,7 @@ type Offer = {
 
 export default function AdminOffers() {
   const { signOut } = useAuth('admin');
+  const navigate = useNavigate();
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -107,9 +109,18 @@ export default function AdminOffers() {
       <div className="p-4 sm:p-6 md:p-8">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-foreground mb-2">Offers Management</h1>
-            <p className="text-muted-foreground">View and manage all internship offers</p>
+          <div className="mb-8 flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-foreground mb-2">Offers Management</h1>
+              <p className="text-muted-foreground">View and manage all internship offers</p>
+            </div>
+            <button
+              onClick={() => navigate('/admin/offers/new')}
+              className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium"
+            >
+              <Plus className="w-4 h-4" />
+              Create Offer
+            </button>
           </div>
 
           {/* Filters */}
@@ -259,9 +270,16 @@ export default function AdminOffers() {
 
                   <div className="flex gap-2 pt-4 border-t border-border">
                     <button
+                      onClick={() => navigate(`/admin/offers/${offer.id}/edit`)}
+                      className="flex-1 px-3 py-2 bg-primary/10 text-primary rounded-lg text-xs font-medium hover:bg-primary/20 transition-colors flex items-center justify-center gap-1"
+                    >
+                      <Edit2 className="w-3 h-3" />
+                      Edit
+                    </button>
+                    <button
                       onClick={() => handleDeleteOffer(offer.id)}
                       disabled={deletingId === offer.id}
-                      className="w-full px-3 py-2 bg-destructive/10 text-destructive rounded-lg text-xs font-medium hover:bg-destructive/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+                      className="flex-1 px-3 py-2 bg-destructive/10 text-destructive rounded-lg text-xs font-medium hover:bg-destructive/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1"
                     >
                       {deletingId === offer.id ? (
                         <div className="w-3 h-3 border-2 border-destructive border-t-transparent rounded-full animate-spin" />

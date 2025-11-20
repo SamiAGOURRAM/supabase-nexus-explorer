@@ -33,7 +33,7 @@ export default function AdminBookings() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const { showError } = useToast();
+  const { showError, showSuccess } = useToast();
 
   useEffect(() => {
     loadBookings();
@@ -117,16 +117,26 @@ export default function AdminBookings() {
     }
 
     try {
-      const { error } = await supabase
+      const { error, data } = await supabase
         .from('bookings')
-        .update({ status: 'cancelled' })
-        .eq('id', bookingId);
+        .update({ 
+          status: 'cancelled',
+          cancelled_at: new Date().toISOString()
+        })
+        .eq('id', bookingId)
+        .select();
 
       if (error) throw error;
+
+      if (!data || data.length === 0) {
+        throw new Error('Cancellation failed: You may not have permission to update this booking.');
+      }
+
+      showSuccess('Booking cancelled successfully');
       await loadBookings();
     } catch (err: any) {
       console.error('Error cancelling booking:', err);
-      alert('Error: ' + err.message);
+      showError(err.message || 'Failed to cancel booking');
     }
   };
 

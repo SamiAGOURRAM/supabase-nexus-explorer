@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { Search, Users, FileText } from 'lucide-react';
+import { Search, Users, FileText, Filter } from 'lucide-react';
 import { useToast } from '@/contexts/ToastContext';
 import LoadingScreen from '@/components/shared/LoadingScreen';
 import ErrorDisplay from '@/components/shared/ErrorDisplay';
@@ -20,6 +20,8 @@ type StudentBooking = {
   student_number: string | null;
   specialization: string | null;
   graduation_year: number | null;
+  program: string | null;
+  year_of_study: number | null;
   cv_url: string | null;
   resume_url: string | null;
   offer_title: string;
@@ -33,6 +35,9 @@ export default function CompanyStudents() {
   const [loading, setLoading] = useState(true);
   const [students, setStudents] = useState<StudentBooking[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterProgram, setFilterProgram] = useState<string>('all');
+  const [filterYear, setFilterYear] = useState<string>('all');
+  const [filterGraduationYear, setFilterGraduationYear] = useState<string>('all');
   const [error, setError] = useState<Error | null>(null);
   const [profiles, setProfiles] = useState<any[]>([]);
   
@@ -151,6 +156,8 @@ export default function CompanyStudents() {
           student_number: profile?.student_number || null,
           specialization: profile?.specialization || null,
           graduation_year: profile?.graduation_year || null,
+          program: profile?.program || null,
+          year_of_study: profile?.year_of_study || null,
           cv_url: profile?.cv_url || null,
           resume_url: profile?.resume_url || null,
           offer_title: offerId ? (offerMap.get(offerId) || 'Unknown') : 'Unknown',
@@ -182,23 +189,68 @@ export default function CompanyStudents() {
   }, [authLoading, loadStudents]);
 
   const filteredStudents = useMemo(() => {
+    let filtered = students;
+
+    // Search filter
     const query = searchQuery.toLowerCase().trim();
-    if (!query) return students;
+    if (query) {
+      filtered = filtered.filter((student) => {
+        return (
+          student.student_name.toLowerCase().includes(query) ||
+          student.student_email.toLowerCase().includes(query) ||
+          student.offer_title.toLowerCase().includes(query) ||
+          (student.student_number && student.student_number.toLowerCase().includes(query))
+        );
+      });
+    }
 
-    return students.filter((student) => {
-      return (
-        student.student_name.toLowerCase().includes(query) ||
-        student.student_email.toLowerCase().includes(query) ||
-        student.offer_title.toLowerCase().includes(query) ||
-        (student.student_number && student.student_number.toLowerCase().includes(query))
-      );
-    });
-  }, [searchQuery, students]);
+    // Program filter
+    if (filterProgram !== 'all') {
+      filtered = filtered.filter((student) => student.program === filterProgram);
+    }
 
-  // Reset to page 1 when search changes
+    // Year of study filter
+    if (filterYear !== 'all') {
+      filtered = filtered.filter((student) => student.year_of_study === parseInt(filterYear));
+    }
+
+    // Graduation year filter
+    if (filterGraduationYear !== 'all') {
+      filtered = filtered.filter((student) => student.graduation_year === parseInt(filterGraduationYear));
+    }
+
+    return filtered;
+  }, [searchQuery, filterProgram, filterYear, filterGraduationYear, students]);
+
+  // Get unique values for filters
+  const uniquePrograms = useMemo(() => {
+    return Array.from(new Set(students.map(s => s.program).filter(Boolean))) as string[];
+  }, [students]);
+
+  const uniqueYears = useMemo(() => {
+    return Array.from(
+      new Set(
+        students
+          .map((s) => s.year_of_study)
+          .filter((year): year is number => year !== null && year !== undefined)
+      )
+    ).sort((a, b) => a - b);
+  }, [students]);
+
+  const uniqueGraduationYears = useMemo(() => {
+    return Array.from(
+      new Set(
+        students
+          .map((s) => s.graduation_year)
+          .filter((year): year is number => year !== null && year !== undefined)
+      )
+    ).sort((a, b) => a - b);
+  }, [students]);
+
+  // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery]);
+  }, [searchQuery, filterProgram, filterYear, filterGraduationYear]);
 
   // Calculate pagination
   const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
@@ -260,8 +312,8 @@ export default function CompanyStudents() {
           </div>
           </div>
 
-          {/* Search */}
-          <div className="bg-card rounded-lg border border-border p-4">
+          {/* Search and Filters */}
+          <div className="bg-card rounded-lg border border-border p-4 space-y-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <input
@@ -271,6 +323,81 @@ export default function CompanyStudents() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
               />
+            </div>
+            
+            {/* Filters */}
+            <div className="flex flex-wrap gap-4 items-end">
+              <div className="flex items-center gap-2">
+                <Filter className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm font-medium text-foreground">Filters:</span>
+              </div>
+              
+              <div className="flex-1 min-w-[200px]">
+                <label className="block text-xs font-medium text-muted-foreground mb-1">
+                  Program
+                </label>
+                <select
+                  value={filterProgram}
+                  onChange={(e) => setFilterProgram(e.target.value)}
+                  className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value="all">All Programs</option>
+                  {uniquePrograms.map((program) => (
+                    <option key={program} value={program}>
+                      {program}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex-1 min-w-[150px]">
+                <label className="block text-xs font-medium text-muted-foreground mb-1">
+                  Year of Study
+                </label>
+                <select
+                  value={filterYear}
+                  onChange={(e) => setFilterYear(e.target.value)}
+                  className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value="all">All Years</option>
+                  {uniqueYears.map((year) => (
+                    <option key={year} value={year.toString()}>
+                      Year {year}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex-1 min-w-[150px]">
+                <label className="block text-xs font-medium text-muted-foreground mb-1">
+                  Graduation Year
+                </label>
+                <select
+                  value={filterGraduationYear}
+                  onChange={(e) => setFilterGraduationYear(e.target.value)}
+                  className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value="all">All Years</option>
+                  {uniqueGraduationYears.map((year) => (
+                    <option key={year} value={year.toString()}>
+                      {year}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {(filterProgram !== 'all' || filterYear !== 'all' || filterGraduationYear !== 'all') && (
+                <button
+                  onClick={() => {
+                    setFilterProgram('all');
+                    setFilterYear('all');
+                    setFilterGraduationYear('all');
+                  }}
+                  className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Clear Filters
+                </button>
+              )}
             </div>
           </div>
 
