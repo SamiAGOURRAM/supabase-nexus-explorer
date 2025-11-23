@@ -167,32 +167,32 @@ export default function StudentDashboard() {
       <div className="p-6 md:p-8">
         <div className="max-w-7xl mx-auto space-y-6">
           <div>
-            <h1 className="text-3xl md:text-4xl font-bold text-foreground">Student Dashboard</h1>
-            <p className="text-muted-foreground text-sm md:text-base mt-1">Welcome back!</p>
+            <h1 className="text-3xl md:text-4xl font-bold text-gray-900">Student Dashboard</h1>
+            <p className="text-gray-600 text-sm md:text-base mt-1">Welcome back!</p>
           </div>
 
           {/* Phase Status Card */}
         {phaseInfo && (
-          <div className={`rounded-xl border p-6 mb-6 ${
+          <div className={`rounded-xl border-2 p-6 mb-6 ${
             phaseInfo.currentPhase === 0 
-              ? 'bg-destructive/10 border-destructive/30' 
+              ? 'bg-red-50 border-red-300' 
               : phaseInfo.canBook 
-                ? 'bg-success/10 border-success/30' 
-                : 'bg-warning/10 border-warning/30'
+                ? 'bg-[#007e40]/10 border-[#007e40]/30' 
+                : 'bg-[#ffb300]/10 border-[#ffb300]/30'
           }`}>
             <div className="flex items-start gap-4">
               {phaseInfo.currentPhase === 0 ? (
-                <AlertCircle className="w-6 h-6 text-destructive flex-shrink-0 mt-1" />
+                <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-1" />
               ) : phaseInfo.canBook ? (
-                <CheckCircle2 className="w-6 h-6 text-success flex-shrink-0 mt-1" />
+                <CheckCircle2 className="w-6 h-6 text-[#007e40] flex-shrink-0 mt-1" />
               ) : (
-                <AlertCircle className="w-6 h-6 text-warning flex-shrink-0 mt-1" />
+                <AlertCircle className="w-6 h-6 text-[#ffb300] flex-shrink-0 mt-1" />
               )}
               <div className="flex-1">
-                <h3 className="font-semibold text-foreground mb-1">
+                <h3 className="font-semibold text-gray-900 mb-1">
                   {phaseInfo.eventName} - Phase {phaseInfo.currentPhase}
                 </h3>
-                <p className="text-sm text-muted-foreground mb-2">
+                <p className="text-sm text-gray-600 mb-2">
                   {new Date(phaseInfo.eventDate).toLocaleDateString('en-US', { 
                     weekday: 'long', 
                     year: 'numeric', 
@@ -201,21 +201,21 @@ export default function StudentDashboard() {
                   })}
                 </p>
                 <div className="flex items-center gap-4 mb-2">
-                  <span className="text-sm font-medium text-foreground">
+                  <span className="text-sm font-medium text-gray-900">
                     Bookings: {phaseInfo.currentBookings}/{phaseInfo.maxBookings}
                   </span>
-                  <div className="flex-1 max-w-xs bg-muted rounded-full h-2">
+                  <div className="flex-1 max-w-xs bg-gray-200 rounded-full h-2">
                     <div 
                       className={`h-2 rounded-full transition-all ${
                         phaseInfo.currentBookings >= phaseInfo.maxBookings 
-                          ? 'bg-destructive' 
-                          : 'bg-success'
+                          ? 'bg-red-600' 
+                          : 'bg-[#007e40]'
                       }`}
                       style={{ width: `${Math.min((phaseInfo.currentBookings / phaseInfo.maxBookings) * 100, 100)}%` }}
                     />
                   </div>
                 </div>
-                <p className="text-sm text-foreground">{phaseInfo.message}</p>
+                <p className="text-sm text-gray-900">{phaseInfo.message}</p>
               </div>
             </div>
           </div>
@@ -224,49 +224,49 @@ export default function StudentDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Link 
             to="/student/bookings" 
-            className="bg-card rounded-xl border border-border p-6 hover:border-primary hover:shadow-elegant transition-all group"
+            className="bg-white rounded-xl border-2 border-gray-200 p-6 hover:border-[#007e40] hover:shadow-xl transition-all group"
           >
-            <Calendar className="w-8 h-8 text-primary mb-4 group-hover:scale-110 transition-transform" />
-            <p className="text-3xl font-bold text-foreground mb-1">{stats.bookings}</p>
-            <p className="text-sm text-muted-foreground">My Bookings</p>
+            <Calendar className="w-8 h-8 text-[#007e40] mb-4 group-hover:scale-110 transition-transform" />
+            <p className="text-3xl font-bold text-gray-900 mb-1">{stats.bookings}</p>
+            <p className="text-sm text-gray-600">My Bookings</p>
           </Link>
           
           <Link 
             to="/student/offers" 
-            className="bg-card rounded-xl border border-border p-6 hover:border-primary hover:shadow-elegant transition-all group"
+            className="bg-white rounded-xl border-2 border-gray-200 p-6 hover:border-[#007e40] hover:shadow-xl transition-all group"
           >
-            <Briefcase className="w-8 h-8 text-success mb-4 group-hover:scale-110 transition-transform" />
-            <p className="text-3xl font-bold text-foreground mb-1">{stats.offers}</p>
-            <p className="text-sm text-muted-foreground">Available Offers</p>
+            <Briefcase className="w-8 h-8 text-[#007e40] mb-4 group-hover:scale-110 transition-transform" />
+            <p className="text-3xl font-bold text-gray-900 mb-1">{stats.offers}</p>
+            <p className="text-sm text-gray-600">Available Offers</p>
           </Link>
 
           <Link 
             to="/student/profile" 
-            className="bg-card rounded-xl border border-border p-6 hover:border-primary hover:shadow-elegant transition-all group"
+            className="bg-white rounded-xl border-2 border-gray-200 p-6 hover:border-[#ffb300] hover:shadow-xl transition-all group"
           >
-            <User className="w-8 h-8 text-warning mb-4 group-hover:scale-110 transition-transform" />
-            <p className="text-sm font-medium text-foreground mb-1">My Profile</p>
-            <p className="text-sm text-muted-foreground">View & edit</p>
+            <User className="w-8 h-8 text-[#ffb300] mb-4 group-hover:scale-110 transition-transform" />
+            <p className="text-sm font-medium text-gray-900 mb-1">My Profile</p>
+            <p className="text-sm text-gray-600">View & edit</p>
           </Link>
         </div>
 
-        <div className="bg-card rounded-xl border border-border p-6">
-          <h2 className="text-lg font-semibold text-foreground mb-4">Quick Actions</h2>
+        <div className="bg-white rounded-xl border-2 border-gray-200 p-6 shadow-lg">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Link to="/student/offers" className="p-4 bg-primary/5 border border-primary/20 rounded-lg hover:bg-primary/10 transition-colors">
-              <Book className="w-8 h-8 text-primary mb-2" />
-              <h3 className="font-semibold text-foreground mb-1">Browse Offers</h3>
-              <p className="text-sm text-muted-foreground">Explore available internship opportunities</p>
+            <Link to="/student/offers" className="p-4 bg-[#ffb300]/10 border-2 border-[#ffb300]/20 rounded-lg hover:bg-[#ffb300]/20 transition-colors">
+              <Book className="w-8 h-8 text-[#ffb300] mb-2" />
+              <h3 className="font-semibold text-gray-900 mb-1">Browse Offers</h3>
+              <p className="text-sm text-gray-600">Explore available internship opportunities</p>
             </Link>
-            <Link to="/student/companies" className="p-4 bg-info/5 border border-info/20 rounded-lg hover:bg-info/10 transition-colors">
-              <Building2 className="w-8 h-8 text-info mb-2" />
-              <h3 className="font-semibold text-foreground mb-1">Browse Companies</h3>
-              <p className="text-sm text-muted-foreground">View all verified companies</p>
+            <Link to="/student/companies" className="p-4 bg-[#007e40]/10 border-2 border-[#007e40]/20 rounded-lg hover:bg-[#007e40]/20 transition-colors">
+              <Building2 className="w-8 h-8 text-[#007e40] mb-2" />
+              <h3 className="font-semibold text-gray-900 mb-1">Browse Companies</h3>
+              <p className="text-sm text-gray-600">View all verified companies</p>
             </Link>
-            <Link to="/student/bookings" className="p-4 bg-success/5 border border-success/20 rounded-lg hover:bg-success/10 transition-colors">
-              <Calendar className="w-8 h-8 text-success mb-2" />
-              <h3 className="font-semibold text-foreground mb-1">Manage Bookings</h3>
-              <p className="text-sm text-muted-foreground">View and manage your interview slots</p>
+            <Link to="/student/bookings" className="p-4 bg-[#007e40]/10 border-2 border-[#007e40]/20 rounded-lg hover:bg-[#007e40]/20 transition-colors">
+              <Calendar className="w-8 h-8 text-[#007e40] mb-2" />
+              <h3 className="font-semibold text-gray-900 mb-1">Manage Bookings</h3>
+              <p className="text-sm text-gray-600">View and manage your interview slots</p>
             </Link>
           </div>
         </div>

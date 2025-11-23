@@ -35,8 +35,7 @@ const AboutStory = () => {
           {/* Content Side */}
           <div>
             <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-6">
-              A bridge between students and leading companies in the hospitality
-              sector.
+              A Bridge Between Students and Leading Companies
             </h2>
             <p className="text-lg text-gray-700 mb-6 leading-relaxed">
               INF was created to empower SHBM students by connecting them
@@ -44,11 +43,14 @@ const AboutStory = () => {
               hospitality groups. It is a student-led initiative designed to
               enrich academic learning with real-world experience.
             </p>
-            <p className="text-lg text-gray-700 leading-relaxed">
+            <p className="text-lg text-gray-700 mb-8 leading-relaxed">
               Over the years, INF has supported students in securing internships
               across prestigious brands, giving them a head start in their
               professional journeys.
             </p>
+            <button className="px-8 py-3 bg-[#ffb300] text-white rounded-lg hover:bg-[#e6a200] transition-all duration-200 font-semibold shadow-lg hover:shadow-xl">
+              Learn More
+            </button>
           </div>
         </div>
       </div>

@@ -47,14 +47,19 @@ const ContactForm = () => {
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        {/* Section Header */}
+        <div className="text-center mb-16">
+          <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-6">
+            We'd Love to Hear From You!
+          </h2>
+          <p className="text-lg text-gray-600 max-w-3xl mx-auto leading-relaxed">
+            Have a question, a request, or need assistance? Get in touch with our team.
+          </p>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
           {/* Left Column - Contact Information */}
           <div>
-            <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-6 font-serif">
-              We'd Love to Hear From You!
-            </h2>
-            <div className="w-20 h-1 bg-[#ffb300] mb-8" />
-
             <div className="space-y-6">
               {/* Address */}
               <div className="flex items-start gap-4">
@@ -151,9 +156,8 @@ const ContactForm = () => {
             <h3 className="text-2xl font-bold text-gray-900 mb-6">
               Send us a Message
             </h3>
-            <p className="text-gray-600 mb-8">
-              Have a question, a request, or need assistance? Send us a message
-              and our team will get back to you shortly.
+            <p className="text-gray-600 mb-8 leading-relaxed">
+              Fill out the form below and our team will get back to you shortly.
             </p>
 
             <form onSubmit={handleSubmit} className="space-y-6">

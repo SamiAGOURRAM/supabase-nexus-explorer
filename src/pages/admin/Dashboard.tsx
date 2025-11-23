@@ -81,64 +81,64 @@ export default function AdminDashboard() {
           )}
 
           {/* Event Management Actions */}
-          <div className="bg-card rounded-xl border border-border p-4 md:p-6">
-            <h2 className="text-lg md:text-xl font-semibold text-foreground mb-4">Event Management</h2>
+          <div className="bg-white rounded-xl border-2 border-gray-200 p-4 md:p-6 shadow-lg">
+            <h2 className="text-lg md:text-xl font-semibold text-gray-900 mb-4">Event Management</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
               <Link
                 to={`/admin/events/${selectedEvent.id}/quick-invite`}
-                className="flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 px-3 md:px-4 py-2.5 md:py-3 bg-primary/5 border border-primary/20 rounded-lg hover:bg-primary/10 transition-colors group"
+                className="flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 px-3 md:px-4 py-2.5 md:py-3 bg-[#ffb300]/10 border-2 border-[#ffb300]/20 rounded-lg hover:bg-[#ffb300]/20 transition-colors group"
               >
-                <Users className="w-4 h-4 md:w-5 md:h-5 text-primary flex-shrink-0" />
-                <span className="text-xs sm:text-sm font-medium text-foreground text-center sm:text-left">Quick Invite</span>
+                <Users className="w-4 h-4 md:w-5 md:h-5 text-[#ffb300] flex-shrink-0" />
+                <span className="text-xs sm:text-sm font-medium text-gray-900 text-center sm:text-left">Quick Invite</span>
               </Link>
               <Link
                 to={`/admin/events/${selectedEvent.id}/phases`}
-                className="flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 px-3 md:px-4 py-2.5 md:py-3 bg-info/5 border border-info/20 rounded-lg hover:bg-info/10 transition-colors"
+                className="flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 px-3 md:px-4 py-2.5 md:py-3 bg-[#007e40]/10 border-2 border-[#007e40]/20 rounded-lg hover:bg-[#007e40]/20 transition-colors"
               >
-                <Target className="w-4 h-4 md:w-5 md:h-5 text-info flex-shrink-0" />
-                <span className="text-xs sm:text-sm font-medium text-foreground text-center sm:text-left">Phases</span>
+                <Target className="w-4 h-4 md:w-5 md:h-5 text-[#007e40] flex-shrink-0" />
+                <span className="text-xs sm:text-sm font-medium text-gray-900 text-center sm:text-left">Phases</span>
               </Link>
               <Link
                 to={`/admin/events/${selectedEvent.id}/sessions`}
-                className="flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 px-3 md:px-4 py-2.5 md:py-3 bg-success/5 border border-success/20 rounded-lg hover:bg-success/10 transition-colors"
+                className="flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 px-3 md:px-4 py-2.5 md:py-3 bg-[#007e40]/10 border-2 border-[#007e40]/20 rounded-lg hover:bg-[#007e40]/20 transition-colors"
               >
-                <Clock className="w-4 h-4 md:w-5 md:h-5 text-success flex-shrink-0" />
-                <span className="text-xs sm:text-sm font-medium text-foreground text-center sm:text-left">Sessions</span>
+                <Clock className="w-4 h-4 md:w-5 md:h-5 text-[#007e40] flex-shrink-0" />
+                <span className="text-xs sm:text-sm font-medium text-gray-900 text-center sm:text-left">Sessions</span>
               </Link>
               <Link
                 to={`/admin/events/${selectedEvent.id}/schedule`}
-                className="flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 px-3 md:px-4 py-2.5 md:py-3 bg-warning/5 border border-warning/20 rounded-lg hover:bg-warning/10 transition-colors"
+                className="flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 px-3 md:px-4 py-2.5 md:py-3 bg-[#ffb300]/10 border-2 border-[#ffb300]/20 rounded-lg hover:bg-[#ffb300]/20 transition-colors"
               >
-                <Calendar className="w-4 h-4 md:w-5 md:h-5 text-warning flex-shrink-0" />
-                <span className="text-xs sm:text-sm font-medium text-foreground text-center sm:text-left">Schedule</span>
+                <Calendar className="w-4 h-4 md:w-5 md:h-5 text-[#ffb300] flex-shrink-0" />
+                <span className="text-xs sm:text-sm font-medium text-gray-900 text-center sm:text-left">Schedule</span>
               </Link>
               <Link
                 to={`/admin/events/${selectedEvent.id}/slots`}
-                className="flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 px-3 md:px-4 py-2.5 md:py-3 bg-accent/5 border border-accent/20 rounded-lg hover:bg-accent/10 transition-colors"
+                className="flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 px-3 md:px-4 py-2.5 md:py-3 bg-[#f8231d]/10 border-2 border-[#f8231d]/20 rounded-lg hover:bg-[#f8231d]/20 transition-colors"
               >
-                <Clock className="w-4 h-4 md:w-5 md:h-5 text-accent flex-shrink-0" />
-                <span className="text-xs sm:text-sm font-medium text-foreground text-center sm:text-left">Slots</span>
+                <Clock className="w-4 h-4 md:w-5 md:h-5 text-[#f8231d] flex-shrink-0" />
+                <span className="text-xs sm:text-sm font-medium text-gray-900 text-center sm:text-left">Slots</span>
               </Link>
               <Link
                 to={`/admin/companies?eventId=${selectedEvent.id}`}
-                className="flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 px-3 md:px-4 py-2.5 md:py-3 bg-success/5 border border-success/20 rounded-lg hover:bg-success/10 transition-colors"
+                className="flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 px-3 md:px-4 py-2.5 md:py-3 bg-[#007e40]/10 border-2 border-[#007e40]/20 rounded-lg hover:bg-[#007e40]/20 transition-colors"
               >
-                <Users className="w-4 h-4 md:w-5 md:h-5 text-success flex-shrink-0" />
-                <span className="text-xs sm:text-sm font-medium text-foreground text-center sm:text-left">Companies</span>
+                <Users className="w-4 h-4 md:w-5 md:h-5 text-[#007e40] flex-shrink-0" />
+                <span className="text-xs sm:text-sm font-medium text-gray-900 text-center sm:text-left">Companies</span>
               </Link>
               <Link
                 to={`/admin/students?eventId=${selectedEvent.id}`}
-                className="flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 px-3 md:px-4 py-2.5 md:py-3 bg-primary/5 border border-primary/20 rounded-lg hover:bg-primary/10 transition-colors"
+                className="flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 px-3 md:px-4 py-2.5 md:py-3 bg-[#ffb300]/10 border-2 border-[#ffb300]/20 rounded-lg hover:bg-[#ffb300]/20 transition-colors"
               >
-                <Users className="w-4 h-4 md:w-5 md:h-5 text-primary flex-shrink-0" />
-                <span className="text-xs sm:text-sm font-medium text-foreground text-center sm:text-left">Students</span>
+                <Users className="w-4 h-4 md:w-5 md:h-5 text-[#ffb300] flex-shrink-0" />
+                <span className="text-xs sm:text-sm font-medium text-gray-900 text-center sm:text-left">Students</span>
               </Link>
               <Link
                 to={`/admin/events/${selectedEvent.id}/participants`}
-                className="flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 px-3 md:px-4 py-2.5 md:py-3 bg-orange-500/5 border border-orange-500/20 rounded-lg hover:bg-orange-500/10 transition-colors"
+                className="flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 px-3 md:px-4 py-2.5 md:py-3 bg-[#f8231d]/10 border-2 border-[#f8231d]/20 rounded-lg hover:bg-[#f8231d]/20 transition-colors"
               >
-                <Users className="w-4 h-4 md:w-5 md:h-5 text-orange-500 flex-shrink-0" />
-                <span className="text-xs sm:text-sm font-medium text-foreground text-center sm:text-left">Participants</span>
+                <Users className="w-4 h-4 md:w-5 md:h-5 text-[#f8231d] flex-shrink-0" />
+                <span className="text-xs sm:text-sm font-medium text-gray-900 text-center sm:text-left">Participants</span>
               </Link>
             </div>
           </div>

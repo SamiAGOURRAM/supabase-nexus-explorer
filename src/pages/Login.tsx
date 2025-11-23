@@ -522,23 +522,23 @@ const LOGIN_HIGHLIGHTS: Highlight[] = [
 
     return (
 
-      <div className="relative min-h-screen bg-background">
+      <div className="relative min-h-screen bg-white">
 
         <div
 
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(21,94,239,0.12),_transparent_55%)]"
+          className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#ffb300]/5 via-white to-[#007e40]/5"
 
           aria-hidden="true"
 
         />
 
-        <div className="relative z-10 mx-auto flex min-h-screen max-w-6xl flex-col gap-6 px-4 py-10 sm:px-6 lg:px-8">
+        <div className="relative z-10 mx-auto flex min-h-screen max-w-7xl flex-col gap-8 px-4 py-12 sm:px-6 lg:px-8">
 
           <Link
 
             to="/offers"
 
-            className="inline-flex w-fit items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+            className="inline-flex w-fit items-center gap-2 text-sm font-medium text-gray-600 transition-colors hover:text-[#007e40] mb-4"
 
           >
 
@@ -552,25 +552,41 @@ const LOGIN_HIGHLIGHTS: Highlight[] = [
 
           <div className="grid flex-1 gap-8 lg:grid-cols-[1.05fr,0.95fr]">
 
-            <section className="hidden rounded-3xl border border-white/20 bg-gradient-to-br from-primary via-[hsl(var(--brand-secondary))] to-slate-900 p-8 text-white shadow-elegant lg:flex lg:flex-col">
+            <section className="hidden rounded-2xl border-2 border-gray-200 bg-gradient-to-br from-[#1a1f3a] via-[#007e40] to-[#1a1f3a] p-8 text-white shadow-xl lg:flex lg:flex-col relative overflow-hidden">
 
-              <div>
+              {/* Background Pattern */}
+              <div className="absolute inset-0 opacity-5">
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    backgroundImage:
+                      "radial-gradient(circle at 2px 2px, white 1px, transparent 0)",
+                    backgroundSize: "40px 40px",
+                  }}
+                />
+              </div>
 
-                <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.3em] text-white/70">
+              <div className="relative z-10">
 
-                  <Sparkles className="h-4 w-4" />
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full border border-white/20 mb-6">
 
-                  Unified access
+                  <Sparkles className="h-4 w-4 text-[#ffb300]" />
 
-                </p>
+                  <span className="text-xs font-semibold uppercase tracking-[0.3em] text-white">
 
-                <h1 className="mt-4 text-4xl font-semibold leading-tight">
+                    Unified Access
+
+                  </span>
+
+                </div>
+
+                <h1 className="text-4xl sm:text-5xl font-bold leading-tight mb-6">
 
                   Reconnect with your recruiting hub in seconds.
 
                 </h1>
 
-                <p className="mt-4 text-white/80">
+                <p className="text-lg text-white/90 leading-relaxed">
 
                   One secure login routes you to the right dashboard—student, company, or administrator—without any extra clicks.
 
@@ -580,7 +596,7 @@ const LOGIN_HIGHLIGHTS: Highlight[] = [
 
 
 
-              <div className="mt-10 space-y-4">
+              <div className="mt-10 space-y-4 relative z-10">
 
                 {LOGIN_HIGHLIGHTS.map((highlight) => {
 
@@ -592,21 +608,21 @@ const LOGIN_HIGHLIGHTS: Highlight[] = [
 
                       key={highlight.title}
 
-                      className="flex gap-4 rounded-2xl border border-white/20 bg-white/5 p-4 backdrop-blur"
+                      className="flex gap-4 rounded-xl border-2 border-white/20 bg-white/10 backdrop-blur-sm p-4 hover:bg-white/15 transition-all"
 
                     >
 
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#ffb300]/20 flex-shrink-0">
 
-                        <Icon className="h-5 w-5" />
+                        <Icon className="h-6 w-6 text-[#ffb300]" />
 
                       </div>
 
                       <div>
 
-                        <p className="text-base font-semibold">{highlight.title}</p>
+                        <p className="text-base font-semibold text-white mb-1">{highlight.title}</p>
 
-                        <p className="text-sm text-white/80">{highlight.description}</p>
+                        <p className="text-sm text-white/80 leading-relaxed">{highlight.description}</p>
 
                       </div>
 
@@ -620,11 +636,11 @@ const LOGIN_HIGHLIGHTS: Highlight[] = [
 
 
 
-              <p className="mt-6 text-xs text-white/70">
+              <p className="mt-auto pt-6 text-xs text-white/70 relative z-10">
 
-                Need assistance? Contact the Nexus events team at
+                Need assistance? Contact the Nexus events team at{' '}
 
-                <span className="font-semibold text-white"> nexus@um6p.ma</span>
+                <a href="mailto:nexus@um6p.ma" className="font-semibold text-[#ffb300] hover:text-[#ffc940] transition-colors">nexus@um6p.ma</a>
 
               </p>
 
@@ -632,19 +648,25 @@ const LOGIN_HIGHLIGHTS: Highlight[] = [
 
 
 
-            <section className="rounded-3xl border border-border/60 bg-card/95 p-8 shadow-elegant backdrop-blur">
+            <section className="rounded-2xl border-2 border-gray-200 bg-white p-8 shadow-xl">
 
               <div className="mb-8 text-center">
 
-                <p className="text-xs font-semibold uppercase tracking-[0.4em] text-muted-foreground">
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#007e40]/10 rounded-full border border-[#007e40]/20 mb-4">
 
-                  Secure sign in
+                  <Shield className="h-4 w-4 text-[#007e40]" />
 
-                </p>
+                  <span className="text-xs font-semibold uppercase tracking-[0.3em] text-[#007e40]">
 
-                <h2 className="mt-3 text-3xl font-bold text-foreground">Welcome back to INF Platform</h2>
+                    Secure Sign In
 
-                <p className="mt-2 text-sm text-muted-foreground">
+                  </span>
+
+                </div>
+
+                <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-3">Welcome back to INF Platform</h2>
+
+                <p className="text-base text-gray-600">
 
                   Choose your workspace and continue where you left off.
 
@@ -654,7 +676,7 @@ const LOGIN_HIGHLIGHTS: Highlight[] = [
 
 
 
-              <div className="mb-6 flex gap-2 rounded-2xl bg-muted p-1">
+              <div className="mb-6 flex gap-2 rounded-xl bg-[#f5f5f0] p-1">
 
                 <button
 
@@ -664,13 +686,13 @@ const LOGIN_HIGHLIGHTS: Highlight[] = [
 
                   aria-pressed={loginAs === 'student'}
 
-                  className={`flex-1 rounded-xl py-3 text-sm font-semibold transition-all ${
+                  className={`flex-1 rounded-lg py-3 text-sm font-semibold transition-all ${
 
                     loginAs === 'student'
 
-                      ? 'bg-primary text-primary-foreground shadow-soft'
+                      ? 'bg-[#ffb300] text-white shadow-lg'
 
-                      : 'text-muted-foreground hover:text-foreground'
+                      : 'text-gray-600 hover:text-gray-900'
 
                   }`}
 
@@ -688,13 +710,13 @@ const LOGIN_HIGHLIGHTS: Highlight[] = [
 
                   aria-pressed={loginAs === 'company'}
 
-                  className={`flex-1 rounded-xl py-3 text-sm font-semibold transition-all ${
+                  className={`flex-1 rounded-lg py-3 text-sm font-semibold transition-all ${
 
                     loginAs === 'company'
 
-                      ? 'bg-primary text-primary-foreground shadow-soft'
+                      ? 'bg-[#ffb300] text-white shadow-lg'
 
-                      : 'text-muted-foreground hover:text-foreground'
+                      : 'text-gray-600 hover:text-gray-900'
 
                   }`}
 
@@ -710,11 +732,11 @@ const LOGIN_HIGHLIGHTS: Highlight[] = [
 
               {error && (
 
-                <div className="mb-6 flex items-start gap-3 rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-destructive animate-in">
+                <div className="mb-6 flex items-start gap-3 rounded-xl border-2 border-red-300 bg-red-50 px-4 py-3 text-red-700">
 
-                  <AlertCircle className="h-5 w-5 flex-shrink-0" />
+                  <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
 
-                  <span className="text-sm">{error}</span>
+                  <span className="text-sm font-medium">{error}</span>
 
                 </div>
 
@@ -726,7 +748,7 @@ const LOGIN_HIGHLIGHTS: Highlight[] = [
 
                 <div className="space-y-2">
 
-                  <label htmlFor="email" className="text-sm font-semibold text-foreground">
+                  <label htmlFor="email" className="block text-sm font-semibold text-gray-900">
 
                     {loginAs === 'student' ? 'UM6P email (@um6p.ma)' : 'Company email'}
 
@@ -746,11 +768,11 @@ const LOGIN_HIGHLIGHTS: Highlight[] = [
 
                     placeholder={loginAs === 'student' ? 'prenom.nom@um6p.ma' : 'talent@company.com'}
 
-                    className="w-full rounded-2xl border border-input bg-background px-4 py-3.5 text-sm shadow-soft transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    className="w-full rounded-lg border-2 border-gray-300 bg-white px-4 py-3.5 text-sm text-gray-900 transition focus:border-[#007e40] focus:outline-none focus:ring-2 focus:ring-[#007e40]/20"
 
                   />
 
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-gray-600">
 
                     {loginAs === 'student'
 
@@ -766,7 +788,7 @@ const LOGIN_HIGHLIGHTS: Highlight[] = [
 
                 <div className="space-y-2">
 
-                  <label htmlFor="password" className="text-sm font-semibold text-foreground">
+                  <label htmlFor="password" className="block text-sm font-semibold text-gray-900">
 
                     Password
 
@@ -786,7 +808,7 @@ const LOGIN_HIGHLIGHTS: Highlight[] = [
 
                       onChange={(e) => setPassword(e.target.value)}
 
-                      className="w-full rounded-2xl border border-input bg-background px-4 py-3.5 text-sm shadow-soft transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      className="w-full rounded-lg border-2 border-gray-300 bg-white px-4 py-3.5 pr-12 text-sm text-gray-900 transition focus:border-[#007e40] focus:outline-none focus:ring-2 focus:ring-[#007e40]/20"
 
                     />
 
@@ -796,7 +818,7 @@ const LOGIN_HIGHLIGHTS: Highlight[] = [
 
                       onClick={() => setShowPassword((prev) => !prev)}
 
-                      className="absolute inset-y-0 right-3 flex items-center text-muted-foreground transition hover:text-foreground"
+                      className="absolute inset-y-0 right-3 flex items-center text-gray-500 transition hover:text-gray-700"
 
                     >
 
@@ -816,7 +838,7 @@ const LOGIN_HIGHLIGHTS: Highlight[] = [
 
                   disabled={loading}
 
-                  className="w-full rounded-2xl bg-primary px-4 py-3.5 text-sm font-semibold text-primary-foreground shadow-soft transition hover:shadow-elegant disabled:cursor-not-allowed disabled:opacity-60"
+                  className="w-full rounded-lg bg-[#ffb300] px-4 py-3.5 text-sm font-semibold text-white shadow-lg transition hover:bg-[#e6a200] hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-60"
 
                 >
 
@@ -832,25 +854,25 @@ const LOGIN_HIGHLIGHTS: Highlight[] = [
 
                 <div className="mt-5 text-center">
 
-                  <p className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                  <p className="flex items-center justify-center gap-2 text-xs text-gray-600">
 
-                    <Shield className="h-3.5 w-3.5" />
+                    <Shield className="h-3.5 w-3.5 text-[#007e40]" />
 
                     Protected by reCAPTCHA
 
                   </p>
 
-                  <p className="mt-1 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                  <p className="mt-1 flex items-center justify-center gap-2 text-xs text-gray-500">
 
-                    <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" className="hover:underline">
+                    <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" className="hover:text-[#007e40] hover:underline transition-colors">
 
                       Privacy
 
                     </a>
 
-                    <span className="text-border">|</span>
+                    <span className="text-gray-300">|</span>
 
-                    <a href="https://policies.google.com/terms" target="_blank" rel="noopener noreferrer" className="hover:underline">
+                    <a href="https://policies.google.com/terms" target="_blank" rel="noopener noreferrer" className="hover:text-[#007e40] hover:underline transition-colors">
 
                       Terms
 
@@ -864,11 +886,11 @@ const LOGIN_HIGHLIGHTS: Highlight[] = [
 
 
 
-              <div className="mt-8 space-y-4 text-sm text-muted-foreground">
+              <div className="mt-8 space-y-4 text-sm text-gray-600">
 
                 <div className="flex flex-wrap items-center justify-between gap-2">
 
-                  <Link to="/forgot-password" className="font-semibold text-primary hover:underline">
+                  <Link to="/forgot-password" className="font-semibold text-[#007e40] hover:text-[#005a2d] hover:underline transition-colors">
 
                     Forgot password?
 
@@ -878,7 +900,7 @@ const LOGIN_HIGHLIGHTS: Highlight[] = [
 
                     Need an account?{' '}
 
-                    <Link to="/signup" className="font-semibold text-primary hover:underline">
+                    <Link to="/signup" className="font-semibold text-[#007e40] hover:text-[#005a2d] hover:underline transition-colors">
 
                       Student signup
 
@@ -888,19 +910,19 @@ const LOGIN_HIGHLIGHTS: Highlight[] = [
 
                 </div>
 
-                <p className="text-xs">
+                <p className="text-xs text-gray-500">
 
                   Companies are onboarded by invitation. Reach out to your UM6P contact if you need access.
 
                 </p>
 
-                <div className="pt-4 border-t border-border">
+                <div className="pt-4 border-t border-gray-200">
 
-                  <p className="text-xs text-muted-foreground text-center">
+                  <p className="text-xs text-gray-500 text-center">
 
                     By signing in, you agree to our{' '}
 
-                    <Link to="/privacy-policy" className="text-primary hover:underline font-medium">
+                    <Link to="/privacy-policy" className="text-[#007e40] hover:text-[#005a2d] hover:underline font-medium transition-colors">
 
                       Privacy Policy
 
