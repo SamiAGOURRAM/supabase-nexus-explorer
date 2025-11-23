@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { Building2, MapPin, Calendar, Briefcase, LogIn, UserPlus, Sparkles, Filter as FilterIcon, ArrowRight } from 'lucide-react';
+import { Building2, MapPin, Calendar, Briefcase, Sparkles, Filter as FilterIcon, ArrowRight } from 'lucide-react';
 import type { Offer, Company, Event } from '@/types/database';
+import Navigation from './landingPage/components/Navigation';
+import Footer from './landingPage/components/Footer';
+import DecorativeShape from './landingPage/components/DecorativeShape';
 
 type OfferWithDetails = Offer & {
   companies: Company;
@@ -152,134 +155,99 @@ export default function Offers() {
   };
 
   return (
-    <div className="relative min-h-screen bg-background">
-      <div
-        className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-primary/10 via-background/90 to-transparent"
-        aria-hidden="true"
-      />
+    <div className="min-h-screen bg-white">
+      <Navigation />
+      
+      {/* Hero Section */}
+      <section className="relative py-24 bg-[#f5f5f0] overflow-hidden">
+        <DecorativeShape
+          position="top-left"
+          size="md"
+          opacity={0.08}
+          rotation={0}
+        />
+        <DecorativeShape
+          position="top-right"
+          size="sm"
+          opacity={0.06}
+          rotation={90}
+        />
+        
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="grid gap-8 lg:grid-cols-[1.6fr,1fr]">
+            <div className="rounded-2xl bg-white p-8 shadow-lg">
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#ffb300]/10 rounded-full border border-[#ffb300]/20 mb-6">
+                <Sparkles size={16} className="text-[#ffb300]" />
+                <span className="text-sm text-gray-700 font-medium">
+                  2025 Edition
+                </span>
+              </div>
+              <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-6">
+                Discover Curated Internship Offers
+              </h2>
+              <p className="text-lg text-gray-600 mb-8 leading-relaxed">
+                Compare openings from verified companies, understand their focus areas, and secure your interview slot for the next Nexus hiring sprint.
+              </p>
 
-      {/* Header */}
-      <header className="sticky top-0 z-20 border-b border-border bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/70">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-lg font-bold text-primary">
-              INF
-            </div>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Speed Recruiting</p>
-              <h1 className="text-xl font-semibold text-foreground">Nexus Explorer</h1>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 text-sm">
-            {user ? (
-              <>
-                <Link
-                  to={dashboardRoute}
-                  className="rounded-lg border border-border px-4 py-2 font-medium text-foreground transition-colors hover:border-primary hover:text-primary"
-                >
-                  Go to dashboard
-                </Link>
+              <div className="flex flex-wrap gap-3">
                 <button
-                  onClick={async () => {
-                    await supabase.auth.signOut();
-                    setUser(null);
-                  }}
-                  className="rounded-lg px-4 py-2 text-muted-foreground transition-colors hover:text-foreground"
+                  type="button"
+                  onClick={scrollToOffers}
+                  className="inline-flex items-center gap-2 px-8 py-3 bg-[#ffb300] text-white rounded-lg hover:bg-[#e6a200] transition-all duration-200 font-semibold shadow-lg hover:shadow-xl"
                 >
-                  Sign out
+                  Browse offers
+                  <ArrowRight size={20} />
                 </button>
-              </>
-            ) : (
-              <>
-                <Link
-                  to="/login"
-                  className="flex items-center gap-2 rounded-lg px-4 py-2 text-foreground transition-colors hover:text-primary"
-                >
-                  <LogIn className="h-4 w-4" />
-                  Login
-                </Link>
-                <Link
-                  to="/signup"
-                  className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground shadow-soft transition-all hover:shadow-elegant"
-                >
-                  <UserPlus className="h-4 w-4" />
-                  Create account
-                </Link>
-              </>
-            )}
+                {!user && (
+                  <Link
+                    to="/signup"
+                    className="inline-flex items-center gap-2 px-8 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:border-[#007e40] hover:text-[#007e40] transition-all duration-200 font-semibold"
+                  >
+                    Not registered yet?
+                  </Link>
+                )}
+                {user && (
+                  <Link
+                    to={dashboardRoute}
+                    className="inline-flex items-center gap-2 px-8 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:border-[#007e40] hover:text-[#007e40] transition-all duration-200 font-semibold"
+                  >
+                    Continue to portal
+                  </Link>
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-2xl bg-white p-6 shadow-lg">
+              <p className="text-sm font-semibold text-gray-700 mb-1">Live stats</p>
+              <p className="text-xs text-gray-500 mb-6">Updated in real-time</p>
+              <div className="space-y-4">
+                {heroStats.map((stat) => (
+                  <div key={stat.label} className="rounded-xl bg-[#f5f5f0] px-4 py-3">
+                    <p className="text-xs uppercase tracking-wide text-gray-500">{stat.label}</p>
+                    <p className="mt-1 text-2xl font-bold text-gray-900">{stat.value ?? '—'}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
-      </header>
+      </section>
 
       {/* Main Content */}
-      <main className="relative z-10 mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-        <section className="grid gap-8 lg:grid-cols-[1.6fr,1fr]">
-          <div className="rounded-2xl border border-border/60 bg-card/90 p-8 shadow-elegant">
-            <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.3em] text-primary">
-              <Sparkles className="h-4 w-4" /> 2025 Edition
-            </p>
-            <h2 className="mt-4 text-3xl font-bold text-foreground sm:text-4xl">
-              Discover curated internship offers in minutes.
-            </h2>
-            <p className="mt-4 text-base text-muted-foreground">
-              Compare openings from verified companies, understand their focus areas, and secure your interview slot for the next Nexus hiring sprint.
-            </p>
-
-            <div className="mt-6 flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={scrollToOffers}
-                className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-soft transition hover:shadow-hover"
-              >
-                Browse offers
-                <ArrowRight className="h-4 w-4" />
-              </button>
-              {!user && (
-                <Link
-                  to="/signup"
-                  className="inline-flex items-center gap-2 rounded-xl border border-border px-5 py-3 text-sm font-semibold text-foreground transition hover:border-primary hover:text-primary"
-                >
-                  Not registered yet?
-                </Link>
-              )}
-              {user && (
-                <Link
-                  to={dashboardRoute}
-                  className="inline-flex items-center gap-2 rounded-xl border border-border px-5 py-3 text-sm font-semibold text-foreground transition hover:border-primary hover:text-primary"
-                >
-                  Continue to portal
-                </Link>
-              )}
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-border/60 bg-secondary/40 p-6">
-            <p className="text-sm font-semibold text-secondary-foreground">Live stats</p>
-            <p className="text-xs text-muted-foreground">Updated in real-time from Supabase</p>
-            <div className="mt-6 grid gap-4">
-              {heroStats.map((stat) => (
-                <div key={stat.label} className="rounded-xl bg-card/80 px-4 py-3 shadow-soft">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">{stat.label}</p>
-                  <p className="mt-1 text-2xl font-semibold text-foreground">{stat.value ?? '—'}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
+      <main className="relative z-10 mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
 
         {error && (
           <div
             role="alert"
             aria-live="polite"
-            className="mt-8 rounded-2xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive"
+            className="mt-8 rounded-2xl border-2 border-red-300 bg-red-50 p-4 text-sm text-red-700"
           >
             <div className="flex items-center justify-between gap-4">
               <p>{error}</p>
               <button
                 type="button"
                 onClick={loadOffers}
-                className="rounded-lg border border-destructive/30 px-3 py-1 text-xs font-semibold text-destructive hover:border-destructive/60"
+                className="rounded-lg border-2 border-red-300 px-3 py-1 text-xs font-semibold text-red-700 hover:border-red-500 hover:bg-red-100 transition-colors"
               >
                 Try again
               </button>
@@ -288,34 +256,34 @@ export default function Offers() {
         )}
 
         {/* Filters */}
-        <section className="mt-12 space-y-6" aria-label="Filter offers">
+        <section className="mt-12 space-y-6 bg-white py-8 rounded-2xl px-6" aria-label="Filter offers">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end">
             <div className="flex-1">
-              <label htmlFor="offer-search" className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">
+              <label htmlFor="offer-search" className="block text-sm font-semibold text-gray-700 mb-2">
                 Search opportunities
               </label>
-              <div className="relative mt-2">
+              <div className="relative">
                 <input
                   id="offer-search"
                   type="search"
                   value={searchTerm}
                   onChange={(event) => setSearchTerm(event.target.value)}
                   placeholder="Search by role, company, or location"
-                  className="w-full rounded-2xl border border-border bg-card/70 px-4 py-3 pr-12 text-sm text-foreground shadow-soft transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  className="w-full rounded-lg border-2 border-gray-300 bg-white px-4 py-3 pr-12 text-sm text-gray-900 transition focus:border-[#007e40] focus:outline-none focus:ring-2 focus:ring-[#007e40]/20"
                 />
-                <Sparkles className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-primary" />
+                <Sparkles className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#ffb300]" />
               </div>
             </div>
 
             <div className="w-full lg:w-64">
-              <label htmlFor="company-filter" className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">
+              <label htmlFor="company-filter" className="block text-sm font-semibold text-gray-700 mb-2">
                 Partner company
               </label>
               <select
                 id="company-filter"
                 value={companyFilter}
                 onChange={(event) => setCompanyFilter(event.target.value)}
-                className="mt-2 w-full rounded-2xl border border-border bg-card/70 px-4 py-3 text-sm text-foreground shadow-soft focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
+                className="w-full rounded-lg border-2 border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 focus:border-[#007e40] focus:outline-none focus:ring-2 focus:ring-[#007e40]/20"
               >
                 <option value="all">All partners</option>
                 {companyOptions.map((company) => (
@@ -330,7 +298,7 @@ export default function Offers() {
               <button
                 type="button"
                 onClick={handleClearFilters}
-                className="inline-flex h-12 items-center justify-center rounded-2xl border border-border px-4 text-sm font-semibold text-muted-foreground transition hover:border-primary hover:text-primary"
+                className="inline-flex h-12 items-center justify-center rounded-lg border-2 border-gray-300 px-4 text-sm font-semibold text-gray-700 transition hover:border-[#007e40] hover:text-[#007e40]"
               >
                 Reset filters
               </button>
@@ -338,7 +306,7 @@ export default function Offers() {
           </div>
 
           <div>
-            <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+            <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-700">
               <FilterIcon className="h-4 w-4" />
               Refine by focus area
             </div>
@@ -351,10 +319,10 @@ export default function Offers() {
                     type="button"
                     aria-pressed={isActive}
                     onClick={() => setFilter(option.value)}
-                    className={`rounded-2xl border px-5 py-4 text-left transition-all ${
+                    className={`rounded-lg border-2 px-5 py-4 text-left transition-all ${
                       isActive
-                        ? 'border-primary bg-primary text-primary-foreground shadow-soft'
-                        : 'border-border bg-card/80 text-muted-foreground hover:border-primary/70 hover:text-foreground'
+                        ? 'border-[#ffb300] bg-[#ffb300] text-white shadow-lg'
+                        : 'border-gray-300 bg-white text-gray-700 hover:border-[#007e40] hover:text-[#007e40]'
                     }`}
                   >
                     <p className="text-sm font-semibold">{option.label}</p>
@@ -371,22 +339,22 @@ export default function Offers() {
           {loading ? (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {[0, 1, 2, 3].map((index) => (
-                <div key={index} className="rounded-2xl border border-border/70 bg-card/80 p-6">
-                  <div className="h-4 w-24 rounded bg-muted/50" />
-                  <div className="mt-4 h-6 w-3/4 rounded bg-muted/60" />
+                <div key={index} className="rounded-2xl border-2 border-gray-200 bg-white p-6">
+                  <div className="h-4 w-24 rounded bg-gray-200" />
+                  <div className="mt-4 h-6 w-3/4 rounded bg-gray-200" />
                   <div className="mt-3 space-y-2">
-                    <div className="h-4 w-full rounded bg-muted/40" />
-                    <div className="h-4 w-2/3 rounded bg-muted/30" />
+                    <div className="h-4 w-full rounded bg-gray-200" />
+                    <div className="h-4 w-2/3 rounded bg-gray-200" />
                   </div>
-                  <div className="mt-6 h-9 w-full rounded bg-muted/40" />
+                  <div className="mt-6 h-9 w-full rounded bg-gray-200" />
                 </div>
               ))}
             </div>
           ) : showEmptyState ? (
-            <div className="rounded-2xl border border-dashed border-border/80 bg-card/70 p-10 text-center">
-              <Briefcase className="mx-auto h-12 w-12 text-muted-foreground" />
-              <h3 className="mt-4 text-xl font-semibold text-foreground">No offers match that filter</h3>
-              <p className="mt-2 text-sm text-muted-foreground">
+            <div className="rounded-2xl border-2 border-dashed border-gray-300 bg-[#f5f5f0] p-10 text-center">
+              <Briefcase className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-4 text-xl font-semibold text-gray-900">No offers match that filter</h3>
+              <p className="mt-2 text-sm text-gray-600">
                 Adjust the filters or come back soon. New offers are added frequently during each event phase.
               </p>
             </div>
@@ -398,7 +366,7 @@ export default function Offers() {
                   <article
                     key={offer.id}
                     onClick={() => handleOfferClick(offer.id)}
-                    className="group flex h-full flex-col rounded-2xl border border-border bg-card/90 p-6 transition-all hover:-translate-y-1 hover:border-primary hover:shadow-elegant"
+                    className="group flex h-full flex-col rounded-2xl border-2 border-gray-200 bg-white p-6 transition-all hover:-translate-y-1 hover:border-[#007e40] hover:shadow-xl cursor-pointer"
                     role="button"
                     tabIndex={0}
                     onKeyDown={(event) => {
@@ -410,47 +378,47 @@ export default function Offers() {
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div>
-                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{eventDate}</p>
-                        <h3 className="mt-2 text-lg font-semibold text-foreground transition-colors group-hover:text-primary">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{eventDate}</p>
+                        <h3 className="mt-2 text-lg font-semibold text-gray-900 transition-colors group-hover:text-[#007e40]">
                           {offer.title}
                         </h3>
                       </div>
                       <span
                         className={`rounded-full px-3 py-1 text-xs font-semibold ${
                           offer.interest_tag === 'Opérationnel'
-                            ? 'bg-success/10 text-success'
-                            : 'bg-primary/10 text-primary'
+                            ? 'bg-[#007e40]/10 text-[#007e40]'
+                            : 'bg-[#ffb300]/10 text-[#ffb300]'
                         }`}
                       >
                         {offer.interest_tag}
                       </span>
                     </div>
 
-                    <p className="mt-3 text-sm text-muted-foreground line-clamp-3">{offer.description}</p>
+                    <p className="mt-3 text-sm text-gray-600 line-clamp-3">{offer.description}</p>
 
-                    <div className="mt-5 space-y-2 text-sm text-muted-foreground">
+                    <div className="mt-5 space-y-2 text-sm text-gray-600">
                       <div className="flex items-center gap-2">
-                        <Building2 className="h-4 w-4" />
-                        <span className="font-medium text-foreground">{offer.companies?.company_name}</span>
+                        <Building2 className="h-4 w-4 text-gray-400" />
+                        <span className="font-medium text-gray-900">{offer.companies?.company_name}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4" />
+                        <Calendar className="h-4 w-4 text-gray-400" />
                         <span>{offer.events?.name || 'Recruiting event'}</span>
                       </div>
                       {offer.events?.location && (
                         <div className="flex items-center gap-2">
-                          <MapPin className="h-4 w-4" />
+                          <MapPin className="h-4 w-4 text-gray-400" />
                           <span>{offer.events.location}</span>
                         </div>
                       )}
                     </div>
 
-                    <footer className="mt-6 flex items-center justify-between border-t border-border pt-4 text-sm font-semibold text-primary">
+                    <footer className="mt-6 flex items-center justify-between border-t border-gray-200 pt-4 text-sm font-semibold text-[#007e40]">
                       <span className="flex items-center gap-2">
                         View details
                         <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                       </span>
-                      <span className="text-xs text-muted-foreground">Tap to continue</span>
+                      <span className="text-xs text-gray-500">Tap to continue</span>
                     </footer>
                   </article>
                 );
@@ -459,6 +427,8 @@ export default function Offers() {
           )}
         </section>
       </main>
+      
+      <Footer />
     </div>
   );
 }

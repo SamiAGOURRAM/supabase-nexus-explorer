@@ -11,7 +11,8 @@ import {
   Shield,
   Sparkles,
   ArrowLeft,
-  ArrowRight,
+  Mail,
+  Settings,
 } from 'lucide-react';
 import { checkRateLimitDirect, recordFailedAttempt, clearRateLimit } from '@/hooks/useRateLimit';
 import { useCaptcha, getCaptchaConfig } from '@/hooks/useCaptcha';
@@ -299,77 +300,131 @@ export default function Signup() {
 
   // Signup form
   return (
-    <div className="relative min-h-screen bg-background">
+    <div className="relative min-h-screen bg-white">
       <div
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(21,94,239,0.08),_transparent_60%)]"
+        className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#ffb300]/5 via-white to-[#007e40]/5"
         aria-hidden="true"
       />
-      <div className="relative z-10 mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
+      <div className="relative z-10 mx-auto flex min-h-screen max-w-7xl flex-col gap-8 px-4 py-12 sm:px-6 lg:px-8">
         <Link
           to="/login"
-          className="inline-flex w-fit items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          className="inline-flex w-fit items-center gap-2 text-sm font-medium text-gray-600 transition-colors hover:text-[#007e40] mb-4"
         >
           <ArrowLeft className="h-4 w-4" />
           Already registered? Sign in
         </Link>
 
-        <div className="mt-6 grid gap-8 lg:grid-cols-[1.1fr,0.9fr]">
-          <section className="hidden rounded-3xl border border-white/15 bg-gradient-to-br from-primary via-[hsl(var(--brand-secondary))] to-slate-900 p-10 text-white shadow-elegant lg:flex lg:flex-col">
-            <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.4em] text-white/70">
-              <Sparkles className="h-4 w-4" />
-              Student onboarding
-            </p>
-            <h1 className="mt-5 text-4xl font-bold leading-tight">
-              Your Nexus profile starts here.
-            </h1>
-            <p className="mt-4 text-white/80">
-              Complete the secure signup once to unlock priority booking, personalized schedules, and curated employer updates for each Nexus hiring sprint.
-            </p>
-            <ul className="mt-8 space-y-4 text-sm text-white/85">
-              <li className="flex items-start gap-3">
-                <div className="mt-1 h-2 w-2 rounded-full bg-white/80" />
-                Email verification + reCAPTCHA guard every account.
-              </li>
-              <li className="flex items-start gap-3">
-                <div className="mt-1 h-2 w-2 rounded-full bg-white/80" />
-                @um6p.ma or @gmail.com (for testing) email addresses are accepted.
-              </li>
-              <li className="flex items-start gap-3">
-                <div className="mt-1 h-2 w-2 rounded-full bg-white/80" />
-                Update your booking priority any time inside the portal.
-              </li>
-            </ul>
+        <div className="grid flex-1 gap-8 lg:grid-cols-[1.05fr,0.95fr]">
+          <section className="hidden rounded-2xl border-2 border-gray-200 bg-gradient-to-br from-[#1a1f3a] via-[#007e40] to-[#1a1f3a] p-8 text-white shadow-xl lg:flex lg:flex-col relative overflow-hidden">
+            {/* Background Pattern */}
+            <div className="absolute inset-0 opacity-5">
+              <div
+                className="absolute inset-0"
+                style={{
+                  backgroundImage:
+                    "radial-gradient(circle at 2px 2px, white 1px, transparent 0)",
+                  backgroundSize: "40px 40px",
+                }}
+              />
+            </div>
 
-            <div className="mt-auto flex items-center gap-3 pt-8">
-              <div>
-                <p className="text-xs uppercase tracking-[0.3em] text-white/70">Need help?</p>
-                <p className="text-base font-semibold">nexus@um6p.ma</p>
+            <div className="relative z-10">
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full border border-white/20 mb-6">
+                <Sparkles className="h-4 w-4 text-[#ffb300]" />
+                <span className="text-xs font-semibold uppercase tracking-[0.3em] text-white">
+                  Student onboarding
+                </span>
               </div>
-              <ArrowRight className="h-5 w-5 text-white/70" />
+
+              <h1 className="text-4xl sm:text-5xl font-bold leading-tight mb-6">
+                Your Nexus profile starts here.
+              </h1>
+
+              <p className="text-lg text-white/90 leading-relaxed">
+                Complete the secure signup once to unlock priority booking, personalized schedules, and curated employer updates for each Nexus hiring sprint.
+              </p>
+            </div>
+
+            <div className="mt-10 space-y-4 relative z-10">
+              <div className="flex gap-4 rounded-xl border-2 border-white/20 bg-white/10 backdrop-blur-sm p-4 hover:bg-white/15 transition-all">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#ffb300]/20 flex-shrink-0">
+                  <Shield className="h-6 w-6 text-[#ffb300]" />
+                </div>
+                <div>
+                  <p className="text-base font-semibold text-white mb-1">Secure by default</p>
+                  <p className="text-sm text-white/80 leading-relaxed">
+                    Email verification + reCAPTCHA guard every account.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-4 rounded-xl border-2 border-white/20 bg-white/10 backdrop-blur-sm p-4 hover:bg-white/15 transition-all">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#ffb300]/20 flex-shrink-0">
+                  <Mail className="h-6 w-6 text-[#ffb300]" />
+                </div>
+                <div>
+                  <p className="text-base font-semibold text-white mb-1">Email requirements</p>
+                  <p className="text-sm text-white/80 leading-relaxed">
+                    @um6p.ma or @gmail.com (for testing) email addresses are accepted.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-4 rounded-xl border-2 border-white/20 bg-white/10 backdrop-blur-sm p-4 hover:bg-white/15 transition-all">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#ffb300]/20 flex-shrink-0">
+                  <Settings className="h-6 w-6 text-[#ffb300]" />
+                </div>
+                <div>
+                  <p className="text-base font-semibold text-white mb-1">Flexible booking</p>
+                  <p className="text-sm text-white/80 leading-relaxed">
+                    Update your booking priority any time inside the portal.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-auto pt-6 relative z-10">
+              <p className="text-xs text-white/70 mb-2">
+                Need assistance? Contact the Nexus events team at{' '}
+                <a
+                  href="mailto:nexus@um6p.ma"
+                  className="font-semibold text-[#ffb300] hover:text-[#ffc940] transition-colors"
+                >
+                  nexus@um6p.ma
+                </a>
+              </p>
             </div>
           </section>
 
-          <section className="rounded-3xl border border-border/60 bg-card/95 p-8 shadow-elegant backdrop-blur">
+          <section className="rounded-2xl border-2 border-gray-200 bg-white p-8 shadow-xl">
             {/* Header */}
-            <div className="text-center mb-8">
-              <h1 className="text-3xl font-bold text-foreground mb-2">Create Account</h1>
-              <p className="text-muted-foreground">INF Platform 2.0 - Student Registration</p>
+            <div className="mb-8 text-center">
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#007e40]/10 rounded-full border border-[#007e40]/20 mb-4">
+                <Shield className="h-4 w-4 text-[#007e40]" />
+                <span className="text-xs font-semibold uppercase tracking-[0.3em] text-[#007e40]">
+                  Student Registration
+                </span>
+              </div>
+              <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-3">Create Your Account</h2>
+              <p className="text-base text-gray-600">
+                Join the INF Platform and unlock exclusive internship opportunities.
+              </p>
             </div>
 
           {/* Info Banner */}
-          <div className="mb-6 rounded-2xl border border-primary/25 bg-primary/5 p-5">
+          <div className="mb-6 rounded-xl border border-[#007e40]/25 bg-[#007e40]/5 p-5">
             <div className="flex gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10">
-                <Info className="h-5 w-5 text-primary" />
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#007e40]/10">
+                <Info className="h-5 w-5 text-[#007e40]" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-primary">UM6P students only</p>
-                <p className="text-xs text-primary/80">
+                <p className="text-sm font-semibold text-[#007e40]">UM6P students only</p>
+                <p className="text-xs text-[#007e40]/80">
                   Companies join by invitation—contact the Nexus administrator for partner access.
                 </p>
               </div>
             </div>
-            <div className="mt-4 flex flex-wrap items-center gap-4 text-xs font-medium text-primary/90">
+            <div className="mt-4 flex flex-wrap items-center gap-4 text-xs font-medium text-[#007e40]/90">
               <span className="flex items-center gap-2">
                 <Shield className="h-3.5 w-3.5" />
                 Enhanced security: email verification {captchaConfig.enabled && '+ reCAPTCHA'}
@@ -382,40 +437,40 @@ export default function Signup() {
           </div>
 
           {/* GDPR: Purpose Statement */}
-          <div className="mb-6 rounded-xl border border-primary/20 bg-primary/5 p-4">
-            <p className="text-sm text-foreground mb-2">
+          <div className="mb-6 rounded-xl border border-[#007e40]/20 bg-[#007e40]/5 p-4">
+            <p className="text-sm text-gray-900 mb-2">
               <strong>Purpose of Data Collection:</strong>
             </p>
-            <p className="text-xs text-muted-foreground mb-3">
+            <p className="text-xs text-gray-600 mb-3">
               We collect your information to connect you with companies for internship opportunities 
               during the INF event. Your data will only be used for matching purposes and event management.
             </p>
             <Link 
               to="/privacy-policy" 
-              className="text-xs text-primary hover:underline font-medium"
+              className="text-xs text-[#007e40] hover:underline font-medium"
             >
               Read our Privacy Policy →
             </Link>
           </div>
 
           {/* GDPR: Data Sharing Notice */}
-          <div className="mb-6 rounded-xl border border-warning/20 bg-warning/5 p-4">
-            <p className="text-sm font-semibold text-foreground mb-2">Data Sharing:</p>
-            <p className="text-xs text-muted-foreground mb-2">
+          <div className="mb-6 rounded-xl border border-[#ffb300]/20 bg-[#ffb300]/5 p-4">
+            <p className="text-sm font-semibold text-gray-900 mb-2">Data Sharing:</p>
+            <p className="text-xs text-gray-600 mb-2">
               Your profile information will be shared with:
             </p>
-            <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside ml-2 mb-2">
+            <ul className="text-xs text-gray-600 space-y-1 list-disc list-inside ml-2 mb-2">
               <li>UM6P departments (SHBM, Career Center) for event management</li>
               <li>Verified companies participating in the INF event</li>
             </ul>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-gray-600">
               Your data will not be sold or used for commercial purposes outside the INF event.
             </p>
           </div>
 
           {/* Error Message */}
           {error && (
-            <div className="mb-6 bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-lg flex items-start gap-3 animate-in">
+            <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-start gap-3">
               <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
               <span className="text-sm">{error}</span>
             </div>
@@ -424,8 +479,8 @@ export default function Signup() {
           {/* Signup Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="full_name" className="block text-sm font-medium text-foreground mb-2">
-                Full Name <span className="text-destructive">*</span>
+              <label htmlFor="full_name" className="block text-sm font-semibold text-gray-900 mb-2">
+                Full Name <span className="text-red-500">*</span>
               </label>
               <input
                 id="full_name"
@@ -434,13 +489,13 @@ export default function Signup() {
                 value={formData.full_name}
                 onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
                 placeholder="John Doe"
-                className="w-full px-4 py-3 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring transition-shadow"
+                className="w-full rounded-lg border-2 border-gray-300 bg-white px-4 py-3.5 text-sm text-gray-900 transition focus:border-[#007e40] focus:outline-none focus:ring-2 focus:ring-[#007e40]/20"
               />
             </div>
 
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-foreground mb-2">
-                Email Address <span className="text-destructive">*</span>
+              <label htmlFor="email" className="block text-sm font-semibold text-gray-900 mb-2">
+                Email Address <span className="text-red-500">*</span>
               </label>
               <input
                 id="email"
@@ -449,16 +504,16 @@ export default function Signup() {
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 placeholder="firstname.lastname@um6p.ma"
-                className="w-full px-4 py-3 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring transition-shadow"
+                className="w-full rounded-lg border-2 border-gray-300 bg-white px-4 py-3.5 text-sm text-gray-900 transition focus:border-[#007e40] focus:outline-none focus:ring-2 focus:ring-[#007e40]/20"
               />
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-xs text-gray-500 mt-1">
                 @um6p.ma or @gmail.com (for testing) email addresses are allowed
               </p>
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-foreground mb-2">
-                Password <span className="text-destructive">*</span>
+              <label htmlFor="password" className="block text-sm font-semibold text-gray-900 mb-2">
+                Password <span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <input
@@ -469,14 +524,14 @@ export default function Signup() {
                   value={formData.password}
                   onChange={(e) => handlePasswordChange(e.target.value)}
                   placeholder={`At least ${PASSWORD_REQUIREMENTS.minLength} characters`}
-                  className="w-full px-4 py-3 pr-12 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring transition-shadow"
+                  className="w-full rounded-lg border-2 border-gray-300 bg-white px-4 py-3.5 pr-12 text-sm text-gray-900 transition focus:border-[#007e40] focus:outline-none focus:ring-2 focus:ring-[#007e40]/20"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  className="absolute inset-y-0 right-3 flex items-center text-gray-500 transition hover:text-gray-700"
                 >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
               
@@ -490,11 +545,11 @@ export default function Signup() {
                         className={`h-1 flex-1 rounded-full transition-colors ${
                           level <= passwordStrength.score
                             ? passwordStrength.score <= 2
-                              ? 'bg-destructive'
+                              ? 'bg-red-500'
                               : passwordStrength.score <= 4
-                              ? 'bg-warning'
-                              : 'bg-green-500'
-                            : 'bg-muted'
+                              ? 'bg-[#ffb300]'
+                              : 'bg-[#007e40]'
+                            : 'bg-gray-200'
                         }`}
                       />
                     ))}
@@ -504,8 +559,8 @@ export default function Signup() {
                   {passwordStrength.feedback.length > 0 && (
                     <div className="space-y-1">
                       {passwordStrength.feedback.map((req, idx) => (
-                        <div key={idx} className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <XCircle className="w-3 h-3 text-destructive" />
+                        <div key={idx} className="flex items-center gap-2 text-xs text-gray-600">
+                          <XCircle className="w-3 h-3 text-red-500" />
                           <span>{req}</span>
                         </div>
                       ))}
@@ -513,7 +568,7 @@ export default function Signup() {
                   )}
                   
                   {passwordStrength.isValid && (
-                    <div className="flex items-center gap-2 text-xs text-green-600">
+                    <div className="flex items-center gap-2 text-xs text-[#007e40]">
                       <CheckCircle2 className="w-3 h-3" />
                       <span>Strong password!</span>
                     </div>
@@ -523,8 +578,8 @@ export default function Signup() {
             </div>
 
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-foreground mb-2">
-                Confirm Password <span className="text-destructive">*</span>
+              <label htmlFor="confirmPassword" className="block text-sm font-semibold text-gray-900 mb-2">
+                Confirm Password <span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <input
@@ -534,18 +589,18 @@ export default function Signup() {
                   value={formData.confirmPassword}
                   onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                   placeholder="Re-enter your password"
-                  className="w-full px-4 py-3 pr-12 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring transition-shadow"
+                  className="w-full rounded-lg border-2 border-gray-300 bg-white px-4 py-3.5 pr-12 text-sm text-gray-900 transition focus:border-[#007e40] focus:outline-none focus:ring-2 focus:ring-[#007e40]/20"
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  className="absolute inset-y-0 right-3 flex items-center text-gray-500 transition hover:text-gray-700"
                 >
-                  {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
               {formData.confirmPassword && formData.password !== formData.confirmPassword && (
-                <p className="text-xs text-destructive mt-1 flex items-center gap-1">
+                <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
                   <XCircle className="w-3 h-3" />
                   Passwords do not match
                 </p>
@@ -553,7 +608,7 @@ export default function Signup() {
             </div>
 
             <div>
-              <label htmlFor="phone" className="block text-sm font-medium text-foreground mb-2">
+              <label htmlFor="phone" className="block text-sm font-semibold text-gray-900 mb-2">
                 Phone (optional)
               </label>
               <input
@@ -562,10 +617,10 @@ export default function Signup() {
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 placeholder="+212 6XX XXX XXX or 06XX XXX XXX"
-                className="w-full px-4 py-3 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring transition-shadow"
+                className="w-full rounded-lg border-2 border-gray-300 bg-white px-4 py-3.5 text-sm text-gray-900 transition focus:border-[#007e40] focus:outline-none focus:ring-2 focus:ring-[#007e40]/20"
               />
               {formData.phone && !validatePhone(formData.phone) && (
-                <p className="text-xs text-destructive mt-1 flex items-center gap-1">
+                <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
                   <XCircle className="w-3 h-3" />
                   Invalid phone format. Use format: +212 6XX XXX XXX or 06XX XXX XXX
                 </p>
@@ -573,7 +628,7 @@ export default function Signup() {
             </div>
 
             {/* GDPR: Consent Checkbox */}
-            <div className="flex items-start gap-3 p-4 bg-muted/30 rounded-lg border border-border/50">
+            <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
               <div className="flex items-center h-5 mt-0.5">
                 <input
                   id="consent"
@@ -581,23 +636,23 @@ export default function Signup() {
                   type="checkbox"
                   checked={formData.consent}
                   onChange={(e) => setFormData({ ...formData, consent: e.target.checked })}
-                  className="w-4 h-4 text-primary border-border rounded focus:ring-primary"
+                  className="w-4 h-4 text-[#007e40] border-gray-300 rounded focus:ring-[#007e40]"
                   required
                 />
               </div>
               <div className="text-sm">
-                <label htmlFor="consent" className="font-medium text-foreground">
+                <label htmlFor="consent" className="font-medium text-gray-900">
                   I agree to the processing of my personal data
                 </label>
-                <p className="text-muted-foreground mt-1 text-xs">
-                  By creating an account, you agree to our <Link to="/privacy-policy" className="text-primary hover:underline">Privacy Policy</Link> and consent to share your profile information with participating companies.
+                <p className="text-gray-600 mt-1 text-xs">
+                  By creating an account, you agree to our <Link to="/privacy-policy" className="text-[#007e40] hover:underline">Privacy Policy</Link> and consent to share your profile information with participating companies.
                 </p>
               </div>
             </div>
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 px-4 bg-primary text-primary-foreground rounded-lg font-medium shadow-soft hover:shadow-elegant transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full rounded-lg bg-[#ffb300] px-4 py-3.5 text-sm font-semibold text-white shadow-lg transition hover:bg-[#e6a200] hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
@@ -616,15 +671,15 @@ export default function Signup() {
           {/* reCAPTCHA Badge Info */}
           {captchaConfig.enabled && (
             <div className="mt-4 text-center">
-              <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+              <p className="text-xs text-gray-500 flex items-center justify-center gap-1">
                 <Shield className="w-3 h-3" />
                 Protected by reCAPTCHA
               </p>
-              <p className="text-xs text-muted-foreground mt-1 flex items-center justify-center gap-2">
+              <p className="text-xs text-gray-500 mt-1 flex items-center justify-center gap-2">
                 <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" className="hover:underline">
                   Privacy
                 </a>
-                <span className="text-border">|</span>
+                <span className="text-gray-300">|</span>
                 <a href="https://policies.google.com/terms" target="_blank" rel="noopener noreferrer" className="hover:underline">
                   Terms
                 </a>
@@ -636,14 +691,14 @@ export default function Signup() {
           <div className="mt-6 text-center">
             <Link
               to="/login"
-              className="text-sm text-primary hover:underline font-medium"
+              className="text-sm text-[#007e40] hover:underline font-medium"
             >
               Already have an account? Sign in
             </Link>
           </div>
         </section>
       </div>
+      </div>
     </div>
-  </div>
   );
 }
