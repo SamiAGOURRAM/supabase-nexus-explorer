@@ -1,7 +1,7 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Suspense, lazy } from "react";
 import { GoogleReCaptchaProvider } from 'react-google-recaptcha-v3';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import LoadingScreen from "./components/shared/LoadingScreen";
 import ProtectedRoute from "./components/shared/ProtectedRoute";
 import ErrorBoundary from "./components/shared/ErrorBoundary";
@@ -11,7 +11,7 @@ import { UserProvider } from "./contexts/UserContext";
 import VerifyEmail from '@/pages/VerifyEmail';
 
 // Get reCAPTCHA site key from environment
-const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || '';
+const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || "";
 const RECAPTCHA_ENABLED = !!RECAPTCHA_SITE_KEY;
 
 // Create a client
@@ -25,7 +25,9 @@ const queryClient = new QueryClient({
 });
 
 // Lazy load pages for better performance
-const Home = lazy(() => import("./pages/Home"));
+const LandingPage = lazy(() => import("./pages/landingPage"));
+const About = lazy(() => import("./pages/About"));
+const Contact = lazy(() => import("./pages/Contact"));
 const SetPassword = lazy(() => import("./pages/auth/SetPassword"));
 const Login = lazy(() => import("./pages/Login"));
 const Signup = lazy(() => import("./pages/Signup"));
@@ -64,7 +66,9 @@ const CompanySlots = lazy(() => import("./pages/company/Slots"));
 const CreateOffer = lazy(() => import("./pages/company/offers/CreateOffer"));
 const EditOffer = lazy(() => import("./pages/company/offers/EditOffer"));
 const CompanyStudents = lazy(() => import("./pages/company/Students"));
-const StudentProfileView = lazy(() => import("./pages/company/students/StudentProfile"));
+const StudentProfileView = lazy(
+  () => import("./pages/company/students/StudentProfile")
+);
 
 function AppRoutes() {
   const { toasts, removeToast } = useToast();
@@ -76,7 +80,9 @@ function AppRoutes() {
         <Suspense fallback={<LoadingScreen />}>
           <Routes>
           {/* Public Routes */}
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/contact" element={<Contact />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -123,7 +129,7 @@ function AppRoutes() {
           <Route path="/company/profile" element={<ProtectedRoute><CompanyProfile /></ProtectedRoute>} />
           <Route path="/company/slots" element={<ProtectedRoute><CompanySlots /></ProtectedRoute>} />
           <Route path="/auth/set-password" element={<SetPassword />} />
-          
+
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/offers" replace />} />
           </Routes>
@@ -154,18 +160,16 @@ function App() {
       scriptProps={{
         async: true,
         defer: true,
-        appendTo: 'head',
+        appendTo: "head",
       }}
     >
       {AppContent}
     </GoogleReCaptchaProvider>
-  ) : AppContent;
-
-  return (
-    <ErrorBoundary>
-      {WrappedApp}
-    </ErrorBoundary>
+  ) : (
+    AppContent
   );
+
+  return <ErrorBoundary>{WrappedApp}</ErrorBoundary>;
 }
 
 export default App;
