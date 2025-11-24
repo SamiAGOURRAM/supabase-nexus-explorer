@@ -6,7 +6,7 @@ import { Building2, Users, ExternalLink } from 'lucide-react'
 type Company = {
   id: string
   company_name: string
-  company_code: string
+  company_code: string | null
   email: string | null
   industry: string | null
   website: string | null

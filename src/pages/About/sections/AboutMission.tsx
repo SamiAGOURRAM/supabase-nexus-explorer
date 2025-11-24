@@ -2,7 +2,7 @@ import DecorativeShape from "../../landingPage/components/DecorativeShape";
 
 const AboutMission = () => {
   return (
-    <section className="py-24 bg-gray-50 relative overflow-hidden">
+    <section className="py-24 bg-[#f5f5f0] relative overflow-hidden">
       {/* Decorative Shapes */}
       <DecorativeShape
         position="top-left"

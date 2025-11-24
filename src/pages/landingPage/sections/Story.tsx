@@ -55,9 +55,9 @@ const Story = () => {
         </div>
 
         {/* Core Values */}
-        <div className="mt-16  ">
+        <div className="mt-16">
           <div className="text-center mb-12">
-            <h3 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+            <h3 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-6">
               Our Core Values
             </h3>
             <p className="text-lg text-gray-600">

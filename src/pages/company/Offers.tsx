@@ -1,7 +1,13 @@
-import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { ArrowLeft, Plus, Search, Edit, Trash2, ToggleLeft, ToggleRight, Briefcase } from 'lucide-react';
+import { useToast } from '@/contexts/ToastContext';
+import { Plus, Search, Edit, Trash2, ToggleLeft, ToggleRight, Briefcase } from 'lucide-react';
+import LoadingScreen from '@/components/shared/LoadingScreen';
+import ErrorDisplay from '@/components/shared/ErrorDisplay';
+import EmptyState from '@/components/shared/EmptyState';
+import CompanyLayout from '@/components/company/CompanyLayout';
+import { useAuth } from '@/hooks/useAuth';
 
 type Offer = {
   id: string;
@@ -20,85 +26,130 @@ type Offer = {
 };
 
 export default function CompanyOffers() {
+  const { user, loading: authLoading, signOut } = useAuth('company');
+  const { showSuccess, showError } = useToast();
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
   const [offers, setOffers] = useState<Offer[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
-  const [filterTag, setFilterTag] = useState<'all' | 'Opérationnel' | 'Administratif'>('all');
-  const navigate = useNavigate();
+  const [filterTag, setFilterTag] = useState<'all' | 'Op?rationnel' | 'Administratif'>('all');
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+
+  const loadOffers = useCallback(async () => {
+    if (!user) return;
+    try {
+      setError(null);
+      setLoading(true);
+
+      const { data: company, error: companyError } = await supabase
+        .from('companies')
+        .select('id')
+        .eq('profile_id', user.id)
+        .maybeSingle();
+
+      if (companyError) {
+        throw new Error(`Failed to load company: ${companyError.message}`);
+      }
+
+      if (!company) {
+        throw new Error('Company profile not found');
+      }
+
+      const { data: offersData, error: offersError } = await supabase
+        .from('offers')
+        .select('*')
+        .eq('company_id', company.id)
+        .order('created_at', { ascending: false });
+
+      if (offersError) {
+        throw new Error(`Failed to load offers: ${offersError.message}`);
+      }
+
+      if (offersData) {
+        const offersWithBookings = await Promise.all(
+          offersData.map(async (offer) => {
+            const { data: slots, error: slotsError } = await supabase
+              .from('event_slots')
+              .select('id')
+              .eq('offer_id', offer.id);
+
+            if (slotsError) {
+              console.error('Error fetching slots for offer:', offer.id, slotsError);
+            }
+
+            const slotIds = slots?.map((s) => s.id) || [];
+
+            let count = 0;
+            if (slotIds.length > 0) {
+              const { count: bookingCount, error: countError } = await supabase
+                .from('bookings')
+                .select('*', { count: 'exact', head: true })
+                .in('slot_id', slotIds)
+                .eq('status', 'confirmed');
+
+              if (countError) {
+                console.error('Error counting bookings:', countError);
+              }
+
+              count = bookingCount || 0;
+            }
+
+            return {
+              ...offer,
+              bookings_count: count || 0,
+            };
+          })
+        );
+
+        setOffers(offersWithBookings);
+      } else {
+        setOffers([]);
+      }
+    } catch (err: any) {
+      console.error('Error loading offers:', err);
+      const errorMessage = err instanceof Error ? err : new Error('Failed to load offers');
+      setError(errorMessage);
+      showError('Failed to load offers. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, [showError, user]);
 
   useEffect(() => {
-    loadOffers();
-  }, []);
-
-  const loadOffers = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      navigate('/login');
-      return;
+    if (!authLoading) {
+      loadOffers();
     }
-
-    const { data: company } = await supabase
-      .from('companies')
-      .select('id')
-      .eq('profile_id', user.id)
-      .single();
-
-    if (!company) {
-      setLoading(false);
-      return;
-    }
-
-    const { data: offersData } = await supabase
-      .from('offers')
-      .select('*')
-      .eq('company_id', company.id)
-      .order('created_at', { ascending: false });
-
-    if (offersData) {
-      // Count bookings for each offer
-      // Use bookings table and join through event_slots to get offer_id
-      const offersWithBookings = await Promise.all(
-        offersData.map(async (offer) => {
-          // Get slot IDs for this offer first
-          const { data: slots } = await supabase
-            .from('event_slots')
-            .select('id')
-            .eq('offer_id', offer.id);
-          
-          const slotIds = slots?.map(s => s.id) || [];
-          
-          let count = 0;
-          if (slotIds.length > 0) {
-            const { count: bookingCount } = await supabase
-              .from('bookings')
-              .select('*', { count: 'exact', head: true })
-              .in('slot_id', slotIds)
-              .eq('status', 'confirmed');
-            count = bookingCount || 0;
-          }
-
-          return {
-            ...offer,
-            bookings_count: count || 0,
-          };
-        })
-      );
-
-      setOffers(offersWithBookings);
-    }
-
-    setLoading(false);
-  };
+  }, [authLoading, loadOffers]);
 
   const toggleOfferStatus = async (offerId: string, currentStatus: boolean) => {
-    const { error } = await supabase
-      .from('offers')
-      .update({ is_active: !currentStatus })
-      .eq('id', offerId);
+    if (currentStatus) {
+      if (!confirm('Are you sure you want to deactivate this offer? Students will no longer be able to view or apply to it.')) {
+        return;
+      }
+    }
+    try {
+      setTogglingId(offerId);
+      const { error } = await supabase
+        .from('offers')
+        .update({ is_active: !currentStatus })
+        .eq('id', offerId);
 
-    if (!error) {
-      setOffers(offers.map(o => o.id === offerId ? { ...o, is_active: !currentStatus } : o));
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      setOffers((prev) =>
+        prev.map((offer) =>
+          offer.id === offerId ? { ...offer, is_active: !currentStatus } : offer
+        )
+      );
+      showSuccess(`Offer ${currentStatus ? 'deactivated' : 'activated'} successfully`);
+    } catch (err: any) {
+      console.error('Error toggling offer status:', err);
+      showError(err.message || 'Failed to update offer status.');
+    } finally {
+      setTogglingId(null);
     }
   };
 
@@ -107,91 +158,111 @@ export default function CompanyOffers() {
       return;
     }
 
-    const { error } = await supabase
-      .from('offers')
-      .delete()
-      .eq('id', offerId);
+    try {
+      const { error } = await supabase
+        .from('offers')
+        .delete()
+        .eq('id', offerId);
 
-    if (!error) {
-      setOffers(offers.filter(o => o.id !== offerId));
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      setOffers((prev) => prev.filter((offer) => offer.id !== offerId));
+      showSuccess('Offer deleted successfully');
+    } catch (err: any) {
+      console.error('Error deleting offer:', err);
+      showError(err.message || 'Failed to delete offer.');
     }
   };
 
-  const filteredOffers = offers.filter(offer => {
-    const matchesSearch = offer.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      offer.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = filterStatus === 'all' || 
-      (filterStatus === 'active' && offer.is_active) ||
-      (filterStatus === 'inactive' && !offer.is_active);
-    const matchesTag = filterTag === 'all' || offer.interest_tag === filterTag;
-    
-    return matchesSearch && matchesStatus && matchesTag;
-  });
+  const filteredOffers = useMemo(() => {
+    const query = searchQuery.toLowerCase().trim();
+    return offers.filter((offer) => {
+      const matchesSearch =
+        query.length === 0 ||
+        offer.title.toLowerCase().includes(query) ||
+        offer.description.toLowerCase().includes(query);
+      const matchesStatus =
+        filterStatus === 'all' ||
+        (filterStatus === 'active' && offer.is_active) ||
+        (filterStatus === 'inactive' && !offer.is_active);
+      const matchesTag = filterTag === 'all' || offer.interest_tag === filterTag;
+      return matchesSearch && matchesStatus && matchesTag;
+    });
+  }, [filterStatus, filterTag, offers, searchQuery]);
 
-  const stats = {
-    total: offers.length,
-    active: offers.filter(o => o.is_active).length,
-    inactive: offers.filter(o => !o.is_active).length,
-    totalBookings: offers.reduce((sum, o) => sum + o.bookings_count, 0),
-  };
+  const stats = useMemo(() => {
+    return {
+      total: offers.length,
+      active: offers.filter((offer) => offer.is_active).length,
+      inactive: offers.filter((offer) => !offer.is_active).length,
+      totalBookings: offers.reduce((sum, offer) => sum + offer.bookings_count, 0),
+    };
+  }, [offers]);
+
+  if (authLoading) {
+    return <LoadingScreen message="Loading your workspace..." />;
+  }
 
   if (loading) {
+    return <LoadingScreen message="Loading offers..." />;
+  }
+
+  if (error) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
+      <CompanyLayout onSignOut={signOut}>
+        <div className="p-6 md:p-8">
+          <div className="max-w-7xl mx-auto">
+            <ErrorDisplay error={error} onRetry={loadOffers} />
+          </div>
+        </div>
+      </CompanyLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="bg-card border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link to="/company" className="text-muted-foreground hover:text-foreground">
-                <ArrowLeft className="w-5 h-5" />
-              </Link>
-              <div>
-                <h1 className="text-2xl font-bold text-foreground">Manage Offers</h1>
-                <p className="text-sm text-muted-foreground mt-1">Create and manage your job postings</p>
-              </div>
+    <CompanyLayout onSignOut={signOut}>
+      <div className="p-6 md:p-8">
+        <div className="max-w-7xl mx-auto space-y-6">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-3xl md:text-4xl font-bold text-foreground">Manage Offers</h1>
+              <p className="text-muted-foreground text-sm md:text-base mt-1">Create and manage your job postings</p>
             </div>
             <Link
               to="/company/offers/new"
-              className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
             >
               <Plus className="w-4 h-4" />
               Create Offer
             </Link>
           </div>
-        </div>
-      </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-card rounded-lg border border-border p-4">
-            <p className="text-sm text-muted-foreground">Total Offers</p>
-            <p className="text-2xl font-bold text-foreground">{stats.total}</p>
+          {/* Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="bg-card rounded-lg border border-border p-4">
+              <p className="text-sm text-muted-foreground">Total Offers</p>
+              <p className="text-2xl font-bold text-foreground">{stats.total}</p>
+            </div>
+            <div className="bg-card rounded-lg border border-border p-4">
+              <p className="text-sm text-muted-foreground">Active</p>
+              <p className="text-2xl font-bold text-green-600">{stats.active}</p>
+            </div>
+            <div className="bg-card rounded-lg border border-border p-4">
+              <p className="text-sm text-muted-foreground">Inactive</p>
+              <p className="text-2xl font-bold text-muted-foreground">{stats.inactive}</p>
+            </div>
+            <div className="bg-card rounded-lg border border-border p-4">
+              <p className="text-sm text-muted-foreground">Total Bookings</p>
+              <p className="text-2xl font-bold text-primary">{stats.totalBookings}</p>
+            </div>
           </div>
-          <div className="bg-card rounded-lg border border-border p-4">
-            <p className="text-sm text-muted-foreground">Active</p>
-            <p className="text-2xl font-bold text-green-600">{stats.active}</p>
-          </div>
-          <div className="bg-card rounded-lg border border-border p-4">
-            <p className="text-sm text-muted-foreground">Inactive</p>
-            <p className="text-2xl font-bold text-muted-foreground">{stats.inactive}</p>
-          </div>
-          <div className="bg-card rounded-lg border border-border p-4">
-            <p className="text-sm text-muted-foreground">Total Bookings</p>
-            <p className="text-2xl font-bold text-primary">{stats.totalBookings}</p>
-          </div>
-        </div>
 
-        {/* Filters */}
-        <div className="bg-card rounded-lg border border-border p-4 mb-6">
-          <div className="flex flex-col md:flex-row gap-4">
+          {/* Filters */}
+          <div className="bg-card rounded-lg border border-border p-4">
+            <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <input
@@ -223,28 +294,31 @@ export default function CompanyOffers() {
               </select>
             </div>
           </div>
-        </div>
-
-        {/* Offers List */}
-        {filteredOffers.length === 0 ? (
-          <div className="bg-card rounded-xl border border-border p-12 text-center">
-            <Briefcase className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
-            <h3 className="text-lg font-semibold text-foreground mb-2">
-              {offers.length === 0 ? 'No offers yet' : 'No offers match your filters'}
-            </h3>
-            <p className="text-muted-foreground mb-6">
-              {offers.length === 0 ? 'Create your first offer to start recruiting' : 'Try adjusting your search or filters'}
-            </p>
-            {offers.length === 0 && (
-              <Link
-                to="/company/offers/new"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
-              >
-                <Plus className="w-4 h-4" />
-                Create Your First Offer
-              </Link>
-            )}
           </div>
+
+          {/* Offers List */}
+          {filteredOffers.length === 0 ? (
+          <EmptyState
+            icon={Briefcase}
+            title={offers.length === 0 ? 'No offers yet' : 'No offers match your filters'}
+            message={
+              offers.length === 0
+                ? 'Create your first offer to start recruiting.'
+                : 'Try adjusting your search or filters to see more results.'
+            }
+            action={
+              offers.length === 0 ? (
+                <Link
+                  to="/company/offers/new"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
+                >
+                  <Plus className="w-4 h-4" />
+                  Create Your First Offer
+                </Link>
+              ) : undefined
+            }
+            className="bg-card rounded-xl border border-border"
+          />
         ) : (
           <div className="space-y-4">
             {filteredOffers.map((offer) => (
@@ -282,7 +356,10 @@ export default function CompanyOffers() {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => toggleOfferStatus(offer.id, offer.is_active)}
-                      className="p-2 text-muted-foreground hover:text-foreground hover:bg-background rounded-lg transition-colors"
+                      disabled={togglingId === offer.id}
+                      className={`p-2 text-muted-foreground hover:text-foreground hover:bg-background rounded-lg transition-colors ${
+                        togglingId === offer.id ? 'opacity-50 cursor-not-allowed' : ''
+                      }`}
                       title={offer.is_active ? 'Deactivate' : 'Activate'}
                     >
                       {offer.is_active ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
@@ -307,7 +384,9 @@ export default function CompanyOffers() {
             ))}
           </div>
         )}
-      </main>
-    </div>
+        </div>
+      </div>
+    </CompanyLayout>
   );
 }
+

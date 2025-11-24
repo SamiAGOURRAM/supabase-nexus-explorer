@@ -1,8 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { ArrowLeft, Briefcase, MapPin, Calendar, Clock, X, Search } from 'lucide-react';
-import { extractNestedObject, assertSupabaseType } from '@/utils/supabaseTypes';
+import { useToast } from '@/contexts/ToastContext';
+import { Briefcase, MapPin, Calendar, Clock, X, Search, ArrowLeft } from 'lucide-react';
+import { debug, error as logError } from '@/utils/logger';
+import EmptyState from '@/components/shared/EmptyState';
+import ErrorDisplay from '@/components/shared/ErrorDisplay';
+import StudentLayout from '@/components/student/StudentLayout';
+import { useAuth } from '@/hooks/useAuth';
 
 type Offer = {
   id: string;
@@ -40,6 +45,7 @@ type BookingLimitInfo = {
 
 export default function StudentOffers() {
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
   const [offers, setOffers] = useState<Offer[]>([]);
   const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
   const [availableSlots, setAvailableSlots] = useState<Slot[]>([]);
@@ -53,7 +59,10 @@ export default function StudentOffers() {
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
   const [validationWarning, setValidationWarning] = useState<string | null>(null);
   const [bookingError, setBookingError] = useState<string | null>(null);
+  const [booking, setBooking] = useState(false);
   const navigate = useNavigate();
+  const { showSuccess, showError } = useToast();
+  const { signOut } = useAuth('student');
   const modalCloseRef = useRef<HTMLButtonElement | null>(null);
   const modalOverlayRef = useRef<HTMLDivElement | null>(null);
 
@@ -98,7 +107,7 @@ export default function StudentOffers() {
       .maybeSingle(); // Use maybeSingle() to avoid 406 errors
 
     if (profileError) {
-      console.error('Profile fetch error:', profileError);
+      logError('Profile fetch error:', profileError);
       navigate('/login');
       return;
     }
@@ -126,53 +135,68 @@ export default function StudentOffers() {
   const loadOffers = async () => {
     if (!selectedEventId) return;
 
-    setLoading(true);
-    const { data: offersData } = await supabase
-      .from('offers')
-      .select(`
-        id,
-        title,
-        description,
-        interest_tag,
-        location,
-        duration_months,
-        paid,
-        remote_possible,
-        salary_range,
-        skills_required,
-        department,
-        company_id,
-        companies (
-          company_name,
-          logo_url
-        )
-      `)
-      .eq('is_active', true)
-      .eq('event_id', selectedEventId)
-      .order('created_at', { ascending: false });
+    try {
+      setError(null);
+      setLoading(true);
+      
+      const { data: offersData, error: offersError } = await supabase
+        .from('offers')
+        .select(`
+          id,
+          title,
+          description,
+          interest_tag,
+          location,
+          duration_months,
+          paid,
+          remote_possible,
+          salary_range,
+          skills_required,
+          department,
+          company_id,
+          companies (
+            company_name,
+            logo_url
+          )
+        `)
+        .eq('is_active', true)
+        .eq('event_id', selectedEventId)
+        .order('created_at', { ascending: false });
 
-    if (offersData) {
-      const formattedOffers: Offer[] = offersData.map((offer: any) => ({
-        id: offer.id,
-        title: offer.title,
-        description: offer.description,
-        interest_tag: offer.interest_tag,
-        location: offer.location,
-        duration_months: offer.duration_months,
-        paid: offer.paid,
-        remote_possible: offer.remote_possible,
-        salary_range: offer.salary_range,
-        skills_required: offer.skills_required,
-        department: offer.department,
-        company_id: offer.company_id,
-        company_name: offer.companies?.company_name || 'Unknown Company',
-        company_logo: offer.companies?.logo_url || null,
-      }));
+      if (offersError) {
+        throw new Error(`Failed to load offers: ${offersError.message}`);
+      }
 
-      setOffers(formattedOffers);
+      if (offersData) {
+        const formattedOffers: Offer[] = offersData.map((offer: any) => ({
+          id: offer.id,
+          title: offer.title,
+          description: offer.description,
+          interest_tag: offer.interest_tag,
+          location: offer.location,
+          duration_months: offer.duration_months,
+          paid: offer.paid,
+          remote_possible: offer.remote_possible,
+          salary_range: offer.salary_range,
+          skills_required: offer.skills_required,
+          department: offer.department,
+          company_id: offer.company_id,
+          company_name: offer.companies?.company_name || 'Unknown Company',
+          company_logo: offer.companies?.logo_url || null,
+        }));
+
+        setOffers(formattedOffers);
+      } else {
+        setOffers([]);
+      }
+    } catch (err: any) {
+      logError('Error loading offers:', err);
+      const errorMessage = err instanceof Error ? err : new Error('Failed to load offers');
+      setError(errorMessage);
+      showError('Failed to load offers. Please try again.');
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   const handleBookInterview = async (offer: Offer) => {
@@ -195,7 +219,7 @@ export default function StudentOffers() {
       setBookingLimit(limitData[0]);
     }
 
-    console.log('🔵 Fetching slots with filters:', {
+    debug('Fetching slots with filters:', {
       company_id: offer.company_id,
       event_id: selectedEventId,
       offer_id: offer.id,
@@ -203,18 +227,6 @@ export default function StudentOffers() {
       offer_title: offer.title,
       current_time: new Date().toISOString()
     });
-
-    // CRITICAL DEBUG: Log the exact values being used
-    console.log('🔵 EXACT FILTER VALUES:', {
-      'company_id (from offer)': offer.company_id,
-      'event_id (selected)': selectedEventId,
-      'Are they truthy?': {
-        company_id: !!offer.company_id,
-        event_id: !!selectedEventId
-      }
-    });
-
-    console.log('🔵 About to execute query...');
 
     // Get all slots for this company for the selected event
     // Note: Slots are generated per company, not per offer
@@ -229,25 +241,15 @@ export default function StudentOffers() {
       .gte('start_time', new Date().toISOString())
       .order('start_time', { ascending: true });
 
-    console.log('🔵 Query completed!');
-    console.log('🔵 RAW QUERY RESULT:', {
-      error: slotsError,
-      data: slotsData,
-      count: slotsData?.length || 0,
-      dataType: typeof slotsData,
-      isArray: Array.isArray(slotsData),
-      dataKeys: slotsData ? Object.keys(slotsData) : 'null'
-    });
-
     if (slotsError) {
-      console.error('🔴 Error fetching slots:', slotsError);
+      logError('Error fetching slots:', slotsError);
       alert(`Error fetching slots: ${slotsError.message}`);
     }
 
-    console.log('🔵 Slots fetched:', slotsData?.length || 0, slotsData);
+    debug('Slots fetched:', slotsData?.length || 0);
 
     if (slotsData) {
-      console.log('🔵 Processing', slotsData.length, 'slots to check capacity...');
+      debug('Processing', slotsData.length, 'slots to check capacity...');
       
       // Count bookings for each slot
       const slotsWithCounts = await Promise.all(
@@ -258,12 +260,9 @@ export default function StudentOffers() {
             .eq('slot_id', slot.id)
             .eq('status', 'confirmed');
 
-          console.log(`🔵 Slot ${slot.id.slice(0, 8)}... at ${new Date(slot.start_time).toLocaleTimeString()}:`, {
-            capacity: slot.capacity,
-            bookings: count || 0,
-            available: (slot.capacity || 0) - (count || 0),
-            countError
-          });
+          if (countError) {
+            logError('Error counting bookings for slot:', countError);
+          }
 
           return {
             ...slot,
@@ -272,24 +271,16 @@ export default function StudentOffers() {
         })
       );
 
-      console.log('🔵 All slots with booking counts:', slotsWithCounts.map(s => ({
-        time: new Date(s.start_time).toLocaleTimeString(),
-        capacity: s.capacity,
-        booked: s.bookings_count,
-        available: (s.capacity || 0) - s.bookings_count
-      })));
-
       // Filter out full slots
       // Default capacity to 1 if null/undefined (single interview slot)
       const available = slotsWithCounts.filter(
         (slot) => slot.bookings_count < (slot.capacity || 1)
       );
 
-      console.log('🔵 Available slots after filtering:', available.length, available);
-      console.log('🔵 Slots filtered out (full):', slotsWithCounts.length - available.length);
+      debug('Available slots after filtering:', available.length, 'out of', slotsWithCounts.length);
 
       if (available.length === 0 && slotsWithCounts.length > 0) {
-        console.error('🔴 ALL SLOTS ARE FULL! All', slotsWithCounts.length, 'slots have reached capacity');
+        logError('All slots are full! All', slotsWithCounts.length, 'slots have reached capacity');
       }
 
       setAvailableSlots(available);
@@ -314,40 +305,54 @@ export default function StudentOffers() {
     const selectedSlot = availableSlots.find(s => s.id === slotId);
     if (!selectedSlot) return;
 
-    // Check for time conflicts with existing bookings
-    const { data: existingBookings } = await supabase
+    // Get existing bookings - simplified query to avoid nested join issues
+    const { data: existingBookings, error } = await supabase
       .from('bookings')
-      .select('event_slots!slot_id(start_time, end_time, companies(company_name))')
+      .select('slot_id')
       .eq('student_id', user.id)
       .eq('status', 'confirmed');
 
+    if (error) {
+      logError('Error checking conflicts:', error);
+      return;
+    }
+
     if (existingBookings && existingBookings.length > 0) {
-      const slotStart = new Date(selectedSlot.start_time);
-      const slotEnd = new Date(selectedSlot.end_time);
+      // Get slot details for all existing bookings
+      const slotIds = existingBookings.map(b => b.slot_id);
+      const { data: slots, error: slotsError } = await supabase
+        .from('event_slots')
+        .select('id, start_time, end_time, company_id')
+        .in('id', slotIds);
 
-      // Check for time conflicts with existing bookings
-      // Supabase nested queries require type assertions for proper typing
-      for (const booking of existingBookings) {
-        const eventSlot = assertSupabaseType<{ 
-          start_time: string; 
-          end_time: string; 
-          companies: { company_name: string } | null;
-        } | null>(booking.event_slots);
-        
-        if (!eventSlot) continue;
-        
-        const bookingStart = new Date(eventSlot.start_time);
-        const bookingEnd = new Date(eventSlot.end_time);
+      if (slotsError) {
+        logError('Error fetching slots:', slotsError);
+        return;
+      }
 
-        // Check for time overlap
-        if (slotStart < bookingEnd && slotEnd > bookingStart) {
-          // Extract company name from nested query result
-          const company = extractNestedObject<{ company_name: string }>(eventSlot.companies);
-          const companyName = company?.company_name || 'Unknown Company';
-          setValidationWarning(
-            `⚠️ Time conflict detected! You already have an interview with ${companyName} at ${bookingStart.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`
-          );
-          return;
+      if (slots && slots.length > 0) {
+        const slotStart = new Date(selectedSlot.start_time);
+        const slotEnd = new Date(selectedSlot.end_time);
+
+        for (const existingSlot of slots) {
+          const bookingStart = new Date(existingSlot.start_time);
+          const bookingEnd = new Date(existingSlot.end_time);
+
+          // Check for time overlap
+          if (slotStart < bookingEnd && slotEnd > bookingStart) {
+            // Get company name separately to avoid nested join issues
+            const { data: company } = await supabase
+              .from('companies')
+              .select('company_name')
+              .eq('id', existingSlot.company_id)
+              .single();
+
+            const companyName = company?.company_name || 'Unknown Company';
+            setValidationWarning(
+              `⚠️ Time conflict detected! You already have an interview with ${companyName} at ${bookingStart.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`
+            );
+            return;
+          }
         }
       }
     }
@@ -362,18 +367,33 @@ export default function StudentOffers() {
     setBookingError(null);
 
     try {
+      setBooking(true);
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        showError('You must be logged in to book an interview');
+        return;
+      }
 
       // Final validation check
       if (bookingLimit && !bookingLimit.can_book) {
-        setBookingError('You have reached your booking limit for this phase.');
+        const errorMsg = 'You have reached your booking limit for this phase.';
+        setBookingError(errorMsg);
+        showError(errorMsg);
+        return;
+      }
+
+      // Use the offer_id from the selected offer
+      if (!selectedOffer?.id) {
+        const errorMsg = 'Offer ID not found';
+        setBookingError(errorMsg);
+        showError(errorMsg);
         return;
       }
 
       const { data, error } = await supabase.rpc('fn_book_interview', {
         p_student_id: user.id,
-        p_slot_id: slotId
+        p_slot_id: slotId,
+        p_offer_id: selectedOffer.id
       });
 
       if (error) throw error;
@@ -381,17 +401,30 @@ export default function StudentOffers() {
       const result = Array.isArray(data) && data.length > 0 ? data[0] : null;
 
       if (result?.success) {
-        // Success! Navigate to bookings page
+        // Success! Show success message and navigate
+        showSuccess(result.message || 'Interview booked successfully!');
         setSelectedOffer(null);
         setAvailableSlots([]);
-        navigate('/student/bookings');
+        setSelectedSlotId(null);
+        // Refresh offers to update availability
+        await loadOffers();
+        // Small delay before navigation for better UX
+        setTimeout(() => {
+          navigate('/student/bookings');
+        }, 1000);
       } else {
         // Show error message in UI
-        setBookingError(result?.message || 'Failed to book interview');
+        const errorMsg = result?.message || 'Failed to book interview';
+        setBookingError(errorMsg);
+        showError(errorMsg);
       }
     } catch (error: any) {
-      console.error('Error booking interview:', error);
-      setBookingError(error.message || 'Failed to book interview. Please check booking limits and phase restrictions.');
+      logError('Error booking interview:', error);
+      const errorMsg = error.message || 'Failed to book interview. Please check booking limits and phase restrictions.';
+      setBookingError(errorMsg);
+      showError(errorMsg);
+    } finally {
+      setBooking(false);
     }
   };
 
@@ -413,24 +446,15 @@ export default function StudentOffers() {
 
   const uniqueTags = [...new Set(offers.map((o) => o.interest_tag))];
 
-  if (loading) {
+  if (loading && offers.length === 0) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
-        <header className="bg-card/80 backdrop-blur-sm border-b border-border">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div className="flex items-center gap-4">
-              <Link to="/student" className="text-muted-foreground hover:text-foreground transition-colors">
-                <ArrowLeft className="w-5 h-5" />
-              </Link>
-              <div>
-                <h1 className="text-2xl font-bold text-foreground">Browse Offers</h1>
-                <p className="text-sm text-muted-foreground mt-1">Find your perfect internship</p>
-              </div>
+      <StudentLayout onSignOut={signOut}>
+        <div className="p-6 md:p-8">
+          <div className="max-w-7xl mx-auto space-y-6">
+            <div>
+              <h1 className="text-3xl md:text-4xl font-bold text-foreground">Browse Offers</h1>
+              <p className="text-muted-foreground text-sm md:text-base mt-1">Find your perfect internship</p>
             </div>
-          </div>
-        </header>
-        
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Skeleton Loading */}
           <div className="space-y-6">
             {/* Event selector skeleton */}
@@ -473,31 +497,24 @@ export default function StudentOffers() {
               ))}
             </div>
           </div>
-        </main>
-      </div>
+          </div>
+        </div>
+      </StudentLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
-      <header className="bg-card/80 backdrop-blur-sm border-b border-border sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center gap-4">
-            <Link 
-              to="/student" 
-              className="p-2 -m-2 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-all"
-              aria-label="Back to dashboard"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold text-foreground bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
-                Browse Offers
-              </h1>
-              <p className="text-sm text-muted-foreground mt-1">Find your perfect internship opportunity</p>
+    <StudentLayout onSignOut={signOut}>
+      <div className="p-6 md:p-8">
+        <div className="max-w-7xl mx-auto space-y-6">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-3xl md:text-4xl font-bold text-foreground">Browse Offers</h1>
+              <p className="text-muted-foreground text-sm md:text-base mt-1">Find your perfect internship opportunity</p>
             </div>
             {filteredOffers.length > 0 && (
-              <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full">
+              <div className="flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full">
                 <Briefcase className="w-4 h-4 text-primary" />
                 <span className="text-sm font-semibold text-primary">
                   {filteredOffers.length} {filteredOffers.length === 1 ? 'Offer' : 'Offers'}
@@ -505,13 +522,16 @@ export default function StudentOffers() {
               </div>
             )}
           </div>
-        </div>
-      </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Event Selector */}
-        {events.length > 0 && (
-          <div className="bg-card/80 backdrop-blur-sm rounded-xl border border-border shadow-sm hover:shadow-md transition-shadow p-5 mb-6">
+          {error && (
+            <div>
+              <ErrorDisplay error={error} onRetry={loadOffers} />
+            </div>
+          )}
+
+          {/* Event Selector */}
+          {events.length > 0 && (
+            <div className="bg-card/80 backdrop-blur-sm rounded-xl border border-border shadow-sm hover:shadow-md transition-shadow p-5">
             <div className="flex items-center gap-3 mb-3">
               <div className="p-2 bg-primary/10 rounded-lg">
                 <Calendar className="w-4 h-4 text-primary" />
@@ -536,10 +556,10 @@ export default function StudentOffers() {
               ))}
             </select>
           </div>
-        )}
+          )}
 
-        {/* Filters */}
-        <div className="bg-card/80 backdrop-blur-sm rounded-xl border border-border shadow-sm hover:shadow-md transition-shadow p-6 mb-6">
+          {/* Filters */}
+          <div className="bg-card/80 backdrop-blur-sm rounded-xl border border-border shadow-sm hover:shadow-md transition-shadow p-6">
           <div className="flex items-center gap-2 mb-4">
             <Search className="w-5 h-5 text-primary" />
             <h2 className="text-lg font-semibold text-foreground">Filter & Search</h2>
@@ -606,34 +626,35 @@ export default function StudentOffers() {
               </button>
             )}
           </div>
-        </div>
-
-        {/* Offers Grid */}
-        {filteredOffers.length === 0 ? (
-          <div className="bg-card/80 backdrop-blur-sm rounded-2xl border-2 border-dashed border-border p-12 text-center animate-fade-in">
-            <div className="w-20 h-20 bg-gradient-to-br from-primary/20 to-primary/5 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-inner">
-              <Briefcase className="w-10 h-10 text-primary/60" />
-            </div>
-            <h3 className="text-xl font-bold text-foreground mb-3">No offers found</h3>
-            <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-              {searchQuery || filterTag || filterPaid 
-                ? "We couldn't find any offers matching your filters. Try adjusting your search criteria to see more results." 
-                : "There are no active offers for this event yet. Check back soon or contact your administrator."}
-            </p>
-            {(searchQuery || filterTag || filterPaid) && (
-              <button
-                onClick={() => {
-                  setSearchQuery('');
-                  setFilterTag('');
-                  setFilterPaid('');
-                }}
-                className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-all font-medium shadow-sm hover:shadow-md inline-flex items-center gap-2"
-              >
-                <X className="w-4 h-4" />
-                Clear All Filters
-              </button>
-            )}
           </div>
+
+          {/* Offers Grid */}
+        {filteredOffers.length === 0 ? (
+          <EmptyState
+            icon={Briefcase}
+            title={searchQuery || filterTag || filterPaid ? "No offers match your filters" : "No offers available"}
+            message={
+              searchQuery || filterTag || filterPaid 
+                ? "We couldn't find any offers matching your filters. Try adjusting your search criteria to see more results." 
+                : "There are no active offers for this event yet. Check back soon or contact your administrator."
+            }
+            action={
+              (searchQuery || filterTag || filterPaid) ? (
+                <button
+                  onClick={() => {
+                    setSearchQuery('');
+                    setFilterTag('');
+                    setFilterPaid('');
+                  }}
+                  className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-all font-medium shadow-sm hover:shadow-md inline-flex items-center gap-2"
+                >
+                  <X className="w-4 h-4" />
+                  Clear All Filters
+                </button>
+              ) : undefined
+            }
+            className="bg-card/80 backdrop-blur-sm rounded-2xl border-2 border-dashed border-border p-12"
+          />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in">
             {filteredOffers.map((offer, index) => (
@@ -740,7 +761,8 @@ export default function StudentOffers() {
             ))}
           </div>
         )}
-      </main>
+        </div>
+      </div>
 
       {/* Booking Modal */}
         {selectedOffer && (
@@ -1036,7 +1058,7 @@ export default function StudentOffers() {
                     <div className="sticky bottom-0 pt-3 pb-1">
                       <button
                         onClick={() => confirmBooking(selectedSlotId)}
-                        disabled={!bookingLimit?.can_book || !!validationWarning}
+                        disabled={!bookingLimit?.can_book || !!validationWarning || booking}
                         className="w-full px-4 py-3 bg-gradient-to-r from-primary to-primary/90 text-primary-foreground rounded-xl hover:shadow-xl transition-all duration-300 font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98] shadow-md disabled:hover:scale-100 group relative overflow-hidden"
                       >
                         {/* Animated background */}
@@ -1047,6 +1069,11 @@ export default function StudentOffers() {
                             <>
                               <X className="w-5 h-5" />
                               <span>Time Conflict</span>
+                            </>
+                          ) : booking ? (
+                            <>
+                              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                              <span>Booking...</span>
                             </>
                           ) : (
                             <>
@@ -1076,6 +1103,6 @@ export default function StudentOffers() {
           </div>
         </div>
       )}
-    </div>
+    </StudentLayout>
   );
 }

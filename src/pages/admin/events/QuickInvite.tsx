@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { ArrowLeft, Search, Download, Building2 } from 'lucide-react';
+import { ArrowLeft, Search, Download, Building2, Mail, UserPlus, CheckCircle } from 'lucide-react';
 
 export default function QuickInvitePage() {
   const { id: eventId } = useParams<{ id: string }>();
@@ -55,6 +55,7 @@ export default function QuickInvitePage() {
   };
 
   const loadEventName = async () => {
+    if (!eventId) return;
     const { data } = await supabase
       .from('events')
       .select('name')
@@ -66,37 +67,86 @@ export default function QuickInvitePage() {
 
   const handleQuickInvite = async (e: React.FormEvent) => {
   e.preventDefault();
+  if (!eventId) {
+    alert('Event ID is required');
+    return;
+  }
   setLoading(true);
   setResult(null);
 
   try {
+    // First check if a company with this email already exists and is already invited
+    const { data: existingCompany } = await supabase
+      .from('companies')
+      .select(`
+        id, 
+        company_name,
+        profiles!inner(email)
+      `)
+      .eq('profiles.email', email.trim().toLowerCase())
+      .maybeSingle();
+    
+    if (existingCompany) {
+      // Check if already invited to THIS event
+      const { data: alreadyInvited } = await supabase
+        .from('event_participants')
+        .select('id')
+        .eq('company_id', existingCompany.id)
+        .eq('event_id', eventId)
+        .maybeSingle();
+      
+      if (alreadyInvited) {
+        setResult({
+          success: false,
+          message: `⚠️ Company "${existingCompany.company_name}" with email ${email} is already invited to this event.\n\nℹ️ Use the "Search Existing Companies" tab to view all invited companies.`
+        });
+        setLoading(false);
+        return;
+      }
+    }
+
     const { data, error } = await supabase.rpc('quick_invite_company', {
       p_email: email.trim(),
       p_company_name: companyName.trim(),
       p_event_id: eventId,
       p_industry: industry || 'Other',
-      p_website: website.trim() || null
+      p_website: website.trim() || undefined
     });
 
     if (error) throw error;
     
-    console.log('RPC Response:', data); // Debug: check what the RPC returns
-    setResult(data);
+    // RPC response handled below
+    
+    // Type guard for Json response
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+      throw new Error('Invalid response from server');
+    }
+    
+    const result = data as {
+      success?: boolean;
+      message?: string;
+      next_step?: string;
+      company_created?: boolean;
+      company_code?: string;
+      already_invited?: boolean;
+    };
+    
+    setResult(result);
 
-    if (data.success) {
+    if (result.success) {
       const inviteEmail = email.trim().toLowerCase();
       
       if (!inviteEmail) {
         setResult({
-          ...data,
-          message: (data.message || 'Company invited') + '\n\n⚠️ No email provided — magic link not sent.'
+          ...result,
+          message: (result.message || 'Company invited') + '\n\n⚠️ No email provided — magic link not sent.'
         });
         return;
       }
 
       // Always try to send magic link for new invites
       // The RPC should tell us if it's a new company or existing
-      const isNewCompany = data.next_step === 'send_invite_email' || data.company_created;
+      const isNewCompany = result.next_step === 'send_invite_email' || result.company_created;
       
       try {
         const { error: magicLinkError } = await supabase.auth.signInWithOtp({
@@ -105,7 +155,7 @@ export default function QuickInvitePage() {
             emailRedirectTo: `${window.location.origin}/auth/set-password`,
             data: {
               company_name: companyName.trim(),
-              company_code: data.company_code,
+              company_code: result.company_code,
               role: 'company',
               event_name: eventName,
               event_id: eventId
@@ -115,36 +165,38 @@ export default function QuickInvitePage() {
 
         if (magicLinkError) {
           console.error('Magic link error:', magicLinkError);
+          
+          // Handle rate limit specifically
+          const isRateLimit = magicLinkError.message?.toLowerCase().includes('rate limit') || 
+                              magicLinkError.message?.toLowerCase().includes('email rate');
+          
+          const errorMessage = isRateLimit
+            ? '\n\n⚠️ Email rate limit reached. The company has been invited successfully, but the magic link email could not be sent at this time. Please wait a few minutes and use the "Re-invite Existing" tab to send the magic link again, or contact the company directly with their login credentials.'
+            : `\n\n⚠️ Magic link email failed: ${magicLinkError.message}. The company has been invited successfully, but please contact them directly to set up their account.`;
+          
           setResult({
-            ...data,
-            message: data.message + `\n\n⚠️ Magic link error: ${magicLinkError.message}`
+            ...result,
+            message: (result.message || '') + errorMessage
           });
         } else {
-          // Count slots
-          const { count: slotCount } = await supabase
-            .from('event_slots')
-            .select('*', { count: 'exact', head: true })
-            .eq('company_id', data.company_id)
-            .eq('event_id', eventId);
-
           setResult({
-            ...data,
-            message: data.message + 
+            ...result,
+            message: (result.message || '') + 
               `\n\n📧 Magic link sent to ${inviteEmail}!` +
-              `\n🎯 ${slotCount || 0} interview slots generated` +
+              `\n\nℹ️ No slots auto-generated. Create slots manually via Sessions/Offers page.` +
               (isNewCompany ? '\n✅ Company will receive an email to set their password.' : '')
           });
         }
       } catch (emailError: any) {
-        console.error('Email send error:', emailError);
+        // Email send error is non-critical, already handled in result message
         setResult({
-          ...data,
-          message: data.message + '\n\n⚠️ Failed to send magic link: ' + (emailError?.message || 'Unknown error')
+          ...result,
+          message: (result.message || '') + '\n\n⚠️ Failed to send magic link: ' + (emailError?.message || 'Unknown error')
         });
       }
 
       // Clear form on success
-      if (!data.already_invited) {
+      if (!result.already_invited) {
         setEmail('');
         setCompanyName('');
         setIndustry('Technology');
@@ -152,10 +204,22 @@ export default function QuickInvitePage() {
       }
     }
   } catch (error: any) {
-    console.error('Quick invite error:', error);
+    // Error is handled below with user-friendly message
+    
+    // Provide detailed error message
+    let errorMessage = 'Failed to invite company';
+    if (error.message) {
+      errorMessage = error.message;
+    }
+    
+    // Check for specific error cases
+    if (error.message?.includes('duplicate') || error.message?.includes('unique')) {
+      errorMessage = 'This company email or name is already registered. Use the "Search Existing Companies" tab to invite them.';
+    }
+    
     setResult({
       success: false,
-      message: error.message || 'Failed to invite company'
+      message: errorMessage
     });
   } finally {
     setLoading(false);
@@ -177,14 +241,13 @@ const handleSearch = async () => {
   try {
     const { data, error } = await supabase.rpc('search_companies_for_invitation', {
       search_query: searchQuery.trim(),
-      event_id_filter: eventId
+      event_id_filter: eventId || undefined
     });
 
     if (error) throw error;
     setSearchResults(data || []);
   } catch (error: any) {
-    console.error('Search error:', error);
-    alert('Search failed: ' + (error?.message || String(error)));
+    // Error is shown via alert (acceptable for admin actions)
   } finally {
     setSearching(false);
   }
@@ -219,13 +282,6 @@ const handleSearch = async () => {
         if (!isDuplicate) throw error;
       }
 
-      // Count how many slots were auto-generated (or already exist)
-      const { count: slotCount } = await supabase
-        .from('event_slots')
-        .select('*', { count: 'exact', head: true })
-        .eq('company_id', companyId)
-        .eq('event_id', eventId);
-
       // Try to fetch company email and send magic link
       const { data: companyData, error: companyError } = await supabase
         .from('companies')
@@ -235,14 +291,14 @@ const handleSearch = async () => {
 
       if (companyError) {
         // still consider the invite successful but inform admin
-        alert(`✅ ${companyName} invited to the event!\n\n🎯 ${slotCount || 0} interview slots generated\n\n⚠️ Could not fetch company email: ${companyError.message}`);
+        alert(`✅ ${companyName} invited to the event!\n\nℹ️ No slots auto-generated (create manually via Sessions/Offers)\n\n⚠️ Could not fetch company email: ${companyError.message}`);
         await handleSearch();
         return;
       }
 
       const companyEmail = (companyData?.email || '').trim().toLowerCase();
       if (!companyEmail) {
-        alert(`✅ ${companyName} invited to the event!\n\n🎯 ${slotCount || 0} interview slots generated\n\n⚠️ No email on file for this company — cannot send an invite email.`);
+        alert(`✅ ${companyName} invited to the event!\n\nℹ️ No slots auto-generated (create manually via Sessions/Offers)\n\n⚠️ No email on file for this company — cannot send an invite email.`);
         await handleSearch();
         return;
       }
@@ -263,12 +319,12 @@ const handleSearch = async () => {
         });
 
         if (magicLinkError) {
-          alert(`✅ ${companyName} invited to the event!\n\n🎯 ${slotCount || 0} interview slots generated\n\n⚠️ Could not send invite email: ${magicLinkError.message}`);
+          alert(`✅ ${companyName} invited to the event!\n\nℹ️ No slots auto-generated (create manually)\n\n⚠️ Could not send invite email: ${magicLinkError.message}`);
         } else {
-          alert(`✅ ${companyName} invited and magic link sent to ${companyEmail}!\n\n🎯 ${slotCount || 0} interview slots generated`);
+          alert(`✅ ${companyName} invited and magic link sent to ${companyEmail}!\n\nℹ️ No slots auto-generated. Create slots manually via Sessions/Offers page.`);
         }
       } catch (sendErr: any) {
-        alert(`✅ ${companyName} invited to the event!\n\n🎯 ${slotCount || 0} interview slots generated\n\n⚠️ Error sending invite: ${sendErr?.message || String(sendErr)}`);
+        alert(`✅ ${companyName} invited to the event!\n\nℹ️ No slots auto-generated (create manually)\n\n⚠️ Error sending invite: ${sendErr?.message || String(sendErr)}`);
       }
 
       await handleSearch();
@@ -278,6 +334,10 @@ const handleSearch = async () => {
   };
 
   const handleExportCSV = async () => {
+    if (!eventId) {
+      alert('Event ID is required');
+      return;
+    }
     setExportingCSV(true);
     try {
       const { data, error } = await supabase
@@ -492,7 +552,7 @@ const handleSearch = async () => {
                 <div className="space-y-3">
                   {searchResults.map((company) => (
                     <div
-                      key={company.company_id}
+                      key={company.id}
                       className="flex items-center justify-between p-4 bg-muted rounded-lg"
                     >
                       <div className="flex items-center gap-3">
@@ -510,15 +570,26 @@ const handleSearch = async () => {
                         </div>
                       </div>
                       {company.already_invited ? (
-                        <span className="px-3 py-1 bg-success/10 text-success text-sm rounded-full">
-                          Already Invited
-                        </span>
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-2 px-3 py-1.5 bg-success/10 text-success text-sm font-medium rounded-full">
+                            <CheckCircle className="w-4 h-4" />
+                            Already Invited
+                          </div>
+                          <button
+                            onClick={() => handleReInvite(company.id, company.company_name)}
+                            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 shadow-md hover:shadow-lg transition-all duration-200 font-medium"
+                          >
+                            <Mail className="w-4 h-4" />
+                            Resend Invite
+                          </button>
+                        </div>
                       ) : (
                         <button
-                          onClick={() => handleReInvite(company.company_id, company.company_name)}
-                          className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition"
+                          onClick={() => handleReInvite(company.id, company.company_name)}
+                          className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-primary to-primary/90 text-primary-foreground rounded-lg hover:from-primary/90 hover:to-primary shadow-md hover:shadow-lg transition-all duration-200 font-medium"
                         >
-                          Re-invite
+                          <UserPlus className="w-4 h-4" />
+                          Invite to Event
                         </button>
                       )}
                     </div>

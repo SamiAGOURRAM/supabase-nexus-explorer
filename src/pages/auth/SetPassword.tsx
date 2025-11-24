@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { Eye, EyeOff, Lock, CheckCircle } from 'lucide-react';
+import { error as logError } from '@/utils/logger';
 
 export default function SetPassword() {
   const navigate = useNavigate();
@@ -12,6 +13,7 @@ export default function SetPassword() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [companyInfo, setCompanyInfo] = useState<any>(null);
+  const [consent, setConsent] = useState(false); // GDPR consent
 
   useEffect(() => {
     checkSession();
@@ -50,6 +52,12 @@ export default function SetPassword() {
       return;
     }
 
+    // GDPR: Validate consent
+    if (!consent) {
+      setError('You must consent to the processing of your data to create an account.');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -72,20 +80,38 @@ export default function SetPassword() {
         .maybeSingle(); // Use maybeSingle() to avoid 406 errors
 
       if (profileError && profileError.code !== 'PGRST116') {
-        console.error('Profile check error:', profileError);
+        logError('Profile check error:', profileError);
       }
 
-      if (!existingProfile) {
-        // Create profile
+      if (!existingProfile && user.id && user.email) {
+        // Create profile with company information and GDPR consent
         const { error: profileError } = await supabase
           .from('profiles')
           .insert({
             id: user.id,
             email: user.email,
-            role: 'company'
+            full_name: companyInfo?.company_name || 'Company User',
+            role: 'company',
+            consent_given: true,
+            consent_date: new Date().toISOString(),
+            consent_version: '1.0'
           });
 
         if (profileError) throw profileError;
+      } else if (existingProfile) {
+        // Update existing profile with consent
+        const { error: consentError } = await supabase
+          .from('profiles')
+          .update({
+            consent_given: true,
+            consent_date: new Date().toISOString(),
+            consent_version: '1.0'
+          })
+          .eq('id', user.id);
+
+        if (consentError) {
+          console.error('Error updating consent:', consentError);
+        }
       }
 
       // Update company record to link with profile
@@ -96,7 +122,7 @@ export default function SetPassword() {
           .eq('company_code', companyInfo.company_code);
 
         if (companyError) {
-          console.error('Error linking company:', companyError);
+          logError('Error linking company:', companyError);
         }
       }
 
@@ -106,7 +132,7 @@ export default function SetPassword() {
       }, 1500);
 
     } catch (error: any) {
-      console.error('Error setting password:', error);
+      logError('Error setting password:', error);
       setError(error.message || 'Failed to set password');
       setLoading(false);
     }
@@ -202,6 +228,46 @@ export default function SetPassword() {
                 {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
             </div>
+          </div>
+
+          {/* GDPR: Data Sharing Notice */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <p className="text-sm font-semibold text-gray-900 mb-2">Data Sharing:</p>
+            <p className="text-xs text-gray-700 mb-2">
+              Your company information will be shared with:
+            </p>
+            <ul className="text-xs text-gray-700 space-y-1 list-disc list-inside ml-2 mb-2">
+              <li>UM6P departments (SHBM, Career Center) for event management</li>
+              <li>Students registered for the INF event for internship matching</li>
+            </ul>
+            <p className="text-xs text-gray-700">
+              Your data will not be sold or used for commercial purposes outside the INF event.
+            </p>
+          </div>
+
+          {/* GDPR: Consent Checkbox */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <label className="flex items-start cursor-pointer">
+              <input
+                type="checkbox"
+                required
+                checked={consent}
+                onChange={(e) => setConsent(e.target.checked)}
+                className="mt-1 mr-3 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <div className="text-sm text-gray-900">
+                <span className="font-medium">I consent to the processing of my company data</span> for 
+                event management and internship matching purposes. I have read and agree to the{' '}
+                <Link 
+                  to="/privacy-policy" 
+                  className="text-blue-600 hover:underline font-medium"
+                  target="_blank"
+                >
+                  Privacy Policy
+                </Link>.
+                <span className="text-red-600 ml-1">*</span>
+              </div>
+            </label>
           </div>
 
           {/* Error Message */}

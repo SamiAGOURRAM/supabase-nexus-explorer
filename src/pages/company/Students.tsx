@@ -1,7 +1,15 @@
-import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { ArrowLeft, Search, Users, FileText } from 'lucide-react';
+import { Search, Users, FileText, Filter } from 'lucide-react';
+import { useToast } from '@/contexts/ToastContext';
+import LoadingScreen from '@/components/shared/LoadingScreen';
+import ErrorDisplay from '@/components/shared/ErrorDisplay';
+import EmptyState from '@/components/shared/EmptyState';
+import Pagination from '@/components/shared/Pagination';
+import CompanyLayout from '@/components/company/CompanyLayout';
+import { useAuth } from '@/hooks/useAuth';
+import { warn as logWarn, error as logError } from '@/utils/logger';
 
 type StudentBooking = {
   booking_id: string;
@@ -12,148 +20,284 @@ type StudentBooking = {
   student_number: string | null;
   specialization: string | null;
   graduation_year: number | null;
+  program: string | null;
+  year_of_study: number | null;
   cv_url: string | null;
+  resume_url: string | null;
   offer_title: string;
   slot_time: string;
   status: string;
 };
 
 export default function CompanyStudents() {
+  const { user, loading: authLoading, signOut } = useAuth('company');
+  const { showError } = useToast();
   const [loading, setLoading] = useState(true);
   const [students, setStudents] = useState<StudentBooking[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const navigate = useNavigate();
+  const [filterProgram, setFilterProgram] = useState<string>('all');
+  const [filterYear, setFilterYear] = useState<string>('all');
+  const [filterGraduationYear, setFilterGraduationYear] = useState<string>('all');
+  const [error, setError] = useState<Error | null>(null);
+  const [profiles, setProfiles] = useState<any[]>([]);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
+
+  const loadStudents = useCallback(async () => {
+    if (!user) return;
+    try {
+      setError(null);
+      setLoading(true);
+
+      const { data: company, error: companyError } = await supabase
+        .from('companies')
+        .select('id')
+        .eq('profile_id', user.id)
+        .maybeSingle();
+
+      if (companyError) {
+        throw new Error(`Failed to load company: ${companyError.message}`);
+      }
+
+      if (!company) {
+        setStudents([]);
+        return;
+      }
+
+      // Get all slots directly for this company (slots have company_id)
+      const { data: slots, error: slotsError } = await supabase
+        .from('event_slots')
+        .select('id, start_time, offer_id, company_id')
+        .eq('company_id', company.id);
+
+      if (slotsError) {
+        throw new Error(`Failed to load slots: ${slotsError.message}`);
+      }
+
+      if (!slots || slots.length === 0) {
+        setStudents([]);
+        return;
+      }
+
+      const slotIds = slots.map((s) => s.id);
+      
+      // Get all unique offer IDs from slots
+      const offerIds = [...new Set(slots.map((s) => s.offer_id).filter((id): id is string => Boolean(id)))];
+      
+      // Get offer titles
+      let offerMap = new Map<string, string>();
+      if (offerIds.length > 0) {
+        const { data: offers, error: offersError } = await supabase
+          .from('offers')
+          .select('id, title')
+          .in('id', offerIds);
+
+        if (offersError) {
+          logWarn('Failed to load offers:', offersError);
+        } else if (offers) {
+          offerMap = new Map(offers.map((o) => [o.id, o.title]));
+        }
+      }
+
+      const slotMap = new Map(slots.map((s) => [s.id, { time: s.start_time, offer_id: s.offer_id }]));
+
+      // Get bookings for these slots
+      const { data: bookings, error: bookingsError } = await supabase
+        .from('bookings')
+        .select('id, student_id, slot_id, status')
+        .in('slot_id', slotIds)
+        .eq('status', 'confirmed'); // Only show confirmed bookings
+
+      if (bookingsError) {
+        throw new Error(`Failed to load bookings: ${bookingsError.message}`);
+      }
+
+      if (!bookings || bookings.length === 0) {
+        setStudents([]);
+        return;
+      }
+
+      const studentIds = [...new Set(bookings.map((b) => b.student_id))];
+      
+      // Get all student profile information for companies to view
+      let profiles: any[] = [];
+      if (studentIds.length > 0) {
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, full_name, email, phone, student_number, specialization, graduation_year, cv_url, profile_photo_url, languages_spoken, program, biography, linkedin_url, resume_url, year_of_study, created_at')
+          .in('id', studentIds)
+          .eq('role', 'student'); // Ensure we only get students
+
+        if (profilesError) {
+          throw new Error(`Failed to load student profiles: ${profilesError.message}`);
+        }
+
+        profiles = profilesData || [];
+      }
+
+      // Store profiles for later use in rendering
+      setProfiles(profiles);
+
+      const profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
+
+      const studentsData: StudentBooking[] = bookings.map((booking) => {
+        const profile = profileMap.get(booking.student_id);
+        const slotInfo = slotMap.get(booking.slot_id);
+        const offerId = slotInfo?.offer_id;
+        
+        return {
+          booking_id: booking.id,
+          student_id: booking.student_id,
+          student_name: profile?.full_name || 'Unknown',
+          student_email: profile?.email || '',
+          student_phone: profile?.phone || null,
+          student_number: profile?.student_number || null,
+          specialization: profile?.specialization || null,
+          graduation_year: profile?.graduation_year || null,
+          program: profile?.program || null,
+          year_of_study: profile?.year_of_study || null,
+          cv_url: profile?.cv_url || null,
+          resume_url: profile?.resume_url || null,
+          offer_title: offerId ? (offerMap.get(offerId) || 'Unknown') : 'Unknown',
+          slot_time: slotInfo?.time || '',
+          status: booking.status,
+        };
+      });
+
+      studentsData.sort(
+        (a, b) => new Date(b.slot_time).getTime() - new Date(a.slot_time).getTime()
+      );
+
+
+      setStudents(studentsData);
+    } catch (err: any) {
+      logError('Error loading students:', err);
+      const errorMessage = err instanceof Error ? err : new Error('Failed to load students');
+      setError(errorMessage);
+      showError('Failed to load students. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, [showError, user]);
 
   useEffect(() => {
-    loadStudents();
-  }, []);
+    if (!authLoading) {
+      loadStudents();
+    }
+  }, [authLoading, loadStudents]);
 
-  const loadStudents = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      navigate('/login');
-      return;
+  const filteredStudents = useMemo(() => {
+    let filtered = students;
+
+    // Search filter
+    const query = searchQuery.toLowerCase().trim();
+    if (query) {
+      filtered = filtered.filter((student) => {
+        return (
+          student.student_name.toLowerCase().includes(query) ||
+          student.student_email.toLowerCase().includes(query) ||
+          student.offer_title.toLowerCase().includes(query) ||
+          (student.student_number && student.student_number.toLowerCase().includes(query))
+        );
+      });
     }
 
-    const { data: company } = await supabase
-      .from('companies')
-      .select('id')
-      .eq('profile_id', user.id)
-      .single();
-
-    if (!company) {
-      setLoading(false);
-      return;
+    // Program filter
+    if (filterProgram !== 'all') {
+      filtered = filtered.filter((student) => student.program === filterProgram);
     }
 
-    // Get all offers for this company
-    const { data: offers } = await supabase
-      .from('offers')
-      .select('id, title')
-      .eq('company_id', company.id);
-
-    if (!offers || offers.length === 0) {
-      setLoading(false);
-      return;
+    // Year of study filter
+    if (filterYear !== 'all') {
+      filtered = filtered.filter((student) => student.year_of_study === parseInt(filterYear));
     }
 
-    const offerIds = offers.map(o => o.id);
-    const offerMap = new Map(offers.map(o => [o.id, o.title]));
-
-    // Get all bookings for these offers
-    const { data: bookings } = await supabase
-      .from('bookings')
-      .select('id, student_id, slot_id, status, event_slots!inner(offer_id)')
-      .in('event_slots.offer_id', offerIds);
-
-    if (!bookings || bookings.length === 0) {
-      setLoading(false);
-      return;
+    // Graduation year filter
+    if (filterGraduationYear !== 'all') {
+      filtered = filtered.filter((student) => student.graduation_year === parseInt(filterGraduationYear));
     }
 
-    // Get student profiles
-    const studentIds = [...new Set(bookings.map(b => b.student_id))];
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('id, full_name, email, phone, student_number, specialization, graduation_year, cv_url')
-      .in('id', studentIds);
+    return filtered;
+  }, [searchQuery, filterProgram, filterYear, filterGraduationYear, students]);
 
-    // Get slot times
-    const slotIds = bookings.map(b => b.slot_id);
-    const { data: slots } = await supabase
-      .from('event_slots')
-      .select('id, start_time')
-      .in('id', slotIds);
+  // Get unique values for filters
+  const uniquePrograms = useMemo(() => {
+    return Array.from(new Set(students.map(s => s.program).filter(Boolean))) as string[];
+  }, [students]);
 
-    const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
-    const slotMap = new Map(slots?.map(s => [s.id, s.start_time]) || []);
+  const uniqueYears = useMemo(() => {
+    return Array.from(
+      new Set(
+        students
+          .map((s) => s.year_of_study)
+          .filter((year): year is number => year !== null && year !== undefined)
+      )
+    ).sort((a, b) => a - b);
+  }, [students]);
 
-    // Combine all data
-    const studentsData: StudentBooking[] = bookings.map(booking => {
-      const profile = profileMap.get(booking.student_id);
-      return {
-        booking_id: booking.id,
-        student_id: booking.student_id,
-        student_name: profile?.full_name || 'Unknown',
-        student_email: profile?.email || '',
-        student_phone: profile?.phone || null,
-        student_number: profile?.student_number || null,
-        specialization: profile?.specialization || null,
-        graduation_year: profile?.graduation_year || null,
-        cv_url: profile?.cv_url || null,
-        offer_title: offerMap.get((booking as any).event_slots?.offer_id) || 'Unknown',
-        slot_time: slotMap.get(booking.slot_id) || '',
-        status: booking.status,
-      };
-    });
+  const uniqueGraduationYears = useMemo(() => {
+    return Array.from(
+      new Set(
+        students
+          .map((s) => s.graduation_year)
+          .filter((year): year is number => year !== null && year !== undefined)
+      )
+    ).sort((a, b) => a - b);
+  }, [students]);
 
-    // Sort by slot time
-    studentsData.sort((a, b) => new Date(b.slot_time).getTime() - new Date(a.slot_time).getTime());
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filterProgram, filterYear, filterGraduationYear]);
 
-    setStudents(studentsData);
-    setLoading(false);
-  };
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedStudents = filteredStudents.slice(startIndex, endIndex);
 
-  const filteredStudents = students.filter(student =>
-    student.student_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    student.student_email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    student.offer_title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (student.student_number && student.student_number.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  const stats = useMemo(() => {
+    return {
+      unique: new Set(students.map((s) => s.student_id)).size,
+      confirmed: students.filter((s) => s.status === 'confirmed').length,
+      total: students.length,
+    };
+  }, [students]);
 
-  const stats = {
-    unique: new Set(students.map(s => s.student_id)).size,
-    confirmed: students.filter(s => s.status === 'confirmed').length,
-    total: students.length,
-  };
+  if (authLoading) {
+    return <LoadingScreen message="Loading student data..." />;
+  }
 
   if (loading) {
+    return <LoadingScreen message="Loading student data..." />;
+  }
+
+  if (error) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
+      <CompanyLayout onSignOut={signOut}>
+        <div className="p-6 md:p-8">
+          <div className="max-w-7xl mx-auto">
+            <ErrorDisplay error={error} onRetry={loadStudents} />
+          </div>
+        </div>
+      </CompanyLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="bg-card border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center gap-4">
-            <Link to="/company" className="text-muted-foreground hover:text-foreground">
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">Students</h1>
-              <p className="text-sm text-muted-foreground mt-1">View students who booked interviews</p>
-            </div>
+    <CompanyLayout onSignOut={signOut}>
+      <div className="p-6 md:p-8">
+        <div className="max-w-7xl mx-auto space-y-6">
+          {/* Header */}
+          <div>
+            <h1 className="text-3xl md:text-4xl font-bold text-foreground">Students</h1>
+            <p className="text-muted-foreground text-sm md:text-base mt-1">View students who booked interviews</p>
           </div>
-        </div>
-      </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          {/* Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-card rounded-lg border border-border p-4">
             <p className="text-sm text-muted-foreground">Unique Students</p>
             <p className="text-2xl font-bold text-foreground">{stats.unique}</p>
@@ -166,33 +310,109 @@ export default function CompanyStudents() {
             <p className="text-sm text-muted-foreground">Total Bookings</p>
             <p className="text-2xl font-bold text-primary">{stats.total}</p>
           </div>
-        </div>
-
-        {/* Search */}
-        <div className="bg-card rounded-lg border border-border p-4 mb-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Search students by name, email, or student number..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-            />
           </div>
-        </div>
 
-        {/* Students List */}
+          {/* Search and Filters */}
+          <div className="bg-card rounded-lg border border-border p-4 space-y-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search students by name, email, or student number..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+            
+            {/* Filters */}
+            <div className="flex flex-wrap gap-4 items-end">
+              <div className="flex items-center gap-2">
+                <Filter className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm font-medium text-foreground">Filters:</span>
+              </div>
+              
+              <div className="flex-1 min-w-[200px]">
+                <label className="block text-xs font-medium text-muted-foreground mb-1">
+                  Program
+                </label>
+                <select
+                  value={filterProgram}
+                  onChange={(e) => setFilterProgram(e.target.value)}
+                  className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value="all">All Programs</option>
+                  {uniquePrograms.map((program) => (
+                    <option key={program} value={program}>
+                      {program}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex-1 min-w-[150px]">
+                <label className="block text-xs font-medium text-muted-foreground mb-1">
+                  Year of Study
+                </label>
+                <select
+                  value={filterYear}
+                  onChange={(e) => setFilterYear(e.target.value)}
+                  className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value="all">All Years</option>
+                  {uniqueYears.map((year) => (
+                    <option key={year} value={year.toString()}>
+                      Year {year}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex-1 min-w-[150px]">
+                <label className="block text-xs font-medium text-muted-foreground mb-1">
+                  Graduation Year
+                </label>
+                <select
+                  value={filterGraduationYear}
+                  onChange={(e) => setFilterGraduationYear(e.target.value)}
+                  className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value="all">All Years</option>
+                  {uniqueGraduationYears.map((year) => (
+                    <option key={year} value={year.toString()}>
+                      {year}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {(filterProgram !== 'all' || filterYear !== 'all' || filterGraduationYear !== 'all') && (
+                <button
+                  onClick={() => {
+                    setFilterProgram('all');
+                    setFilterYear('all');
+                    setFilterGraduationYear('all');
+                  }}
+                  className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Clear Filters
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Students List */}
         {filteredStudents.length === 0 ? (
-          <div className="bg-card rounded-xl border border-border p-12 text-center">
-            <Users className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
-            <h3 className="text-lg font-semibold text-foreground mb-2">
-              {students.length === 0 ? 'No students yet' : 'No students match your search'}
-            </h3>
-            <p className="text-muted-foreground">
-              {students.length === 0 ? 'Students will appear here once they book interviews' : 'Try a different search term'}
-            </p>
-          </div>
+          <EmptyState
+            icon={Users}
+            title={students.length === 0 ? 'No students yet' : 'No students match your search'}
+            message={
+              students.length === 0
+                ? 'Students will appear here once they book interviews.'
+                : 'Try a different search term.'
+            }
+            className="bg-card rounded-xl border border-border"
+          />
         ) : (
           <div className="bg-card rounded-lg border border-border overflow-hidden">
             <div className="overflow-x-auto">
@@ -208,18 +428,32 @@ export default function CompanyStudents() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {filteredStudents.map((student) => (
+                  {paginatedStudents.map((student) => (
                     <tr key={student.booking_id} className="hover:bg-muted/30 transition-colors">
                       <td className="px-4 py-4">
-                        <Link
-                          to={`/company/students/${student.student_id}`}
-                          className="font-medium text-foreground hover:text-primary transition-colors"
-                        >
-                          {student.student_name}
-                        </Link>
-                        {student.student_number && (
-                          <p className="text-xs text-muted-foreground mt-1">{student.student_number}</p>
-                        )}
+                        <div className="flex items-center gap-2">
+                          {profiles.find((p: any) => p.id === student.student_id)?.profile_photo_url ? (
+                            <img
+                              src={profiles.find((p: any) => p.id === student.student_id)?.profile_photo_url}
+                              alt={student.student_name}
+                              className="w-8 h-8 rounded-lg object-cover flex-shrink-0 border border-border"
+                            />
+                          ) : null}
+                          <div>
+                            <Link
+                              to={`/company/students/${student.student_id}`}
+                              className="font-medium text-foreground hover:text-primary transition-colors"
+                            >
+                              {student.student_name}
+                            </Link>
+                            {student.student_number && (
+                              <p className="text-xs text-muted-foreground mt-0.5">{student.student_number}</p>
+                            )}
+                            {profiles.find((p: any) => p.id === student.student_id)?.program && (
+                              <p className="text-xs text-muted-foreground mt-0.5">{profiles.find((p: any) => p.id === student.student_id)?.program}</p>
+                            )}
+                          </div>
+                        </div>
                       </td>
                       <td className="px-4 py-4">
                         <p className="text-sm text-foreground">{student.student_email}</p>
@@ -248,13 +482,13 @@ export default function CompanyStudents() {
                       </td>
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-2">
-                          {student.cv_url ? (
+                          {(student.cv_url || student.resume_url) ? (
                             <a
-                              href={student.cv_url}
+                              href={student.resume_url || student.cv_url || '#'}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors"
-                              title="View CV"
+                              title="View CV/Resume"
                             >
                               <FileText className="w-4 h-4" />
                             </a>
@@ -274,9 +508,23 @@ export default function CompanyStudents() {
                 </tbody>
               </table>
             </div>
+            
+            {/* Pagination */}
+            {filteredStudents.length > 10 && (
+              <div className="px-4 sm:px-6 py-4 border-t border-border">
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                  itemsPerPage={itemsPerPage}
+                  totalItems={filteredStudents.length}
+                />
+              </div>
+            )}
           </div>
         )}
-      </main>
-    </div>
+        </div>
+      </div>
+    </CompanyLayout>
   );
 }

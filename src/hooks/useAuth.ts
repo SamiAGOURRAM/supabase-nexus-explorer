@@ -1,7 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { useUser } from '@/contexts/UserContext';
 import type { User } from '@supabase/supabase-js';
+import type { ProfileSummary } from '@/contexts/UserContext';
+import { type UserRole } from '@/utils/constants';
+
+type UseAuthReturn = {
+  user: User | null;
+  profile: ProfileSummary | null;
+  loading: boolean;
+  signOut: () => Promise<void>;
+};
 
 /**
  * Custom hook for authentication checks
@@ -9,66 +19,37 @@ import type { User } from '@supabase/supabase-js';
  * Verifies user authentication and role-based access.
  * Redirects to login if not authenticated.
  * 
- * @param requiredRole - Optional role requirement ('admin', 'company', 'student')
+ * @param requiredRole - Optional role requirement
  * @returns Object with user, profile, loading state, and signOut function
  * 
  * @example
- * const { user, profile, loading, signOut } = useAuth('admin');
+ * const { user, profile, loading, signOut } = useAuth(USER_ROLES.ADMIN);
  */
-export function useAuth(requiredRole?: 'admin' | 'company' | 'student') {
+export function useAuth(requiredRole?: UserRole): UseAuthReturn {
   const navigate = useNavigate();
-  const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<{ role: string } | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { user, profile, loading, refresh } = useUser();
 
   useEffect(() => {
-    checkAuth();
-  }, [requiredRole]);
+    if (loading) return;
 
-  const checkAuth = async () => {
-    try {
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
-      
-      if (!currentUser) {
-        navigate('/login');
-        return;
-      }
-
-      const { data: userProfile, error: profileError } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', currentUser.id)
-        .maybeSingle(); // Use maybeSingle() to avoid 406 errors if profile doesn't exist
-
-      if (profileError) {
-        console.error('Profile fetch error:', profileError);
-        navigate('/login');
-        return;
-      }
-
-      if (!userProfile) {
-        navigate('/login');
-        return;
-      }
-
-      // Check role requirement if specified
-      if (requiredRole && userProfile.role !== requiredRole) {
-        navigate('/offers');
-        return;
-      }
-
-      setUser(currentUser);
-      setProfile(userProfile);
-    } catch (err) {
-      console.error('Auth error:', err);
+    if (!user) {
       navigate('/login');
-    } finally {
-      setLoading(false);
+      return;
     }
-  };
+
+    if (!profile) {
+      navigate('/login');
+      return;
+    }
+
+    if (requiredRole && profile.role !== requiredRole) {
+      navigate('/offers');
+    }
+  }, [loading, navigate, profile, requiredRole, user]);
 
   const signOut = async () => {
     await supabase.auth.signOut();
+    await refresh();
     navigate('/');
   };
 

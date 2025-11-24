@@ -1,8 +1,15 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { useToast } from '@/contexts/ToastContext';
 import { ArrowLeft, Building2, MapPin, Clock, DollarSign, Tag, Briefcase, CheckCircle, Calendar, X } from 'lucide-react';
 import { extractNestedObject } from '@/utils/supabaseTypes';
+import { debug, error as logError } from '@/utils/logger';
+import LoadingScreen from '@/components/shared/LoadingScreen';
+import ErrorDisplay from '@/components/shared/ErrorDisplay';
+import NotFound from '@/components/shared/NotFound';
+import StudentLayout from '@/components/student/StudentLayout';
+import { useAuth } from '@/hooks/useAuth';
 
 type Offer = {
   id: string;
@@ -45,7 +52,9 @@ type BookingLimitInfo = {
 export default function OfferDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { signOut } = useAuth('student');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
   const [offer, setOffer] = useState<Offer | null>(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [availableSlots, setAvailableSlots] = useState<Slot[]>([]);
@@ -53,104 +62,141 @@ export default function OfferDetail() {
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
   const [bookingLimit, setBookingLimit] = useState<BookingLimitInfo | null>(null);
   const [validationWarning, setValidationWarning] = useState<string | null>(null);
+  const [booking, setBooking] = useState(false);
   const [eventId, setEventId] = useState<string>('');
+  const { showSuccess, showError } = useToast();
 
   useEffect(() => {
     loadOfferDetail();
   }, [id]);
 
+  // Auto-refresh slots every 10 seconds when booking modal is open
+  useEffect(() => {
+    if (!showBookingModal) return;
+
+    const interval = setInterval(() => {
+      debug('[Auto-refresh] Refreshing slots...');
+      fetchSlots();
+    }, 10000); // Refresh every 10 seconds
+
+    return () => clearInterval(interval);
+  }, [showBookingModal, offer, eventId]);
+
   const loadOfferDetail = async () => {
-    if (!id) return;
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      navigate('/login');
-      return;
-    }
-
-    // Get the latest active event
-    const { data: eventsData } = await supabase
-      .from('events')
-      .select('id')
-      .gte('date', new Date().toISOString())
-      .order('date', { ascending: true })
-      .limit(1);
-
-    if (eventsData && eventsData.length > 0) {
-      setEventId(eventsData[0].id);
-    }
-
-    const { data: offerData, error } = await supabase
-      .from('offers')
-      .select(`
-        id,
-        title,
-        description,
-        requirements,
-        skills_required,
-        benefits,
-        interest_tag,
-        location,
-        duration_months,
-        paid,
-        remote_possible,
-        salary_range,
-        department,
-        company_id,
-        companies (
-          company_name,
-          logo_url,
-          description,
-          website,
-          industry
-        )
-      `)
-      .eq('id', id)
-      .eq('is_active', true)
-      .single();
-
-    if (error || !offerData) {
+    if (!id) {
+      setError(new Error('Offer ID is required'));
       setLoading(false);
       return;
     }
 
-    setOffer({
-      id: offerData.id,
-      title: offerData.title,
-      description: offerData.description,
-      requirements: offerData.requirements,
-      skills_required: offerData.skills_required,
-      benefits: offerData.benefits,
-      interest_tag: offerData.interest_tag,
-      location: offerData.location,
-      duration_months: offerData.duration_months,
-      paid: offerData.paid,
-      remote_possible: offerData.remote_possible,
-      salary_range: offerData.salary_range,
-      department: offerData.department,
-      company_id: offerData.company_id,
-      // Extract company data from nested Supabase query result
-      // Supabase returns nested objects as arrays or objects depending on join type
-      ...(() => {
-        const company = extractNestedObject<{
-          company_name: string;
-          logo_url: string | null;
-          description: string | null;
-          website: string | null;
-          industry: string | null;
-        }>(offerData.companies);
-        
-        return {
-          company_name: company?.company_name || 'Unknown',
-          company_logo: company?.logo_url || null,
-          company_description: company?.description || null,
-          company_website: company?.website || null,
-          company_industry: company?.industry || null,
-        };
-      })(),
-    });
+    try {
+      setError(null);
+      setLoading(true);
 
-    setLoading(false);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        navigate('/login');
+        return;
+      }
+
+      // Get the latest active event
+      const { data: eventsData, error: eventsError } = await supabase
+        .from('events')
+        .select('id')
+        .gte('date', new Date().toISOString())
+        .order('date', { ascending: true })
+        .limit(1);
+
+      if (eventsError) {
+        logError('Error loading events:', eventsError);
+      }
+
+      if (eventsData && eventsData.length > 0) {
+        setEventId(eventsData[0].id);
+      }
+
+      const { data: offerData, error: offerError } = await supabase
+        .from('offers')
+        .select(`
+          id,
+          title,
+          description,
+          requirements,
+          skills_required,
+          benefits,
+          interest_tag,
+          location,
+          duration_months,
+          paid,
+          remote_possible,
+          salary_range,
+          department,
+          company_id,
+          companies (
+            company_name,
+            logo_url,
+            description,
+            website,
+            industry
+          )
+        `)
+        .eq('id', id)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (offerError) {
+        throw new Error(`Failed to load offer: ${offerError.message}`);
+      }
+
+      if (!offerData) {
+        setError(new Error('Offer not found or is no longer active'));
+        setLoading(false);
+        return;
+      }
+
+      setOffer({
+        id: offerData.id,
+        title: offerData.title,
+        description: offerData.description,
+        requirements: offerData.requirements,
+        skills_required: offerData.skills_required,
+        benefits: offerData.benefits,
+        interest_tag: offerData.interest_tag,
+        location: offerData.location,
+        duration_months: offerData.duration_months,
+        paid: offerData.paid,
+        remote_possible: offerData.remote_possible,
+        salary_range: offerData.salary_range,
+        department: offerData.department,
+        company_id: offerData.company_id,
+        // Extract company data from nested Supabase query result
+        // Supabase returns nested objects as arrays or objects depending on join type
+        ...(() => {
+          const company = extractNestedObject<{
+            company_name: string;
+            logo_url: string | null;
+            description: string | null;
+            website: string | null;
+            industry: string | null;
+          }>(offerData.companies);
+          
+          return {
+            company_name: company?.company_name || 'Unknown',
+            company_logo: company?.logo_url || null,
+            company_description: company?.description || null,
+            company_website: company?.website || null,
+            company_industry: company?.industry || null,
+          };
+        })(),
+      });
+    } catch (err: any) {
+      logError('Error loading offer detail:', err);
+      const errorMessage = err instanceof Error ? err : new Error('Failed to load offer details');
+      setError(errorMessage);
+      showError('Failed to load offer. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleBookInterview = async () => {
@@ -160,6 +206,12 @@ export default function OfferDetail() {
     setLoadingSlots(true);
     setValidationWarning(null);
     setSelectedSlotId(null);
+
+    await fetchSlots(); // Fetch fresh slots when modal opens
+  };
+
+  const fetchSlots = async () => {
+    if (!offer || !eventId) return;
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
@@ -176,31 +228,67 @@ export default function OfferDetail() {
 
     // Get slots for this specific offer
     // Slots are linked to offers via offer_id
-    console.log('🔵 [OfferDetail] Fetching slots with filters:', {
+    const currentTime = new Date().toISOString();
+    debug('[OfferDetail] Fetching slots with filters:', {
       company_id: offer.company_id,
       event_id: eventId,
-      current_time: new Date().toISOString()
+      current_time: currentTime,
+      timestamp: new Date().toISOString()
     });
 
-    const { data: slotsData, error: slotsError } = await supabase
+    // Try 1: Get ALL slots for this company (no time filter, no is_active filter)
+    const { data: allSlots } = await supabase
       .from('event_slots')
-      .select('id, start_time, end_time, capacity, offer_id, company_id, event_id, is_active')
+      .select('*')
+      .eq('company_id', offer.company_id);
+    
+    debug('[DEBUG] ALL SLOTS for company (no filters):', {
+      total: allSlots?.length || 0,
+      breakdown: {
+        active: allSlots?.filter(s => s.is_active).length || 0,
+        inactive: allSlots?.filter(s => !s.is_active).length || 0,
+        future: allSlots?.filter(s => new Date(s.start_time) > new Date()).length || 0,
+        past: allSlots?.filter(s => new Date(s.start_time) <= new Date()).length || 0,
+        withEventId: allSlots?.filter(s => s.event_id).length || 0,
+        withoutEventId: allSlots?.filter(s => !s.event_id).length || 0
+      }
+    });
+
+    // Try 2: Get slots with our intended filters (future slots only)
+    let { data: slotsData, error: slotsError } = await supabase
+      .from('event_slots')
+      .select('id, start_time, end_time, location, capacity, offer_id, company_id, event_id, is_active')
       .eq('company_id', offer.company_id)
-      .eq('event_id', eventId)
-      // Removed .eq('offer_id', offer.id) - slots are per company, not per offer
       .eq('is_active', true)
-      .gte('start_time', new Date().toISOString())
+      .gte('start_time', currentTime)
       .order('start_time', { ascending: true });
 
-    console.log('🔵 [OfferDetail] RAW QUERY RESULT:', {
+    debug('[OfferDetail] FILTERED QUERY RESULT (future only):', {
       error: slotsError,
-      data: slotsData,
       count: slotsData?.length || 0
     });
 
+    // If no future slots, get ALL active slots (including past ones)
+    // This handles the case where slots were created but are now in the past
+    if (!slotsError && (!slotsData || slotsData.length === 0)) {
+      debug('[OfferDetail] No future slots found, fetching ALL active slots including past...');
+      const { data: allActiveSlots, error: allSlotsError } = await supabase
+        .from('event_slots')
+        .select('id, start_time, end_time, location, capacity, offer_id, company_id, event_id, is_active')
+        .eq('company_id', offer.company_id)
+        .eq('is_active', true)
+        .order('start_time', { ascending: true });
+      
+      slotsData = allActiveSlots;
+      slotsError = allSlotsError;
+      
+      debug('[OfferDetail] ALL ACTIVE SLOTS (including past):', {
+        count: slotsData?.length || 0
+      });
+    }
     if (slotsError) {
-      console.error('🔴 [OfferDetail] Error fetching slots:', slotsError);
-      alert(`Error fetching slots: ${slotsError.message}`);
+      logError('[OfferDetail] Error fetching slots:', slotsError);
+      showError(`Error fetching slots: ${slotsError.message}`);
     }
 
     if (slotsData) {
@@ -223,7 +311,7 @@ export default function OfferDetail() {
         (slot) => slot.bookings_count < (slot.capacity || 1) // Default capacity to 1 if null
       );
 
-      console.log('🔵 [OfferDetail] Available slots after filtering:', available.length);
+      debug('[OfferDetail] Available slots after filtering:', available.length);
 
       setAvailableSlots(available);
     }
@@ -246,7 +334,7 @@ export default function OfferDetail() {
       .eq('status', 'confirmed');
 
     if (error) {
-      console.error('Error checking conflicts:', error);
+      logError('Error checking conflicts:', error);
       return;
     }
 
@@ -259,7 +347,7 @@ export default function OfferDetail() {
         .in('id', slotIds);
 
       if (slotsError) {
-        console.error('Error fetching slots:', slotsError);
+        logError('Error fetching slots:', slotsError);
         return;
       }
 
@@ -296,21 +384,32 @@ export default function OfferDetail() {
     if (!offer) return;
 
     try {
+      setBooking(true);
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        showError('You must be logged in to book an interview');
+        return;
+      }
 
       if (bookingLimit && !bookingLimit.can_book) {
-        alert('You have reached your booking limit for this phase.');
+        const errorMsg = 'You have reached your booking limit for this phase.';
+        showError(errorMsg);
         return;
+      }
+
+      // Use the offer_id from the current offer (we're on the offer detail page)
+      if (!offer.id) {
+        throw new Error('Offer ID not found');
       }
 
       const { data, error } = await supabase.rpc('fn_book_interview', {
         p_student_id: user.id,
-        p_slot_id: slotId
+        p_slot_id: slotId,
+        p_offer_id: offer.id
       });
 
       if (error) {
-        console.error('RPC Error:', error);
+        logError('RPC Error:', error);
         throw error;
       }
 
@@ -321,18 +420,26 @@ export default function OfferDetail() {
         throw new Error('No response from booking function');
       }
 
-      console.log('Booking result:', result);
+      debug('Booking result:', result);
 
       if (result.success) {
-        alert(result.message || 'Interview booked successfully!');
+        showSuccess(result.message || 'Interview booked successfully!');
         setShowBookingModal(false);
-        navigate('/student/bookings');
+        setSelectedSlotId(null);
+        setAvailableSlots([]);
+        // Small delay before navigation for better UX
+        setTimeout(() => {
+          navigate('/student/bookings');
+        }, 1000);
       } else {
         throw new Error(result.message || 'Failed to book interview');
       }
     } catch (error: any) {
-      console.error('Error booking interview:', error);
-      alert(error.message || 'Failed to book interview.');
+      logError('Error booking interview:', error);
+      const errorMsg = error.message || 'Failed to book interview. Please try again.';
+      showError(errorMsg);
+    } finally {
+      setBooking(false);
     }
   };
 
@@ -352,47 +459,54 @@ export default function OfferDetail() {
   };
 
   if (loading) {
+    return <LoadingScreen message="Loading offer details..." />;
+  }
+
+  if (error && !offer) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-sm text-muted-foreground animate-pulse">Loading offer...</p>
+      <StudentLayout onSignOut={signOut}>
+        <div className="p-6 md:p-8">
+          <div className="max-w-7xl mx-auto">
+            <Link to="/student/offers" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6">
+              <ArrowLeft className="w-5 h-5" />
+              Back to Offers
+            </Link>
+            {error.message.includes('not found') ? (
+              <NotFound resource="Offer" backTo="/student/offers" backLabel="Back to Offers" />
+            ) : (
+              <ErrorDisplay error={error} onRetry={loadOfferDetail} />
+            )}
+          </div>
         </div>
-      </div>
+      </StudentLayout>
     );
   }
 
   if (!offer) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-xl font-bold text-foreground mb-2">Offer Not Found</h2>
-          <p className="text-muted-foreground mb-4">This offer may have been removed or is no longer active.</p>
-          <Link to="/student/offers" className="text-primary hover:underline">
-            Back to Offers
-          </Link>
+      <StudentLayout onSignOut={signOut}>
+        <div className="p-6 md:p-8">
+          <div className="max-w-7xl mx-auto">
+            <NotFound resource="Offer" backTo="/student/offers" backLabel="Back to Offers" />
+          </div>
         </div>
-      </div>
+      </StudentLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="bg-card border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+    <StudentLayout onSignOut={signOut}>
+      <div className="p-6 md:p-8">
+        <div className="max-w-7xl mx-auto space-y-6">
           <div className="flex items-center gap-4">
             <Link to="/student/offers" className="text-muted-foreground hover:text-foreground">
               <ArrowLeft className="w-5 h-5" />
             </Link>
             <div>
-              <h1 className="text-2xl font-bold text-foreground">{offer.title}</h1>
+              <h1 className="text-2xl md:text-3xl font-bold text-foreground">{offer.title}</h1>
               <p className="text-sm text-muted-foreground mt-1">Internship Offer Details</p>
             </div>
           </div>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
@@ -518,7 +632,8 @@ export default function OfferDetail() {
             </div>
           </div>
         </div>
-      </main>
+        </div>
+      </div>
 
       {/* Booking Modal */}
       {showBookingModal && (
@@ -558,7 +673,26 @@ export default function OfferDetail() {
                 <div className="text-center py-12">
                   <Calendar className="w-16 h-16 text-muted-foreground opacity-50 mx-auto mb-4" />
                   <h3 className="font-semibold text-foreground mb-2">No Available Slots</h3>
-                  <p className="text-muted-foreground text-sm">All slots are currently booked</p>
+
+                  <p className="text-muted-foreground text-sm mb-4">
+                    All slots for {offer.company_name} are booked.
+                  </p>
+                  <details className="text-left max-w-md mx-auto">
+                    <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">
+                      Debug Info (click to expand)
+                    </summary>
+                    <pre className="text-xs bg-muted p-3 rounded mt-2 overflow-auto">
+                      Company ID: {offer.company_id}{'\n'}
+                      Event ID: {eventId || 'Not set'}{'\n'}
+                      Check browser console for query details
+                    </pre>
+                  </details>
+                  <Link
+                    to="/student/offers"
+                    className="inline-block mt-4 px-4 py-2 text-sm text-primary hover:underline"
+                  >
+                    Browse Other Offers
+                  </Link>
                 </div>
               ) : (
                 <>
@@ -606,10 +740,19 @@ export default function OfferDetail() {
                   {selectedSlotId && (
                     <button
                       onClick={() => confirmBooking(selectedSlotId)}
-                      disabled={!bookingLimit?.can_book || !!validationWarning}
-                      className="w-full px-4 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={!bookingLimit?.can_book || !!validationWarning || booking}
+                      className="w-full px-4 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
-                      {validationWarning ? 'Cannot Book - Time Conflict' : 'Confirm Booking'}
+                      {booking ? (
+                        <>
+                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          <span>Booking...</span>
+                        </>
+                      ) : validationWarning ? (
+                        'Cannot Book - Time Conflict'
+                      ) : (
+                        'Confirm Booking'
+                      )}
                     </button>
                   )}
                 </>
@@ -618,6 +761,6 @@ export default function OfferDetail() {
           </div>
         </div>
       )}
-    </div>
+    </StudentLayout>
   );
 }

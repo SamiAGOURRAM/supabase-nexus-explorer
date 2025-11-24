@@ -194,7 +194,7 @@ BEGIN
   
   -- Step 6: Return comprehensive result
   RETURN json_build_object(
-    'success', true,
+    'success', CASE WHEN v_already_invited AND NOT v_is_new_company THEN false ELSE true END,
     'company_id', v_company_id,
     'company_code', v_company_code,
     'company_name', p_company_name,
@@ -217,11 +217,12 @@ BEGIN
       WHEN NOT v_is_new_company AND NOT v_already_invited THEN 
         '🎉 Company re-invited successfully! Notification sent to ' || p_email
       ELSE 
-        'ℹ️ Company already invited to this event'
+        '⚠️ This company is already invited to this event.\n\nTry a different email or company name, or check the "Search Existing Companies" tab to see all invited companies.'
     END,
     'next_step', CASE
-      WHEN NOT v_auth_user_exists THEN 'send_invite_email'
-      ELSE 'send_notification_email'
+      WHEN NOT v_auth_user_exists AND NOT v_already_invited THEN 'send_invite_email'
+      WHEN v_auth_user_exists AND NOT v_already_invited THEN 'send_notification_email'
+      ELSE 'use_resend_button'
     END
   );
   
@@ -235,7 +236,7 @@ EXCEPTION
 END;
 $$;
 
-COMMENT ON FUNCTION quick_invite_company IS 
+COMMENT ON FUNCTION quick_invite_company(text, text, uuid, text, text) IS 
 '🚀 ONE-STEP INVITE: Email + Name → Company created/updated + Invited + Slots generated + Email sent. Seamless workflow!';
 
 -- =====================================================

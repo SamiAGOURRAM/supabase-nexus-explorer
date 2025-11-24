@@ -1,41 +1,19 @@
 /**
- * Application constants
+ * Application Constants
  */
 
-/**
- * User roles in the system
- */
 export const USER_ROLES = {
-  STUDENT: 'student',
-  COMPANY: 'company',
   ADMIN: 'admin',
+  COMPANY: 'company',
+  STUDENT: 'student',
 } as const;
 
-/**
- * Booking phases
- */
+export type UserRole = typeof USER_ROLES[keyof typeof USER_ROLES];
+
+export const APP_NAME = 'Supabase Nexus Explorer';
+
 export const BOOKING_PHASES = {
   CLOSED: 0,
   PHASE_1: 1,
   PHASE_2: 2,
 } as const;
-
-/**
- * Booking phase labels
- */
-export const PHASE_LABELS = {
-  [BOOKING_PHASES.CLOSED]: 'Bookings Closed',
-  [BOOKING_PHASES.PHASE_1]: 'Priority Phase',
-  [BOOKING_PHASES.PHASE_2]: 'Open Phase',
-} as const;
-
-/**
- * Booking status values
- */
-export const BOOKING_STATUS = {
-  CONFIRMED: 'confirmed',
-  CANCELLED: 'cancelled',
-} as const;
-
-
-

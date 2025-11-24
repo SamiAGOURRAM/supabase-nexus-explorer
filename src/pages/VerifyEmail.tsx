@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { AlertCircle, Mail, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { warn, error as logError } from '@/utils/logger';
 
 export default function VerifyEmail() {
   const [otp, setOtp] = useState('');
@@ -40,7 +41,7 @@ export default function VerifyEmail() {
         throw new Error('Verification failed - no session created');
       }
 
-      console.log('✅ Email verified successfully');
+      // Email verified successfully
       
       // Wait for profile to be created by database trigger
       // Retry up to 5 times with increasing delays
@@ -65,7 +66,7 @@ export default function VerifyEmail() {
           .maybeSingle(); // Use maybeSingle() instead of single() to avoid 406 errors
 
         if (profileError) {
-          console.warn(`Profile check attempt ${retries + 1} error:`, profileError);
+          // Profile check attempt failed, will retry
         } else if (profileData) {
           profile = profileData;
           break;
@@ -86,7 +87,7 @@ export default function VerifyEmail() {
       } else {
         // If profile doesn't exist yet after retries, redirect to login
         // The user can log in and the profile should be created by then
-        console.warn('Profile not found after verification, redirecting to login');
+        warn('Profile not found after verification, redirecting to login');
         navigate('/login', { 
           state: { 
             verified: true, 
@@ -97,7 +98,7 @@ export default function VerifyEmail() {
       }
       
     } catch (err: any) {
-      console.error('❌ Verification error:', err);
+      logError('Verification error:', err);
       setError(err.message || 'Invalid verification code. Please check the code and try again.');
     } finally {
       setLoading(false);
@@ -137,7 +138,7 @@ export default function VerifyEmail() {
       setTimeout(() => setSuccess(''), 5000);
       
     } catch (err: any) {
-      console.error('Resend error:', err);
+      logError('Resend error:', err);
       setError('Failed to resend code: ' + (err.message || 'Unknown error'));
     } finally {
       setResending(false);

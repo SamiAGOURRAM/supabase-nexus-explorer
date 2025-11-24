@@ -1,8 +1,13 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { Briefcase, Building2, Search, Eye, EyeOff, Trash2 } from 'lucide-react';
+import { useToast } from '@/contexts/ToastContext';
+import { Briefcase, Building2, Search, Eye, EyeOff, Trash2, Plus, Edit2 } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { useAuth } from '@/hooks/useAuth';
+import ErrorDisplay from '@/components/shared/ErrorDisplay';
+import EmptyState from '@/components/shared/EmptyState';
+import LoadingTable from '@/components/shared/LoadingTable';
 
 type Offer = {
   id: string;
@@ -20,10 +25,14 @@ type Offer = {
 
 export default function AdminOffers() {
   const { signOut } = useAuth('admin');
+  const navigate = useNavigate();
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterActive, setFilterActive] = useState<'all' | 'active' | 'inactive'>('all');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const { showSuccess, showError } = useToast();
 
   useEffect(() => {
     loadOffers();
@@ -31,6 +40,9 @@ export default function AdminOffers() {
 
   const loadOffers = async () => {
     try {
+      setError(null);
+      setLoading(true);
+      
       const { data, error } = await supabase
         .from('offers')
         .select(`
@@ -46,26 +58,14 @@ export default function AdminOffers() {
       setOffers(data || []);
     } catch (err: any) {
       console.error('Error loading offers:', err);
-      alert('Error loading offers: ' + err.message);
+      const errorMessage = err instanceof Error ? err : new Error('Failed to load offers');
+      setError(errorMessage);
+      showError('Failed to load offers. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleToggleActive = async (offerId: string, currentStatus: boolean) => {
-    try {
-      const { error } = await supabase
-        .from('offers')
-        .update({ is_active: !currentStatus })
-        .eq('id', offerId);
-
-      if (error) throw error;
-      await loadOffers();
-    } catch (err: any) {
-      console.error('Error updating offer:', err);
-      alert('Error: ' + err.message);
-    }
-  };
 
   const handleDeleteOffer = async (offerId: string) => {
     if (!confirm('Are you sure you want to delete this offer? This action cannot be undone.')) {
@@ -73,16 +73,20 @@ export default function AdminOffers() {
     }
 
     try {
+      setDeletingId(offerId);
       const { error } = await supabase
         .from('offers')
         .delete()
         .eq('id', offerId);
 
       if (error) throw error;
+      showSuccess('Offer deleted successfully');
       await loadOffers();
     } catch (err: any) {
       console.error('Error deleting offer:', err);
-      alert('Error: ' + err.message);
+      showError(err.message || 'Failed to delete offer. Please try again.');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -102,12 +106,21 @@ export default function AdminOffers() {
 
   return (
     <AdminLayout onSignOut={signOut}>
-      <div className="p-8">
+      <div className="p-4 sm:p-6 md:p-8">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-foreground mb-2">Offers Management</h1>
-            <p className="text-muted-foreground">View and manage all internship offers</p>
+          <div className="mb-8 flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-foreground mb-2">Offers Management</h1>
+              <p className="text-muted-foreground">View and manage all internship offers</p>
+            </div>
+            <button
+              onClick={() => navigate('/admin/offers/new')}
+              className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium"
+            >
+              <Plus className="w-4 h-4" />
+              Create Offer
+            </button>
           </div>
 
           {/* Filters */}
@@ -192,19 +205,21 @@ export default function AdminOffers() {
           </div>
 
           {/* Offers List */}
-          {loading ? (
-            <div className="text-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-              <p className="mt-4 text-muted-foreground">Loading offers...</p>
-            </div>
+          {error ? (
+            <ErrorDisplay error={error} onRetry={loadOffers} />
+          ) : loading ? (
+            <LoadingTable columns={4} rows={10} />
           ) : filteredOffers.length === 0 ? (
-            <div className="text-center py-12 bg-card rounded-xl border border-border">
-              <Briefcase className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-foreground mb-2">No Offers Found</h3>
-              <p className="text-muted-foreground">
-                {searchQuery ? 'Try a different search term' : 'No offers created yet'}
-              </p>
-            </div>
+            <EmptyState
+              icon={Briefcase}
+              title={searchQuery ? 'No offers match your search' : 'No offers created yet'}
+              message={
+                searchQuery 
+                  ? 'Try a different search term or clear your filters to see all offers.' 
+                  : 'Offers will appear here once companies create them for events.'
+              }
+              className="bg-card rounded-xl border border-border p-12"
+            />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredOffers.map((offer) => (
@@ -255,20 +270,25 @@ export default function AdminOffers() {
 
                   <div className="flex gap-2 pt-4 border-t border-border">
                     <button
-                      onClick={() => handleToggleActive(offer.id, offer.is_active)}
-                      className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
-                        offer.is_active
-                          ? 'bg-warning/10 text-warning hover:bg-warning/20'
-                          : 'bg-success/10 text-success hover:bg-success/20'
-                      }`}
+                      onClick={() => navigate(`/admin/offers/${offer.id}/edit`)}
+                      className="flex-1 px-3 py-2 bg-primary/10 text-primary rounded-lg text-xs font-medium hover:bg-primary/20 transition-colors flex items-center justify-center gap-1"
                     >
-                      {offer.is_active ? <><EyeOff className="w-3 h-3 inline mr-1" />Deactivate</> : <><Eye className="w-3 h-3 inline mr-1" />Activate</>}
+                      <Edit2 className="w-3 h-3" />
+                      Edit
                     </button>
                     <button
                       onClick={() => handleDeleteOffer(offer.id)}
-                      className="px-3 py-2 bg-destructive/10 text-destructive rounded-lg text-xs font-medium hover:bg-destructive/20 transition-colors"
+                      disabled={deletingId === offer.id}
+                      className="flex-1 px-3 py-2 bg-destructive/10 text-destructive rounded-lg text-xs font-medium hover:bg-destructive/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1"
                     >
-                      <Trash2 className="w-3 h-3" />
+                      {deletingId === offer.id ? (
+                        <div className="w-3 h-3 border-2 border-destructive border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          <Trash2 className="w-3 h-3" />
+                          Delete
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>

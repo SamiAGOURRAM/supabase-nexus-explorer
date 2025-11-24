@@ -53,7 +53,7 @@ export default function BulkImportModal({ eventId, onClose, onSuccess }: BulkImp
               p_company_name: companyName,
               p_event_id: eventId,
               p_industry: industry || 'Other',
-              p_website: website || null
+              p_website: website || undefined
             });
 
             if (error) throw error;

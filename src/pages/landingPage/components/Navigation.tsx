@@ -27,30 +27,32 @@ const Navigation = () => {
   return (
     <nav
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        isScrolled ? "bg-white/95 backdrop-blur-sm shadow-sm" : "bg-transparent"
+        isScrolled 
+          ? "bg-white/98 backdrop-blur-md shadow-lg" 
+          : "bg-transparent"
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-20">
+        <div className="flex justify-between items-center h-20 md:h-24">
           {/* Logo */}
           <div className="flex-shrink-0 flex items-center">
-            <a href="/" className="flex items-center">
+            <Link to="/" className="flex items-center group">
               <img
-                src={isScrolled ? "/logos/2.svg" : "/logos/1.svg"}
+                src="/logos/2.svg"
                 alt="INF Logo"
-                className="h-52 w-auto transition-all duration-300"
+                className="h-16 sm:h-20 md:h-24 lg:h-28 w-auto transition-all duration-300 group-hover:scale-105"
               />
-            </a>
+            </Link>
           </div>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8">
+          <div className="hidden lg:flex items-center space-x-1">
             {navLinks.map((link) => {
               const isHashLink = link.href.startsWith("#");
-              const className = `transition-colors duration-200 font-medium ${
+              const className = `px-4 py-2 rounded-lg transition-all duration-200 font-semibold text-base ${
                 isScrolled
-                  ? "text-gray-700 hover:text-[#007e40]"
-                  : "text-white hover:text-[#ffb300]"
+                  ? "text-gray-900 hover:text-[#007e40] hover:bg-[#007e40]/10"
+                  : "text-gray-900 hover:text-[#ffb300] hover:bg-[#ffb300]/10"
               }`;
               return isHashLink ? (
                 <a key={link.name} href={link.href} className={className}>
@@ -63,24 +65,39 @@ const Navigation = () => {
               );
             })}
           </div>
-          <button
-            onClick={() => navigate("/login")}
-            className="bg-[#ffb300] text-white px-6 py-2.5 rounded-lg hover:bg-[#e6a200] transition-all duration-200 font-medium shadow-sm hover:shadow-md"
-          >
-            Sign In
-          </button>
+
+          {/* Desktop Sign In Button */}
+          <div className="hidden lg:block">
+            <button
+              onClick={() => navigate("/login")}
+              className="bg-[#ffb300] text-white px-6 py-3 rounded-lg hover:bg-[#e6a200] transition-all duration-200 font-semibold text-base shadow-lg hover:shadow-xl hover:scale-105"
+            >
+              Sign In
+            </button>
+          </div>
 
           {/* Mobile menu button */}
-          <div className="md:hidden">
+          <div className="lg:hidden flex items-center gap-3">
             <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className={`transition-colors ${
+              onClick={() => navigate("/login")}
+              className={`px-4 py-2 rounded-lg transition-all duration-200 font-semibold text-sm ${
                 isScrolled
-                  ? "text-gray-700 hover:text-[#007e40]"
-                  : "text-white hover:text-[#ffb300]"
+                  ? "bg-[#ffb300] text-white hover:bg-[#e6a200] shadow-md"
+                  : "bg-[#ffb300] text-white hover:bg-[#e6a200] shadow-lg"
               }`}
             >
-              {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+              Sign In
+            </button>
+            <button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className={`p-2 rounded-lg transition-all ${
+                isScrolled
+                  ? "text-gray-900 hover:text-[#007e40] hover:bg-gray-100"
+                  : "text-gray-900 hover:text-[#ffb300] hover:bg-[#ffb300]/10"
+              }`}
+              aria-label="Toggle menu"
+            >
+              {isMenuOpen ? <X size={28} /> : <Menu size={28} />}
             </button>
           </div>
         </div>
@@ -88,17 +105,19 @@ const Navigation = () => {
         {/* Mobile Navigation */}
         {isMenuOpen && (
           <div
-            className={`md:hidden pb-4 transition-all duration-300 ${
-              isScrolled ? "bg-white" : "bg-gray-900/95 backdrop-blur-sm"
+            className={`lg:hidden pb-6 transition-all duration-300 border-t ${
+              isScrolled 
+                ? "bg-white border-gray-200" 
+                : "bg-white/98 backdrop-blur-md border-gray-200"
             }`}
           >
-            <div className="flex flex-col space-y-3">
+            <div className="flex flex-col space-y-1 pt-4">
               {navLinks.map((link) => {
                 const isHashLink = link.href.startsWith("#");
-                const className = `transition-colors duration-200 font-medium py-2 ${
+                const className = `px-4 py-3 rounded-lg transition-all duration-200 font-semibold text-base ${
                   isScrolled
-                    ? "text-gray-700 hover:text-[#007e40]"
-                    : "text-white hover:text-[#ffb300]"
+                    ? "text-gray-900 hover:text-[#007e40] hover:bg-[#007e40]/10"
+                    : "text-gray-900 hover:text-[#ffb300] hover:bg-[#ffb300]/10"
                 }`;
                 return isHashLink ? (
                   <a
@@ -120,15 +139,6 @@ const Navigation = () => {
                   </Link>
                 );
               })}
-              <button
-                onClick={() => {
-                  navigate("/login");
-                  setIsMenuOpen(false);
-                }}
-                className="bg-[#ffb300] text-white px-6 py-2.5 rounded-lg hover:bg-[#e6a200] transition-all duration-200 font-medium text-left"
-              >
-                Sign In
-              </button>
             </div>
           </div>
         )}

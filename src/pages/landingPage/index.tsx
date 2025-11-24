@@ -1,4 +1,3 @@
-import { useNavigate } from "react-router-dom";
 import Footer from "./components/Footer";
 import Navigation from "./components/Navigation";
 import CallToAction from "./sections/CallToAction";
@@ -9,8 +8,6 @@ import Testimonials from "./sections/Testimonials";
 import WhyINF from "./sections/WhyINF";
 
 const LandingPage = () => {
-  const navigate = useNavigate();
-
   return (
     <div className="min-h-screen bg-white">
       <Navigation />

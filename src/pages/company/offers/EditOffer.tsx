@@ -55,6 +55,11 @@ export default function EditOffer() {
       setEvents(eventsData);
     }
 
+    if (!id) {
+      alert('Offer ID is required');
+      navigate('/company/offers');
+      return;
+    }
     const { data: offer, error } = await supabase
       .from('offers')
       .select('*')
@@ -86,6 +91,10 @@ export default function EditOffer() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!id) {
+      alert('Offer ID is required');
+      return;
+    }
     setSaving(true);
 
     const { error } = await supabase
@@ -114,6 +123,10 @@ export default function EditOffer() {
   };
 
   const handleDelete = async () => {
+    if (!id) {
+      alert('Offer ID is required');
+      return;
+    }
     if (!confirm('Are you sure you want to delete this offer? This action cannot be undone.')) {
       return;
     }

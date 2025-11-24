@@ -962,6 +962,16 @@ export type Database = {
           specialization: string | null
           student_number: string | null
           updated_at: string
+          profile_photo_url: string | null
+          languages_spoken: string[] | null
+          program: string | null
+          biography: string | null
+          linkedin_url: string | null
+          resume_url: string | null
+          year_of_study: number | null
+          consent_given: boolean | null
+          consent_date: string | null
+          consent_version: string | null
         }
         Insert: {
           created_at?: string
@@ -976,6 +986,16 @@ export type Database = {
           specialization?: string | null
           student_number?: string | null
           updated_at?: string
+          profile_photo_url?: string | null
+          languages_spoken?: string[] | null
+          program?: string | null
+          biography?: string | null
+          linkedin_url?: string | null
+          resume_url?: string | null
+          year_of_study?: number | null
+          consent_given?: boolean | null
+          consent_date?: string | null
+          consent_version?: string | null
         }
         Update: {
           created_at?: string
@@ -990,8 +1010,59 @@ export type Database = {
           specialization?: string | null
           student_number?: string | null
           updated_at?: string
+          profile_photo_url?: string | null
+          languages_spoken?: string[] | null
+          program?: string | null
+          biography?: string | null
+          linkedin_url?: string | null
+          resume_url?: string | null
+          year_of_study?: number | null
+          consent_given?: boolean | null
+          consent_date?: string | null
+          consent_version?: string | null
         }
         Relationships: []
+      }
+      company_representatives: {
+        Row: {
+          id: string
+          company_id: string
+          full_name: string
+          title: string
+          phone: string | null
+          email: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          full_name: string
+          title: string
+          phone?: string | null
+          email: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          full_name?: string
+          title?: string
+          phone?: string | null
+          email?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_representatives_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       speed_recruiting_sessions: {
         Row: {
@@ -1067,6 +1138,30 @@ export type Database = {
         }
         Relationships: []
       }
+      failed_login_attempts: {
+        Row: {
+          id: string
+          email: string
+          ip_address: string
+          attempt_time: string
+          reason: string | null
+        }
+        Insert: {
+          id?: string
+          email: string
+          ip_address: string
+          attempt_time?: string
+          reason?: string | null
+        }
+        Update: {
+          id?: string
+          email?: string
+          ip_address?: string
+          attempt_time?: string
+          reason?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       company_dashboard: {
@@ -1114,6 +1209,7 @@ export type Database = {
     }
     Functions: {
       check_email_exists: { Args: { p_email: string }; Returns: Json }
+      delete_user_account: { Args: never; Returns: undefined }
       fn_add_event_time_range: {
         Args: {
           p_day_date: string
@@ -1399,7 +1495,6 @@ export type Database = {
           p_company_name: string
           p_email: string
           p_event_id: string
-          p_force_reinvite?: boolean
           p_industry?: string
           p_website?: string
         }
@@ -1423,6 +1518,81 @@ export type Database = {
         }[]
       }
       unaccent: { Args: { "": string }; Returns: string }
+      fn_record_failed_login: {
+        Args: {
+          p_email: string
+          p_ip_address: string
+          p_reason: string
+        }
+        Returns: undefined
+      }
+      fn_clear_rate_limit: {
+        Args: {
+          p_email: string
+          p_ip_address: string
+        }
+        Returns: number
+      }
+      fn_check_rate_limit: {
+        Args: {
+          p_email: string
+          p_ip_address: string
+          p_max_attempts?: number
+          p_window_minutes?: number
+        }
+        Returns: boolean
+      }
+      fn_rate_limit_status: {
+        Args: {
+          p_email: string
+          p_ip_address: string
+          p_max_attempts?: number
+          p_window_minutes?: number
+        }
+        Returns: {
+          allowed: boolean
+          attempt_count: number
+          remaining_attempts: number
+          wait_time_minutes: number
+        }[]
+      }
+      fn_delete_event: {
+        Args: {
+          p_event_id: string
+        }
+        Returns: {
+          bookings_deleted: number
+          companies_processed: number
+          message: string
+          offers_updated: number
+          registrations_deleted: number
+          sessions_deleted: number
+          slots_created: number
+          slots_deleted: number
+          time_ranges_processed: number
+        }[]
+      }
+      fn_generate_inf_slots: {
+        Args: {
+          p_event_id: string
+          p_session1_end: string
+          p_session1_start: string
+          p_session2_end: string
+          p_session2_start: string
+        }
+        Returns: {
+          message: string
+          success: boolean
+        }[]
+      }
+      create_profile_for_user: {
+        Args: {
+          p_email: string
+          p_full_name: string
+          p_role: Database["public"]["Enums"]["app_role"]
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "company" | "student"

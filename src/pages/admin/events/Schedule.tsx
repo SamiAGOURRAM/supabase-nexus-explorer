@@ -27,7 +27,7 @@ type Event = {
   id: string
   name: string
   date: string
-  location: string
+  location: string | null
 }
 
 type CombinedScheduleItem = {

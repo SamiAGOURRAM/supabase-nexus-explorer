@@ -4,12 +4,14 @@ import { useAuth } from '@/hooks/useAuth';
 import { useEvents } from '@/hooks/useEvents';
 import { useEventStats } from '@/hooks/useEventStats';
 import LoadingScreen from '@/components/shared/LoadingScreen';
+import LoadingCard from '@/components/shared/LoadingCard';
 import AdminLayout from '@/components/admin/AdminLayout';
 import EmptyState from '@/components/admin/dashboard/EmptyState';
 import EventSelector from '@/components/admin/dashboard/EventSelector';
 import PhaseStatusCard from '@/components/admin/dashboard/PhaseStatusCard';
 import StatsGrid from '@/components/admin/dashboard/StatsGrid';
 import BulkImportModal from '@/components/admin/BulkImportModal';
+import { Users, Target, Clock, Calendar } from 'lucide-react';
 
 /**
  * AdminDashboard - Main dashboard page for administrators
@@ -42,7 +44,7 @@ export default function AdminDashboard() {
   if (!selectedEvent) {
     return (
       <AdminLayout onSignOut={signOut}>
-        <div className="p-8">
+        <div className="p-4 sm:p-6 md:p-8">
           <EmptyState />
         </div>
       </AdminLayout>
@@ -58,7 +60,7 @@ export default function AdminDashboard() {
 
   return (
     <AdminLayout onSignOut={signOut}>
-      <div className="p-6 md:p-8">
+      <div className="p-4 sm:p-6 md:p-8">
         <div className="max-w-7xl mx-auto space-y-6">
           <EventSelector
             events={events}
@@ -69,31 +71,74 @@ export default function AdminDashboard() {
           <PhaseStatusCard event={selectedEvent} />
 
           {statsLoading ? (
-            <div className="text-center py-16">
-              <div className="animate-spin rounded-full h-12 w-12 border-[3px] border-primary border-t-transparent mx-auto"></div>
-              <p className="mt-4 text-muted-foreground font-medium">Loading statistics...</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {[1, 2, 3, 4].map((i) => (
+                <LoadingCard key={i} />
+              ))}
             </div>
           ) : (
             <StatsGrid stats={stats} eventId={selectedEvent.id} />
           )}
 
-          {/* Footer Navigation */}
-          <div className="pt-6 border-t border-border">
-            <div className="flex flex-wrap gap-4 justify-center text-sm">
-              <Link to={`/admin/events/${selectedEvent.id}/sessions`} className="text-muted-foreground hover:text-primary transition-colors duration-200 font-medium">
-                Sessions
+          {/* Event Management Actions */}
+          <div className="bg-white rounded-xl border-2 border-gray-200 p-4 md:p-6 shadow-lg">
+            <h2 className="text-lg md:text-xl font-semibold text-gray-900 mb-4">Event Management</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
+              <Link
+                to={`/admin/events/${selectedEvent.id}/quick-invite`}
+                className="flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 px-3 md:px-4 py-2.5 md:py-3 bg-[#ffb300]/10 border-2 border-[#ffb300]/20 rounded-lg hover:bg-[#ffb300]/20 transition-colors group"
+              >
+                <Users className="w-4 h-4 md:w-5 md:h-5 text-[#ffb300] flex-shrink-0" />
+                <span className="text-xs sm:text-sm font-medium text-gray-900 text-center sm:text-left">Quick Invite</span>
               </Link>
-              <Link to={`/admin/events/${selectedEvent.id}/phases`} className="text-muted-foreground hover:text-primary transition-colors duration-200 font-medium">
-                Phases
+              <Link
+                to={`/admin/events/${selectedEvent.id}/phases`}
+                className="flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 px-3 md:px-4 py-2.5 md:py-3 bg-[#007e40]/10 border-2 border-[#007e40]/20 rounded-lg hover:bg-[#007e40]/20 transition-colors"
+              >
+                <Target className="w-4 h-4 md:w-5 md:h-5 text-[#007e40] flex-shrink-0" />
+                <span className="text-xs sm:text-sm font-medium text-gray-900 text-center sm:text-left">Phases</span>
               </Link>
-              <Link to={`/admin/events/${selectedEvent.id}/schedule`} className="text-muted-foreground hover:text-primary transition-colors duration-200 font-medium">
-                Schedule
+              <Link
+                to={`/admin/events/${selectedEvent.id}/sessions`}
+                className="flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 px-3 md:px-4 py-2.5 md:py-3 bg-[#007e40]/10 border-2 border-[#007e40]/20 rounded-lg hover:bg-[#007e40]/20 transition-colors"
+              >
+                <Clock className="w-4 h-4 md:w-5 md:h-5 text-[#007e40] flex-shrink-0" />
+                <span className="text-xs sm:text-sm font-medium text-gray-900 text-center sm:text-left">Sessions</span>
               </Link>
-              <Link to="/admin/events" className="text-muted-foreground hover:text-primary transition-colors duration-200 font-medium">
-                All Events
+              <Link
+                to={`/admin/events/${selectedEvent.id}/schedule`}
+                className="flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 px-3 md:px-4 py-2.5 md:py-3 bg-[#ffb300]/10 border-2 border-[#ffb300]/20 rounded-lg hover:bg-[#ffb300]/20 transition-colors"
+              >
+                <Calendar className="w-4 h-4 md:w-5 md:h-5 text-[#ffb300] flex-shrink-0" />
+                <span className="text-xs sm:text-sm font-medium text-gray-900 text-center sm:text-left">Schedule</span>
               </Link>
-              <Link to="/admin/companies" className="text-muted-foreground hover:text-primary transition-colors duration-200 font-medium">
-                All Companies
+              <Link
+                to={`/admin/events/${selectedEvent.id}/slots`}
+                className="flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 px-3 md:px-4 py-2.5 md:py-3 bg-[#f8231d]/10 border-2 border-[#f8231d]/20 rounded-lg hover:bg-[#f8231d]/20 transition-colors"
+              >
+                <Clock className="w-4 h-4 md:w-5 md:h-5 text-[#f8231d] flex-shrink-0" />
+                <span className="text-xs sm:text-sm font-medium text-gray-900 text-center sm:text-left">Slots</span>
+              </Link>
+              <Link
+                to={`/admin/companies?eventId=${selectedEvent.id}`}
+                className="flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 px-3 md:px-4 py-2.5 md:py-3 bg-[#007e40]/10 border-2 border-[#007e40]/20 rounded-lg hover:bg-[#007e40]/20 transition-colors"
+              >
+                <Users className="w-4 h-4 md:w-5 md:h-5 text-[#007e40] flex-shrink-0" />
+                <span className="text-xs sm:text-sm font-medium text-gray-900 text-center sm:text-left">Companies</span>
+              </Link>
+              <Link
+                to={`/admin/students?eventId=${selectedEvent.id}`}
+                className="flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 px-3 md:px-4 py-2.5 md:py-3 bg-[#ffb300]/10 border-2 border-[#ffb300]/20 rounded-lg hover:bg-[#ffb300]/20 transition-colors"
+              >
+                <Users className="w-4 h-4 md:w-5 md:h-5 text-[#ffb300] flex-shrink-0" />
+                <span className="text-xs sm:text-sm font-medium text-gray-900 text-center sm:text-left">Students</span>
+              </Link>
+              <Link
+                to={`/admin/events/${selectedEvent.id}/participants`}
+                className="flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 px-3 md:px-4 py-2.5 md:py-3 bg-[#f8231d]/10 border-2 border-[#f8231d]/20 rounded-lg hover:bg-[#f8231d]/20 transition-colors"
+              >
+                <Users className="w-4 h-4 md:w-5 md:h-5 text-[#f8231d] flex-shrink-0" />
+                <span className="text-xs sm:text-sm font-medium text-gray-900 text-center sm:text-left">Participants</span>
               </Link>
             </div>
           </div>

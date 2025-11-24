@@ -1,7 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { ArrowLeft, Building2, MapPin, Globe, Briefcase, Users } from 'lucide-react';
+import { useToast } from '@/contexts/ToastContext';
+import { ArrowLeft, Building2, MapPin, Globe, Briefcase, Users, Mail, Phone, User } from 'lucide-react';
+import LoadingScreen from '@/components/shared/LoadingScreen';
+import ErrorDisplay from '@/components/shared/ErrorDisplay';
+import NotFound from '@/components/shared/NotFound';
+import StudentLayout from '@/components/student/StudentLayout';
+import { useAuth } from '@/hooks/useAuth';
 
 type Company = {
   id: string;
@@ -12,6 +18,14 @@ type Company = {
   logo_url: string | null;
   company_size: string | null;
   address: string | null;
+};
+
+type Representative = {
+  id: string;
+  full_name: string;
+  title: string;
+  phone: string | null;
+  email: string;
 };
 
 type Offer = {
@@ -28,106 +42,161 @@ type Offer = {
 export default function CompanyProfile() {
   const { companyId } = useParams<{ companyId: string }>();
   const navigate = useNavigate();
+  const { signOut } = useAuth('student');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
   const [company, setCompany] = useState<Company | null>(null);
   const [offers, setOffers] = useState<Offer[]>([]);
+  const [representatives, setRepresentatives] = useState<Representative[]>([]);
+  const { showError } = useToast();
 
   useEffect(() => {
     loadCompanyProfile();
   }, [companyId]);
 
   const loadCompanyProfile = async () => {
-    if (!companyId) return;
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      navigate('/login');
-      return;
-    }
-
-    // Get company details
-    const { data: companyData, error: companyError } = await supabase
-      .from('companies')
-      .select('*')
-      .eq('id', companyId)
-      .eq('is_verified', true)
-      .single();
-
-    if (companyError || !companyData) {
+    if (!companyId) {
+      setError(new Error('Company ID is required'));
       setLoading(false);
       return;
     }
 
-    setCompany(companyData);
+    try {
+      setError(null);
+      setLoading(true);
 
-    // Get upcoming event
-    const { data: eventsData } = await supabase
-      .from('events')
-      .select('id')
-      .gte('date', new Date().toISOString())
-      .order('date', { ascending: true })
-      .limit(1);
-
-    if (eventsData && eventsData.length > 0) {
-      // Get company's active offers
-      const { data: offersData } = await supabase
-        .from('offers')
-        .select('id, title, description, interest_tag, location, duration_months, paid, remote_possible')
-        .eq('company_id', companyId)
-        .eq('event_id', eventsData[0].id)
-        .eq('is_active', true)
-        .order('created_at', { ascending: false });
-
-      if (offersData) {
-        setOffers(offersData);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        navigate('/login');
+        return;
       }
-    }
 
-    setLoading(false);
+      // Get company details
+      const { data: companyData, error: companyError } = await supabase
+        .from('companies')
+        .select('*')
+        .eq('id', companyId)
+        .eq('is_verified', true)
+        .maybeSingle();
+
+      if (companyError) {
+        throw new Error(`Failed to load company: ${companyError.message}`);
+      }
+
+      if (!companyData) {
+        setError(new Error('Company not found or not verified'));
+        setLoading(false);
+        return;
+      }
+
+      setCompany(companyData);
+
+      // Load representatives
+      const { data: repsData, error: repsError } = await supabase
+        .from('company_representatives' as any)
+        .select('*')
+        .eq('company_id', companyId)
+        .order('created_at', { ascending: true });
+
+      if (repsError) {
+        console.error('Error loading representatives:', repsError);
+      } else {
+        setRepresentatives((repsData as unknown as Representative[]) || []);
+      }
+
+      // Get upcoming event
+      const { data: eventsData, error: eventsError } = await supabase
+        .from('events')
+        .select('id')
+        .gte('date', new Date().toISOString())
+        .order('date', { ascending: true })
+        .limit(1);
+
+      if (eventsError) {
+        console.error('Error loading events:', eventsError);
+      }
+
+      if (eventsData && eventsData.length > 0) {
+        // Get company's active offers
+        const { data: offersData, error: offersError } = await supabase
+          .from('offers')
+          .select('id, title, description, interest_tag, location, duration_months, paid, remote_possible')
+          .eq('company_id', companyId)
+          .eq('event_id', eventsData[0].id)
+          .eq('is_active', true)
+          .order('created_at', { ascending: false });
+
+        if (offersError) {
+          console.error('Error loading offers:', offersError);
+        }
+
+        if (offersData) {
+          setOffers(offersData);
+        } else {
+          setOffers([]);
+        }
+      } else {
+        setOffers([]);
+      }
+    } catch (err: any) {
+      console.error('Error loading company profile:', err);
+      const errorMessage = err instanceof Error ? err : new Error('Failed to load company profile');
+      setError(errorMessage);
+      showError('Failed to load company profile. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (loading) {
+    return <LoadingScreen message="Loading company profile..." />;
+  }
+
+  if (error && !company) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-sm text-muted-foreground animate-pulse">Loading company...</p>
+      <StudentLayout onSignOut={signOut}>
+        <div className="p-6 md:p-8">
+          <div className="max-w-7xl mx-auto">
+            <Link to="/student/offers" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6">
+              <ArrowLeft className="w-5 h-5" />
+              Back to Offers
+            </Link>
+            {error.message.includes('not found') ? (
+              <NotFound resource="Company" backTo="/student/offers" backLabel="Back to Offers" />
+            ) : (
+              <ErrorDisplay error={error} onRetry={loadCompanyProfile} />
+            )}
+          </div>
         </div>
-      </div>
+      </StudentLayout>
     );
   }
 
   if (!company) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-xl font-bold text-foreground mb-2">Company Not Found</h2>
-          <p className="text-muted-foreground mb-4">This company profile is not available.</p>
-          <Link to="/student/offers" className="text-primary hover:underline">
-            Back to Offers
-          </Link>
+      <StudentLayout onSignOut={signOut}>
+        <div className="p-6 md:p-8">
+          <div className="max-w-7xl mx-auto">
+            <NotFound resource="Company" backTo="/student/offers" backLabel="Back to Offers" />
+          </div>
         </div>
-      </div>
+      </StudentLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="bg-card border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+    <StudentLayout onSignOut={signOut}>
+      <div className="p-6 md:p-8">
+        <div className="max-w-7xl mx-auto space-y-6">
           <div className="flex items-center gap-4">
             <Link to="/student/offers" className="text-muted-foreground hover:text-foreground">
               <ArrowLeft className="w-5 h-5" />
             </Link>
             <div>
-              <h1 className="text-2xl font-bold text-foreground">{company.company_name}</h1>
+              <h1 className="text-2xl md:text-3xl font-bold text-foreground">{company.company_name}</h1>
               <p className="text-sm text-muted-foreground mt-1">Company Profile</p>
             </div>
           </div>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Company Header */}
         <div className="bg-card rounded-xl border border-border p-8 mb-6">
           <div className="flex items-start gap-6">
@@ -176,6 +245,47 @@ export default function CompanyProfile() {
             <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">
               {company.description}
             </p>
+          </div>
+        )}
+
+        {/* Representatives Section */}
+        {representatives.length > 0 && (
+          <div className="bg-card rounded-xl border border-border p-6 mb-6">
+            <div className="flex items-center gap-3 mb-4">
+              <Users className="w-6 h-6 text-primary" />
+              <h3 className="text-xl font-bold text-foreground">Company Representatives</h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {representatives.map((rep) => (
+                <div key={rep.id} className="bg-background rounded-lg border border-border p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <User className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-semibold text-foreground mb-1">{rep.full_name}</h4>
+                      <p className="text-sm text-muted-foreground mb-2">{rep.title}</p>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 text-sm text-foreground">
+                          <Mail className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                          <a href={`mailto:${rep.email}`} className="hover:text-primary hover:underline truncate">
+                            {rep.email}
+                          </a>
+                        </div>
+                        {rep.phone && (
+                          <div className="flex items-center gap-2 text-sm text-foreground">
+                            <Phone className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                            <a href={`tel:${rep.phone}`} className="hover:text-primary hover:underline">
+                              {rep.phone}
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -244,7 +354,8 @@ export default function CompanyProfile() {
             </div>
           )}
         </div>
-      </main>
-    </div>
+        </div>
+      </div>
+    </StudentLayout>
   );
 }

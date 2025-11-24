@@ -19,9 +19,9 @@ export default function PhaseStatusCard({
 }: {
   event: {
     id: string;
-    current_phase: number;
-    phase1_max_bookings: number;
-    phase2_max_bookings: number;
+    current_phase: number | null;
+    phase1_max_bookings: number | null;
+    phase2_max_bookings: number | null;
   };
 }) {
   const isClosed = event.current_phase === BOOKING_PHASES.CLOSED;
