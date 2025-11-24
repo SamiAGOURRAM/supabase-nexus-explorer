@@ -46,6 +46,26 @@ export default function CompanySlots() {
   const navigate = useNavigate();
   const { showError } = useToast();
 
+  // Calculate statistics - moved to top level to avoid hooks order violation
+  const stats = useMemo(() => {
+    const totalSlots = slots.length
+    const activeSlots = slots.filter(s => s.is_active).length
+    const totalBookings = slots.reduce((sum, slot) => sum + slot.bookings_count, 0)
+    const fullSlots = slots.filter(s => s.is_active && s.bookings_count >= s.capacity).length
+    const availableSlots = slots.filter(s => s.is_active && s.bookings_count < s.capacity).length
+    const totalCapacity = slots.reduce((sum, slot) => sum + slot.capacity, 0)
+    const utilizationRate = totalCapacity > 0 ? Math.round((totalBookings / totalCapacity) * 100) : 0
+
+    return {
+      totalSlots,
+      activeSlots,
+      totalBookings,
+      fullSlots,
+      availableSlots,
+      utilizationRate
+    }
+  }, [slots])
+
   useEffect(() => {
     loadSlots();
   }, []);
@@ -226,25 +246,6 @@ export default function CompanySlots() {
     );
   }
 
-  // Calculate statistics
-  const stats = useMemo(() => {
-    const totalSlots = slots.length
-    const activeSlots = slots.filter(s => s.is_active).length
-    const totalBookings = slots.reduce((sum, slot) => sum + slot.bookings_count, 0)
-    const fullSlots = slots.filter(s => s.is_active && s.bookings_count >= s.capacity).length
-    const availableSlots = slots.filter(s => s.is_active && s.bookings_count < s.capacity).length
-    const totalCapacity = slots.reduce((sum, slot) => sum + slot.capacity, 0)
-    const utilizationRate = totalCapacity > 0 ? Math.round((totalBookings / totalCapacity) * 100) : 0
-
-    return {
-      totalSlots,
-      activeSlots,
-      totalBookings,
-      fullSlots,
-      availableSlots,
-      utilizationRate
-    }
-  }, [slots])
 
   // Helper function to get initials
   const getInitials = (name: string) => {

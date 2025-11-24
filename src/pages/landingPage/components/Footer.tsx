@@ -8,7 +8,7 @@ const Footer = () => {
           {/* Brand */}
           <div className="col-span-1 md:col-span-2">
             <a href="/" className="inline-block mb-4">
-              <img src="/logos/1.svg" alt="INF Logo" className="h-16 w-auto" />
+              <img src="/logos/1.svg" alt="INF Logo" className="h-32 sm:h-36 md:h-40 lg:h-44 w-auto" />
             </a>
             <p className="text-gray-400 mb-4">
               The Internship & Networking Forum at SHBM — UM6P. Your gateway to

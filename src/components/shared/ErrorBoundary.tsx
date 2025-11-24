@@ -13,7 +13,6 @@
 
 import { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertCircle, RefreshCw, Home } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import { error as logError } from '@/utils/logger';
 
 interface Props {
@@ -100,8 +99,11 @@ interface ErrorFallbackProps {
 }
 
 function ErrorFallback({ error, errorInfo, onReset }: ErrorFallbackProps) {
-  const navigate = useNavigate();
   const isDevelopment = import.meta.env.DEV;
+
+  const handleGoHome = () => {
+    window.location.href = '/';
+  };
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -147,7 +149,7 @@ function ErrorFallback({ error, errorInfo, onReset }: ErrorFallbackProps) {
             Try Again
           </button>
           <button
-            onClick={() => navigate('/')}
+            onClick={handleGoHome}
             className="flex items-center gap-2 px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/90 transition-colors"
           >
             <Home className="w-4 h-4" />

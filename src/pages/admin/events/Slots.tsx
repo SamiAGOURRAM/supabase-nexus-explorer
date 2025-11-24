@@ -72,20 +72,15 @@ export default function EventSlots() {
   }
 
   const loadData = async () => {
-    console.log('🔵 [Admin Slots] loadData called, eventId:', eventId)
-    
     if (!eventId) {
-      console.log('🔴 [Admin Slots] No eventId, returning')
       return
     }
 
-    const { data: eventData, error: eventError } = await supabase
+    const { data: eventData } = await supabase
       .from('events')
       .select('id, name, date')
       .eq('id', eventId)
       .single()
-
-    console.log('🔵 [Admin Slots] Event data:', { eventData, eventError })
 
     if (eventData) setEvent(eventData)
 
@@ -97,12 +92,7 @@ export default function EventSlots() {
       .eq('is_active', true)
       .order('start_time')
 
-    console.log('🔵 [Admin Slots] Slots query result:', { 
-      slotsData, 
-      slotsError, 
-      eventId,
-      slotCount: slotsData?.length || 0 
-    })
+
 
     if (slotsError) {
       console.error('Error fetching slots:', slotsError)
@@ -119,7 +109,7 @@ export default function EventSlots() {
         .select('id, company_name')
         .in('id', companyIds)
 
-      console.log('🔵 [Admin Slots] Companies data:', companiesData)
+
 
       const companiesMap = new Map(companiesData?.map(c => [c.id, c.company_name]) || [])
 
@@ -168,7 +158,7 @@ export default function EventSlots() {
         a.company_name.localeCompare(b.company_name)
       )
 
-      console.log('🔵 [Admin Slots] Final company slots:', companySlotsArray)
+
 
       setCompanySlots(companySlotsArray)
     }
@@ -190,7 +180,7 @@ export default function EventSlots() {
         .eq('slot_id', slotId)
         .eq('status', 'confirmed')
 
-      console.log('🔵 [Admin Slots] Bookings for slot:', { slotId, bookingsData, error })
+
 
       if (error) {
         console.error('Error loading bookings:', error)

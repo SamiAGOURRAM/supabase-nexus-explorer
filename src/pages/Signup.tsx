@@ -167,7 +167,6 @@ export default function Signup() {
           await recordFailedAttempt(sanitizedEmail, 'CAPTCHA verification failed', 'signup');
           throw new Error('Security verification failed. Please try again.');
         }
-        console.log('✅ CAPTCHA verified');
       }
 
       // Check server-side rate limiting BEFORE validation

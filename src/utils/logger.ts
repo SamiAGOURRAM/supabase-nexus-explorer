@@ -10,7 +10,7 @@ const isDevelopment = import.meta.env.DEV || import.meta.env.MODE === 'developme
 /**
  * Log debug information (only in development)
  */
-export function debug(...args: any[]): void {
+export function debug(...args: unknown[]): void {
   if (isDevelopment) {
     console.log(...args);
   }
@@ -19,7 +19,7 @@ export function debug(...args: any[]): void {
 /**
  * Log warnings (always shown, but can be filtered in production)
  */
-export function warn(...args: any[]): void {
+export function warn(...args: unknown[]): void {
   if (isDevelopment) {
     console.warn(...args);
   }
@@ -30,7 +30,7 @@ export function warn(...args: any[]): void {
  * Log errors (always shown)
  * Use this for actual errors that need attention
  */
-export function error(...args: any[]): void {
+export function error(...args: unknown[]): void {
   console.error(...args);
   // In production, send to error tracking service (e.g., Sentry)
 }
@@ -38,7 +38,7 @@ export function error(...args: any[]): void {
 /**
  * Log info messages (only in development)
  */
-export function info(...args: any[]): void {
+export function info(...args: unknown[]): void {
   if (isDevelopment) {
     console.info(...args);
   }

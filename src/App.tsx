@@ -74,11 +74,10 @@ function AppRoutes() {
   const { toasts, removeToast } = useToast();
   
   return (
-    <>
+    <BrowserRouter>
       <ToastContainer toasts={toasts} onRemove={removeToast} />
-      <BrowserRouter>
-        <Suspense fallback={<LoadingScreen />}>
-          <Routes>
+      <Suspense fallback={<LoadingScreen />}>
+        <Routes>
           {/* Public Routes */}
           <Route path="/" element={<LandingPage />} />
           <Route path="/about" element={<About />} />
@@ -135,7 +134,6 @@ function AppRoutes() {
           </Routes>
         </Suspense>
       </BrowserRouter>
-    </>
   );
 }
 

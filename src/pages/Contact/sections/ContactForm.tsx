@@ -11,8 +11,7 @@ const ContactForm = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle form submission here
-    console.log("Form submitted:", formData);
+    // TODO: Handle form submission (send to backend or email service)
   };
 
   const handleChange = (

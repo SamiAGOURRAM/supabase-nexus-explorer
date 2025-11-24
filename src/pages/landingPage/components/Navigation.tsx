@@ -6,13 +6,19 @@ const Navigation = () => {
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isInVideoSection, setIsInVideoSection] = useState(true);
 
   useEffect(() => {
     const handleScroll = () => {
       const scrollPosition = window.scrollY;
+      const viewportHeight = window.innerHeight;
       setIsScrolled(scrollPosition > 50);
+      // Check if we're in the Hero/video section (first screen)
+      setIsInVideoSection(scrollPosition < viewportHeight * 0.8);
     };
 
+    // Initial check
+    handleScroll();
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
@@ -38,9 +44,9 @@ const Navigation = () => {
           <div className="flex-shrink-0 flex items-center">
             <Link to="/" className="flex items-center group">
               <img
-                src="/logos/2.svg"
+                src="/logos/1.svg"
                 alt="INF Logo"
-                className="h-16 sm:h-20 md:h-24 lg:h-28 w-auto transition-all duration-300 group-hover:scale-105"
+                className="h-32 sm:h-36 md:h-40 lg:h-44 w-auto transition-all duration-300 group-hover:scale-105"
               />
             </Link>
           </div>
@@ -50,8 +56,8 @@ const Navigation = () => {
             {navLinks.map((link) => {
               const isHashLink = link.href.startsWith("#");
               const className = `px-4 py-2 rounded-lg transition-all duration-200 font-semibold text-base ${
-                isScrolled
-                  ? "text-gray-900 hover:text-[#007e40] hover:bg-[#007e40]/10"
+                isInVideoSection
+                  ? "text-white hover:text-[#ffb300] hover:bg-[#ffb300]/10"
                   : "text-gray-900 hover:text-[#ffb300] hover:bg-[#ffb300]/10"
               }`;
               return isHashLink ? (
@@ -91,8 +97,8 @@ const Navigation = () => {
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               className={`p-2 rounded-lg transition-all ${
-                isScrolled
-                  ? "text-gray-900 hover:text-[#007e40] hover:bg-gray-100"
+                isInVideoSection
+                  ? "text-white hover:text-[#ffb300] hover:bg-[#ffb300]/10"
                   : "text-gray-900 hover:text-[#ffb300] hover:bg-[#ffb300]/10"
               }`}
               aria-label="Toggle menu"
@@ -115,8 +121,8 @@ const Navigation = () => {
               {navLinks.map((link) => {
                 const isHashLink = link.href.startsWith("#");
                 const className = `px-4 py-3 rounded-lg transition-all duration-200 font-semibold text-base ${
-                  isScrolled
-                    ? "text-gray-900 hover:text-[#007e40] hover:bg-[#007e40]/10"
+                  isInVideoSection
+                    ? "text-white hover:text-[#ffb300] hover:bg-[#ffb300]/10"
                     : "text-gray-900 hover:text-[#ffb300] hover:bg-[#ffb300]/10"
                 }`;
                 return isHashLink ? (
