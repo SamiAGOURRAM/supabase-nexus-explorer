@@ -12,7 +12,7 @@ const WhyINF = () => {
       features: [
         "50+ Partner Companies",
         "Direct Access to Recruiters",
-        "Exclusive Networking Events",
+        "Exclusive Networking Event",
       ],
     },
     {
@@ -54,7 +54,7 @@ const WhyINF = () => {
         {/* Section Header */}
         <div className="text-center mb-16">
           <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4">
-            Why an INF?
+            Why INF?
           </h2>
           <p className="text-lg text-gray-600 max-w-3xl mx-auto">
             The INF provides unparalleled access to internship pathways,
