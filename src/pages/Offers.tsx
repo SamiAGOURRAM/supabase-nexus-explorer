@@ -140,11 +140,21 @@ export default function Offers() {
 
   const showEmptyState = !loading && filteredOffers.length === 0;
 
-  const handleOfferClick = (offerId: string) => {
+  const handleOfferClick = (offerId: string, event?: React.MouseEvent) => {
+    // Prevent navigation if clicking on interactive elements inside
+    if (event) {
+      const target = event.target as HTMLElement;
+      // Don't navigate if clicking on links or buttons
+      if (target.closest('a') || target.closest('button')) {
+        return;
+      }
+    }
+    
     if (user) {
       navigate(`/student/offers/${offerId}`);
     } else {
-      navigate('/login');
+      // For non-logged in users, redirect to login with redirect parameter
+      navigate(`/login?redirect=/student/offers/${offerId}`);
     }
   };
 
@@ -365,10 +375,11 @@ export default function Offers() {
                 return (
                   <article
                     key={offer.id}
-                    onClick={() => handleOfferClick(offer.id)}
+                    onClick={(e) => handleOfferClick(offer.id, e)}
                     className="group flex h-full flex-col rounded-2xl border-2 border-gray-200 bg-white p-6 transition-all hover:-translate-y-1 hover:border-[#007e40] hover:shadow-xl cursor-pointer"
                     role="button"
                     tabIndex={0}
+                    aria-label={`View details for ${offer.title} at ${offer.companies?.company_name || 'company'}`}
                     onKeyDown={(event) => {
                       if (event.key === 'Enter' || event.key === ' ') {
                         event.preventDefault();
@@ -413,12 +424,20 @@ export default function Offers() {
                       )}
                     </div>
 
-                    <footer className="mt-6 flex items-center justify-between border-t border-gray-200 pt-4 text-sm font-semibold text-[#007e40]">
-                      <span className="flex items-center gap-2">
+                    <footer className="mt-6 flex items-center justify-between border-t border-gray-200 pt-4">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOfferClick(offer.id);
+                        }}
+                        className="flex items-center gap-2 text-sm font-semibold text-[#007e40] hover:text-[#005a2d] transition-colors cursor-pointer"
+                        aria-label={`View details for ${offer.title}`}
+                      >
                         View details
                         <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                      </span>
-                      <span className="text-xs text-gray-500">Tap to continue</span>
+                      </button>
+                      <span className="text-xs text-gray-500 pointer-events-none">Tap to continue</span>
                     </footer>
                   </article>
                 );

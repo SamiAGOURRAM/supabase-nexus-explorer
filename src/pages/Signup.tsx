@@ -305,13 +305,21 @@ export default function Signup() {
         aria-hidden="true"
       />
       <div className="relative z-10 mx-auto flex min-h-screen max-w-7xl flex-col gap-8 px-4 py-12 sm:px-6 lg:px-8">
-        <Link
-          to="/login"
-          className="inline-flex w-fit items-center gap-2 text-sm font-medium text-gray-600 transition-colors hover:text-[#007e40] mb-4"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Already registered? Sign in
-        </Link>
+        <div className="flex items-center justify-between mb-4">
+          <Link
+            to="/"
+            className="inline-flex w-fit items-center gap-2 text-sm font-medium text-gray-600 transition-colors hover:text-[#007e40]"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to home
+          </Link>
+          <Link
+            to="/login"
+            className="inline-flex w-fit items-center gap-2 text-sm font-medium text-gray-600 transition-colors hover:text-[#007e40]"
+          >
+            Already registered? Sign in
+          </Link>
+        </div>
 
         <div className="grid flex-1 gap-8 lg:grid-cols-[1.05fr,0.95fr]">
           <section className="hidden rounded-2xl border-2 border-gray-200 bg-gradient-to-br from-[#1a1f3a] via-[#007e40] to-[#1a1f3a] p-8 text-white shadow-xl lg:flex lg:flex-col relative overflow-hidden">
@@ -386,10 +394,10 @@ export default function Signup() {
               <p className="text-xs text-white/70 mb-2">
                 Need assistance? Contact the inf events team at{' '}
                 <a
-                  href="mailto:inf@um6p.ma"
+                  href="mailto:inf.um6p@um6p.ma"
                   className="font-semibold text-[#ffb300] hover:text-[#ffc940] transition-colors"
                 >
-                  inf@um6p.ma
+                  inf.um6p@um6p.ma
                 </a>
               </p>
             </div>

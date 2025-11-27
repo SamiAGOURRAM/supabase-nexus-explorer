@@ -1,4 +1,4 @@
-import { Mail, MapPin, Phone } from "lucide-react";
+import { Mail, MapPin } from "lucide-react";
 
 const Footer = () => {
   return (
@@ -43,6 +43,14 @@ const Footer = () => {
               </li>
               <li>
                 <a
+                  href="/aboutheinf"
+                  className="text-gray-400 hover:text-[#ffb300] transition-colors"
+                >
+                  About the INF
+                </a>
+              </li>
+              <li>
+                <a
                   href="/login"
                   className="text-gray-400 hover:text-[#ffb300] transition-colors"
                 >
@@ -66,11 +74,7 @@ const Footer = () => {
             <ul className="space-y-3">
               <li className="flex items-start">
                 <Mail size={18} className="mr-2 mt-1 text-[#ffb300]" />
-                <span className="text-gray-400 text-sm">inf@um6p.ma</span>
-              </li>
-              <li className="flex items-start">
-                <Phone size={18} className="mr-2 mt-1 text-[#ffb300]" />
-                <span className="text-gray-400 text-sm">+212 5XX-XXXXXX</span>
+                <span className="text-gray-400 text-sm">inf.um6p@um6p.ma</span>
               </li>
               <li className="flex items-start">
                 <MapPin size={18} className="mr-2 mt-1 text-[#ffb300]" />

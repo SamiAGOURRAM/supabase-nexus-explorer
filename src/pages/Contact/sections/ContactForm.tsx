@@ -1,4 +1,4 @@
-import { Instagram, Mail, MapPin, Phone } from "lucide-react";
+import { Instagram, Mail, MapPin } from "lucide-react";
 import { useState } from "react";
 import DecorativeShape from "../../landingPage/components/DecorativeShape";
 
@@ -85,47 +85,11 @@ const ContactForm = () => {
                 <div>
                   <h3 className="font-semibold text-gray-900 mb-1">Email</h3>
                   <a
-                    href="mailto:inf@um6p.ma"
+                    href="mailto:inf.um6p@um6p.ma"
                     className="text-[#007e40] hover:text-[#005a2d] transition-colors"
                   >
-                    inf@um6p.ma
+                    inf.um6p@um6p.ma
                   </a>
-                  <div className="mt-3">
-                    <a
-                      href="mailto:partners@inf-platform.ma"
-                      className="text-[#007e40] hover:text-[#005a2d] transition-colors block"
-                    >
-                      partners@inf-platform.ma
-                    </a>
-                    <span className="text-sm text-gray-500">
-                      (For Companies)
-                    </span>
-                  </div>
-                  <div className="mt-2">
-                    <a
-                      href="mailto:students@inf-platform.ma"
-                      className="text-[#007e40] hover:text-[#005a2d] transition-colors block"
-                    >
-                      students@inf-platform.ma
-                    </a>
-                    <span className="text-sm text-gray-500">
-                      (For Students)
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Phone */}
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-lg bg-[#007e40]/10 flex items-center justify-center flex-shrink-0">
-                  <Phone size={24} className="text-[#007e40]" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900 mb-1">Phone</h3>
-                  <p className="text-gray-600">+212 5XX-XXXXXX</p>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Monday–Friday, 09:00–18:00
-                  </p>
                 </div>
               </div>
 

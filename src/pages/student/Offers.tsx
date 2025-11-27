@@ -1003,17 +1003,17 @@ export default function StudentOffers() {
                           }`}
                         >
                           {/* Time Display */}
-                          <div className="mb-2">
-                            <div className="text-sm font-bold text-foreground flex items-center gap-1">
-                              <Clock className="w-3 h-3 text-primary flex-shrink-0" />
-                              <span className="truncate">
+                          <div className="mb-2.5">
+                            <div className="text-base font-bold text-foreground flex items-center gap-1.5 mb-1">
+                              <Clock className="w-4 h-4 text-primary flex-shrink-0" />
+                              <span className="truncate leading-tight">
                                 {slotDate.toLocaleTimeString('en-US', {
                                   hour: '2-digit',
                                   minute: '2-digit',
                                 })}
                               </span>
                             </div>
-                            <div className="text-xs text-muted-foreground font-medium truncate">
+                            <div className="text-sm font-semibold text-foreground/90 truncate">
                               {slotDate.toLocaleDateString('en-US', {
                                 weekday: 'short',
                                 month: 'short',
@@ -1023,13 +1023,13 @@ export default function StudentOffers() {
                           </div>
 
                           {/* Capacity Badge */}
-                          <div className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-bold rounded-full ${
+                          <div className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold rounded-full border ${
                             isLowCapacity 
-                              ? 'bg-orange-500/15 text-orange-700 dark:text-orange-300 border border-orange-500/30' 
-                              : 'bg-green-500/15 text-green-700 dark:text-green-300 border border-green-500/30'
+                              ? 'bg-orange-500/20 text-orange-700 dark:text-orange-300 border-orange-500/40' 
+                              : 'bg-green-500/20 text-green-700 dark:text-green-300 border-green-500/40'
                           }`}>
-                            <div className={`w-1 h-1 rounded-full ${isLowCapacity ? 'bg-orange-500' : 'bg-green-500'} animate-pulse`}></div>
-                            {spotsLeft}
+                            <div className={`w-1.5 h-1.5 rounded-full ${isLowCapacity ? 'bg-orange-600' : 'bg-green-600'} animate-pulse`}></div>
+                            <span>{spotsLeft} left</span>
                           </div>
 
                           {/* Location - Only show if available and slot not too small */}

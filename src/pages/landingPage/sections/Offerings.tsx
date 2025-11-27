@@ -20,7 +20,7 @@ const Offerings = () => {
     {
       icon: Users,
       number: "02",
-      title: "Networking Events",
+      title: "Networking Event",
       description:
         "Engage directly with industry professionals through curated networking sessions.",
       details:

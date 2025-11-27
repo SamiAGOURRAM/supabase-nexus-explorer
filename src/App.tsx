@@ -28,6 +28,7 @@ const queryClient = new QueryClient({
 // Lazy load pages for better performance
 const LandingPage = lazy(() => import("./pages/landingPage"));
 const About = lazy(() => import("./pages/About"));
+const AboutheINF = lazy(() => import("./pages/AboutheINF"));
 const Contact = lazy(() => import("./pages/Contact"));
 const SetPassword = lazy(() => import("./pages/auth/SetPassword"));
 const Login = lazy(() => import("./pages/Login"));
@@ -83,6 +84,7 @@ function AppRoutes() {
           {/* Public Routes */}
           <Route path="/" element={<LandingPage />} />
           <Route path="/about" element={<About />} />
+          <Route path="/aboutheinf" element={<AboutheINF />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
