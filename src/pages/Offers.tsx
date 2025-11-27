@@ -186,7 +186,7 @@ export default function Offers() {
                 Discover Curated Internship Offers
               </h2>
               <p className="text-lg text-gray-600 mb-8 leading-relaxed">
-                Compare openings from verified companies, understand their focus areas, and secure your interview slot for the next Nexus hiring sprint.
+                Compare openings from verified companies, understand their focus areas, and secure your interview slot for the next inf hiring sprint.
               </p>
 
               <div className="flex flex-wrap gap-3">

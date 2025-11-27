@@ -5,6 +5,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import LoadingScreen from "./components/shared/LoadingScreen";
 import ProtectedRoute from "./components/shared/ProtectedRoute";
 import ErrorBoundary from "./components/shared/ErrorBoundary";
+import ScrollToTop from "./components/shared/ScrollToTop";
 import ToastContainer from "./components/shared/ToastContainer";
 import { ToastProvider, useToast } from "./contexts/ToastContext";
 import { UserProvider } from "./contexts/UserContext";
@@ -75,6 +76,7 @@ function AppRoutes() {
   
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <ToastContainer toasts={toasts} onRemove={removeToast} />
       <Suspense fallback={<LoadingScreen />}>
         <Routes>

@@ -72,12 +72,12 @@ const Hero = () => {
               className="group-hover:translate-x-1 transition-transform"
             />
           </button>
-          <a
-            href="#offerings"
+          <button
+            onClick={() => navigate("/about")}
             className="px-8 py-4 bg-white/10 backdrop-blur-sm text-white rounded-lg hover:bg-white/20 transition-all duration-300 font-semibold text-lg border border-white/20"
           >
             Learn More
-          </a>
+          </button>
         </div>
 
         {/* Stats */}

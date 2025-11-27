@@ -336,11 +336,11 @@ export default function Signup() {
               </div>
 
               <h1 className="text-4xl sm:text-5xl font-bold leading-tight mb-6">
-                Your Nexus profile starts here.
+                Your inf profile starts here.
               </h1>
 
               <p className="text-lg text-white/90 leading-relaxed">
-                Complete the secure signup once to unlock priority booking, personalized schedules, and curated employer updates for each Nexus hiring sprint.
+                Complete the secure signup once to unlock priority booking, personalized schedules, and curated employer updates for each inf hiring sprint.
               </p>
             </div>
 
@@ -384,12 +384,12 @@ export default function Signup() {
 
             <div className="mt-auto pt-6 relative z-10">
               <p className="text-xs text-white/70 mb-2">
-                Need assistance? Contact the Nexus events team at{' '}
+                Need assistance? Contact the inf events team at{' '}
                 <a
-                  href="mailto:nexus@um6p.ma"
+                  href="mailto:inf@um6p.ma"
                   className="font-semibold text-[#ffb300] hover:text-[#ffc940] transition-colors"
                 >
-                  nexus@um6p.ma
+                  inf@um6p.ma
                 </a>
               </p>
             </div>
@@ -419,7 +419,7 @@ export default function Signup() {
               <div>
                 <p className="text-sm font-semibold text-[#007e40]">UM6P students only</p>
                 <p className="text-xs text-[#007e40]/80">
-                  Companies join by invitation—contact the Nexus administrator for partner access.
+                  Companies join by invitation—contact the inf administrator for partner access.
                 </p>
               </div>
             </div>

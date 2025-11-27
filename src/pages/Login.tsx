@@ -778,7 +778,7 @@ const LOGIN_HIGHLIGHTS: Highlight[] = [
 
                       ? 'Use your UM6P student address. Gmail works for official testing accounts.'
 
-                      : 'Sign in with the company profile that was invited to Nexus.'}
+                      : 'Sign in with the company profile that was invited to inf.'}
 
                   </p>
 
