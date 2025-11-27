@@ -12,7 +12,7 @@ const WhyINF = () => {
       features: [
         "50+ Partner Companies",
         "Direct Access to Recruiters",
-        "Exclusive Networking Events",
+        "Exclusive Networking Event",
       ],
     },
     {

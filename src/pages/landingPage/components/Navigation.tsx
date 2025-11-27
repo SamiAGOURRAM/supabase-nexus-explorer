@@ -101,13 +101,13 @@ const Navigation = () => {
         <div className="flex justify-between items-center h-20 md:h-24">
           {/* Logo */}
           <div className="flex-shrink-0 flex items-center">
-            <Link to="/" className="flex items-center group">
+            <a href="/" className="flex items-center group">
               <img
                 src={isInVideoSection ? "/logos/1.svg" : "/logos/2.svg"}
                 alt="INF Logo"
                 className="h-32 sm:h-36 md:h-40 lg:h-44 w-auto transition-all duration-300 group-hover:scale-105"
               />
-            </Link>
+            </a>
           </div>
 
           {/* Desktop Navigation */}
