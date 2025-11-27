@@ -44,7 +44,7 @@ const Navigation = () => {
           <div className="flex-shrink-0 flex items-center">
             <Link to="/" className="flex items-center group">
               <img
-                src="/logos/1.svg"
+                src={isInVideoSection ? "/logos/1.svg" : "/logos/2.svg"}
                 alt="INF Logo"
                 className="h-32 sm:h-36 md:h-40 lg:h-44 w-auto transition-all duration-300 group-hover:scale-105"
               />
