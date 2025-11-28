@@ -640,9 +640,9 @@ const LOGIN_HIGHLIGHTS: Highlight[] = [
 
               <p className="mt-auto pt-6 text-xs text-white/70 relative z-10">
 
-                Need assistance? Contact the Nexus events team at{' '}
+                Need assistance? Contact the INF events team at{' '}
 
-                <a href="mailto:nexus@um6p.ma" className="font-semibold text-[#ffb300] hover:text-[#ffc940] transition-colors">nexus@um6p.ma</a>
+                <a href="mailto:inf.um6p@um6p.ma" className="font-semibold text-[#ffb300] hover:text-[#ffc940] transition-colors">inf.um6p@um6p.ma</a>
 
               </p>
 

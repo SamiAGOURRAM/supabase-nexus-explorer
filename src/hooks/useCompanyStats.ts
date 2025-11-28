@@ -83,22 +83,18 @@ export function useCompanyStats(companyId: string | null, eventId: string | null
         .eq('is_active', true);
 
       // Get total slots for this event
-      const { count: totalSlots } = await supabase
+      const { data: slotsData } = await supabase
         .from('event_slots')
-        .select('*', { count: 'exact', head: true })
+        .select('id, capacity')
         .eq('company_id', companyId)
         .eq('event_id', eventId)
         .eq('is_active', true);
+
+      const totalSlots = slotsData?.length || 0;
+      const totalCapacity = slotsData?.reduce((sum, slot) => sum + (slot.capacity || 2), 0) || 0;
 
       // First get slot IDs for this event and company
-      const { data: companyEventSlots } = await supabase
-        .from('event_slots')
-        .select('id')
-        .eq('event_id', eventId)
-        .eq('company_id', companyId)
-        .eq('is_active', true);
-
-      const slotIds = companyEventSlots?.map(s => s.id) || [];
+      const slotIds = slotsData?.map(s => s.id) || [];
 
       // Get students scheduled for this event - only if we have slots
       let studentsScheduled = 0;
@@ -126,9 +122,9 @@ export function useCompanyStats(companyId: string | null, eventId: string | null
         bookings = data || [];
       }
 
-      // Calculate utilization rate
-      const utilizationRate = totalSlots && totalSlots > 0 
-        ? Math.round(studentsScheduled / totalSlots * 100) 
+      // Calculate utilization rate based on total capacity
+      const utilizationRate = totalCapacity && totalCapacity > 0 
+        ? Math.round((studentsScheduled / totalCapacity) * 100) 
         : 0;
 
       const offerIds = [...new Set(bookings?.map((b: any) => b.event_slots?.offer_id).filter(Boolean))];
