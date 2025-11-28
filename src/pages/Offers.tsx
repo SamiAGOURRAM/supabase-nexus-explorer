@@ -14,6 +14,15 @@ type OfferWithDetails = Offer & {
 
 type FilterValue = 'all' | 'Opérationnel' | 'Administratif';
 
+// Helper function to translate interest tags to English
+const translateInterestTag = (tag: string): string => {
+  const translations: Record<string, string> = {
+    'Opérationnel': 'Operational',
+    'Administratif': 'Administrative',
+  };
+  return translations[tag] || tag;
+};
+
 const FILTER_OPTIONS: Array<{ value: FilterValue; label: string; helper: string }> = [
   {
     value: 'all',
@@ -22,12 +31,12 @@ const FILTER_OPTIONS: Array<{ value: FilterValue; label: string; helper: string 
   },
   {
     value: 'Opérationnel',
-    label: 'Opérationnel',
+    label: 'Operational',
     helper: 'Hands-on, on-site experiences',
   },
   {
     value: 'Administratif',
-    label: 'Administratif',
+    label: 'Administrative',
     helper: 'Coordination & support tracks',
   },
 ];
@@ -196,7 +205,7 @@ export default function Offers() {
                 Discover Curated Internship Offers
               </h2>
               <p className="text-lg text-gray-600 mb-8 leading-relaxed">
-                Compare openings from verified companies, understand their focus areas, and secure your interview slot for the next inf hiring sprint.
+                Browse internship opportunities from trusted companies, explore what they're looking for, and book your interview slot for the upcoming INF event.
               </p>
 
               <div className="flex flex-wrap gap-3">
@@ -401,7 +410,7 @@ export default function Offers() {
                             : 'bg-[#ffb300]/10 text-[#ffb300]'
                         }`}
                       >
-                        {offer.interest_tag}
+                        {translateInterestTag(offer.interest_tag)}
                       </span>
                     </div>
 

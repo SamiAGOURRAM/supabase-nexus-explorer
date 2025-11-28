@@ -1,6 +1,38 @@
 import { Mail, MapPin } from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
 
 const Footer = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const handleScrollToSection = (sectionId: string, e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    
+    // If we're on the landing page, scroll to the section
+    if (location.pathname === '/') {
+      // Small delay to ensure DOM is ready
+      setTimeout(() => {
+        const element = document.getElementById(sectionId);
+        if (element) {
+          // Account for fixed header if needed
+          const headerOffset = 80;
+          const elementPosition = element.getBoundingClientRect().top;
+          const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+
+          window.scrollTo({
+            top: offsetPosition,
+            behavior: 'smooth'
+          });
+        }
+      }, 50);
+    } else {
+      // If we're on a different page, navigate to landing page with hash
+      navigate(`/#${sectionId}`);
+      // Store the section ID to scroll after navigation
+      sessionStorage.setItem('scrollToSection', sectionId);
+    }
+  };
+
   return (
     <footer className="bg-gray-900 text-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -27,7 +59,7 @@ const Footer = () => {
             <ul className="space-y-2">
               <li>
                 <a
-                  href="#offerings"
+                  href="/offers"
                   className="text-gray-400 hover:text-[#ffb300] transition-colors"
                 >
                   Offerings
@@ -36,7 +68,8 @@ const Footer = () => {
               <li>
                 <a
                   href="#about"
-                  className="text-gray-400 hover:text-[#ffb300] transition-colors"
+                  onClick={(e) => handleScrollToSection('about', e)}
+                  className="text-gray-400 hover:text-[#ffb300] transition-colors cursor-pointer"
                 >
                   About INF
                 </a>

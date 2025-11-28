@@ -89,7 +89,7 @@ const WhyINF = () => {
               career advancement.
             </p>
             <Link
-              to="/about"
+              to="/aboutheinf"
               className="text-[#007e40] font-semibold hover:text-[#005a2d] transition-colors flex items-center gap-2 group inline-block"
             >
               Learn More
@@ -123,7 +123,7 @@ const WhyINF = () => {
               community.
             </p>
             <Link
-              to="/about"
+              to="/aboutheinf"
               className="text-[#007e40] font-semibold hover:text-[#005a2d] transition-colors flex items-center gap-2 group inline-block"
             >
               Learn More
