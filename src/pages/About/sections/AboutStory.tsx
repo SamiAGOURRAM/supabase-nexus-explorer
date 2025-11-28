@@ -43,14 +43,11 @@ const AboutStory = () => {
               hospitality groups. It is a student-led initiative designed to
               enrich academic learning with real-world experience.
             </p>
-            <p className="text-lg text-gray-700 mb-8 leading-relaxed">
+            <p className="text-lg text-gray-700 leading-relaxed">
               Over the years, INF has supported students in securing internships
               across prestigious brands, giving them a head start in their
               professional journeys.
             </p>
-            <button className="px-8 py-3 bg-[#ffb300] text-white rounded-lg hover:bg-[#e6a200] transition-all duration-200 font-semibold shadow-lg hover:shadow-xl">
-              Learn More
-            </button>
           </div>
         </div>
       </div>

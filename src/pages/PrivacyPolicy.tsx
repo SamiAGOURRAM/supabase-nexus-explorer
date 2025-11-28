@@ -24,7 +24,7 @@ export default function PrivacyPolicy() {
           <section>
             <h2 className="text-2xl font-bold text-foreground mb-4">Introduction</h2>
             <p className="text-muted-foreground leading-relaxed">
-              This Privacy Policy explains how the INF Platform 2.0 (Nexus Explorer) collects, uses, 
+              This Privacy Policy explains how the INF Platform 2.0 (inf Explorer) collects, uses, 
               and protects your personal data in compliance with GDPR (General Data Protection Regulation) 
               and Moroccan data protection laws. We are committed to protecting your privacy and ensuring 
               transparency about our data practices.
@@ -117,7 +117,7 @@ export default function PrivacyPolicy() {
               for the purposes stated in this Privacy Policy. You have the right to:
             </p>
             <ul className="list-disc list-inside space-y-2 text-muted-foreground ml-4">
-              <li><strong>Withdraw your consent</strong> at any time by contacting us at nexus@um6p.ma</li>
+              <li><strong>Withdraw your consent</strong> at any time by contacting us at inf.um6p@um6p.ma</li>
               <li><strong>Access your data</strong> by downloading it from your profile page</li>
               <li><strong>Correct your data</strong> by editing your profile at any time</li>
               <li><strong>Delete your account</strong> and all associated data through your profile settings</li>
@@ -159,7 +159,7 @@ export default function PrivacyPolicy() {
               <div className="border-l-4 border-primary pl-4">
                 <h3 className="font-semibold text-foreground mb-1">Right to Withdraw Consent</h3>
                 <p className="text-muted-foreground text-sm">
-                  You can withdraw your consent at any time by contacting nexus@um6p.ma or through your profile settings.
+                  You can withdraw your consent at any time by contacting inf.um6p@um6p.ma or through your profile settings.
                 </p>
               </div>
               <div className="border-l-4 border-primary pl-4">
@@ -170,7 +170,7 @@ export default function PrivacyPolicy() {
               </div>
             </div>
             <p className="text-muted-foreground mt-4">
-              To exercise any of these rights, please contact us at <strong>nexus@um6p.ma</strong> or 
+              To exercise any of these rights, please contact us at <strong>inf.um6p@um6p.ma</strong> or 
               use the features available in your profile settings.
             </p>
           </section>
@@ -225,7 +225,7 @@ export default function PrivacyPolicy() {
             </p>
             <div className="bg-muted rounded-lg p-4">
               <p className="text-foreground">
-                <strong>Email:</strong> <a href="mailto:nexus@um6p.ma" className="text-primary hover:underline">nexus@um6p.ma</a>
+                <strong>Email:</strong> <a href="mailto:inf.um6p@um6p.ma" className="text-primary hover:underline">inf.um6p@um6p.ma</a>
               </p>
               <p className="text-foreground mt-2">
                 <strong>Organization:</strong> UM6P - School of Hospitality Business and Management (SHBM)

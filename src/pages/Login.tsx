@@ -534,19 +534,21 @@ const LOGIN_HIGHLIGHTS: Highlight[] = [
 
         <div className="relative z-10 mx-auto flex min-h-screen max-w-7xl flex-col gap-8 px-4 py-12 sm:px-6 lg:px-8">
 
-          <Link
-
-            to="/offers"
-
-            className="inline-flex w-fit items-center gap-2 text-sm font-medium text-gray-600 transition-colors hover:text-[#007e40] mb-4"
-
-          >
-
-            <ArrowLeft className="h-4 w-4" />
-
-            Back to offers
-
-          </Link>
+          <div className="flex items-center justify-between mb-4">
+            <Link
+              to="/"
+              className="inline-flex w-fit items-center gap-2 text-sm font-medium text-gray-600 transition-colors hover:text-[#007e40]"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to home
+            </Link>
+            <Link
+              to="/offers"
+              className="inline-flex w-fit items-center gap-2 text-sm font-medium text-gray-600 transition-colors hover:text-[#007e40]"
+            >
+              Back to offers
+            </Link>
+          </div>
 
 
 
@@ -778,7 +780,7 @@ const LOGIN_HIGHLIGHTS: Highlight[] = [
 
                       ? 'Use your UM6P student address. Gmail works for official testing accounts.'
 
-                      : 'Sign in with the company profile that was invited to Nexus.'}
+                      : 'Sign in with the company profile that was invited to inf.'}
 
                   </p>
 

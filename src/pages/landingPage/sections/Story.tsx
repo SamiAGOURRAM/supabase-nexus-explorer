@@ -1,4 +1,5 @@
 import { Award, Heart, Target } from "lucide-react";
+import { Link } from "react-router-dom";
 import DecorativeShape from "../components/DecorativeShape";
 
 const Story = () => {
@@ -48,9 +49,12 @@ const Story = () => {
               Built by SHBM students, powered by industry connections, and
               designed to help you take control of your career journey.
             </p>
-            <button className="px-8 py-3 bg-[#ffb300] text-white rounded-lg hover:bg-[#e6a200] transition-all duration-200 font-semibold shadow-lg hover:shadow-xl">
+            <Link
+              to="/about"
+              className="inline-block px-8 py-3 bg-[#ffb300] text-white rounded-lg hover:bg-[#e6a200] transition-all duration-200 font-semibold shadow-lg hover:shadow-xl"
+            >
               Learn More
-            </button>
+            </Link>
           </div>
         </div>
 

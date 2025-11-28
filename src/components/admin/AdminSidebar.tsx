@@ -8,7 +8,8 @@ import {
   LogOut,
   Clock,
   Menu,
-  X
+  X,
+  Home
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -96,6 +97,15 @@ export default function AdminSidebar({ onSignOut }: AdminSidebarProps) {
 
         {/* Navigation */}
         <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto">
+          {/* Home Link */}
+          <Link
+            to="/"
+            onClick={() => setIsOpen(false)}
+            className="flex items-center gap-3 px-4 py-3 rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground transition-all duration-200 border border-border"
+          >
+            <Home className="w-5 h-5 flex-shrink-0" />
+            <span className="font-medium">Home</span>
+          </Link>
           {navItems.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.path);

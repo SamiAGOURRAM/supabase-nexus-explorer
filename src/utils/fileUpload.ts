@@ -5,6 +5,7 @@
  */
 
 import { supabase } from '@/lib/supabase';
+import { error as logError } from '@/utils/logger';
 
 export interface UploadResult {
   url: string;
@@ -62,12 +63,13 @@ export async function uploadProfilePhoto(
       url: urlData.publicUrl,
       path: fileName
     };
-  } catch (error: any) {
-    console.error('Error uploading profile photo:', error);
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : 'Failed to upload profile photo';
+    logError('Error uploading profile photo:', err);
     return {
       url: '',
       path: '',
-      error: error.message || 'Failed to upload profile photo'
+      error: errorMessage
     };
   }
 }
@@ -130,12 +132,13 @@ export async function uploadResume(
       url: urlData.signedUrl,
       path: fileName
     };
-  } catch (error: any) {
-    console.error('Error uploading resume:', error);
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : 'Failed to upload resume';
+    logError('Error uploading resume:', err);
     return {
       url: '',
       path: '',
-      error: error.message || 'Failed to upload resume'
+      error: errorMessage
     };
   }
 }
@@ -159,10 +162,11 @@ export async function deleteFile(
     }
 
     return {};
-  } catch (error: any) {
-    console.error('Error deleting file:', error);
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : 'Failed to delete file';
+    logError('Error deleting file:', err);
     return {
-      error: error.message || 'Failed to delete file'
+      error: errorMessage
     };
   }
 }
@@ -219,12 +223,13 @@ export async function uploadLogo(
       url: urlData.publicUrl,
       path: fileName
     };
-  } catch (error: any) {
-    console.error('Error uploading company logo:', error);
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : 'Failed to upload company logo';
+    logError('Error uploading company logo:', err);
     return {
       url: '',
       path: '',
-      error: error.message || 'Failed to upload company logo'
+      error: errorMessage
     };
   }
 }
@@ -249,9 +254,9 @@ export async function getResumeUrl(
     }
 
     return data.signedUrl;
-  } catch (error: any) {
-    console.error('Error getting resume URL:', error);
-    throw error;
+  } catch (err) {
+    logError('Error getting resume URL:', err);
+    throw err;
   }
 }
 

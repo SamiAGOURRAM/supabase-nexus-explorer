@@ -1,4 +1,4 @@
-# Supabase Nexus Explorer (INF Platform 2.0)
+# Supabase inf Explorer (INF Platform 2.0)
 
 A comprehensive recruitment event management platform for connecting students with companies during speed recruiting events. Built with React, TypeScript, Vite, and Supabase.
 
@@ -39,7 +39,7 @@ This platform manages recruitment events where:
 ## 📁 Project Structure
 
 ```
-supabase-nexus-explorer/
+supabase-inf-explorer/
 ├── src/
 │   ├── components/          # React components
 │   │   ├── admin/          # Admin-specific components
@@ -115,7 +115,7 @@ Key tables:
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd supabase-nexus-explorer
+   cd supabase-inf-explorer
    ```
 
 2. **Install dependencies**

@@ -710,25 +710,32 @@ export default function OfferDetail() {
                             setSelectedSlotId(slot.id);
                             checkSlotConflict(slot.id);
                           }}
-                          className={`relative p-3 rounded-lg border-2 transition-all hover:scale-105 ${
+                          className={`relative flex flex-col items-start p-4 rounded-lg border-2 transition-all hover:scale-105 min-h-[100px] ${
                             isSelected 
                               ? 'border-primary bg-primary/5 shadow-lg' 
                               : 'border-border hover:border-primary bg-background'
                           }`}
                         >
-                          <div className="text-sm font-semibold text-foreground mb-1">
-                            {formatTime(slot.start_time)} - {formatTime(slot.end_time)}
-                          </div>
-                          <div className="text-xs text-muted-foreground mb-2">
-                            {formatDate(slot.start_time)}
-                          </div>
-                          <div className={`absolute top-2 right-2 px-2 py-0.5 text-xs rounded-full ${
+                          {/* Capacity Badge - Top Right */}
+                          <div className={`absolute top-2 right-2 px-2.5 py-1 text-xs font-bold rounded-full border shadow-sm ${
                             isLowCapacity 
-                              ? 'bg-orange-500/10 text-orange-600' 
-                              : 'bg-green-500/10 text-green-600'
+                              ? 'bg-orange-500/20 text-orange-700 border-orange-500/30' 
+                              : 'bg-green-500/20 text-green-700 border-green-500/30'
                           }`}>
                             {spotsLeft} left
                           </div>
+                          
+                          {/* Time Range */}
+                          <div className="text-base font-bold text-foreground mb-2 leading-tight pr-12">
+                            {formatTime(slot.start_time)} - {formatTime(slot.end_time)}
+                          </div>
+                          
+                          {/* Date */}
+                          <div className="text-sm font-semibold text-foreground/70 mb-auto">
+                            {formatDate(slot.start_time)}
+                          </div>
+                          
+                          {/* Selected Indicator */}
                           {isSelected && (
                             <div className="absolute inset-0 rounded-lg ring-2 ring-primary pointer-events-none" />
                           )}

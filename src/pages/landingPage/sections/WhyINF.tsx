@@ -1,4 +1,5 @@
 import { Building2, Handshake, TrendingUp, Users2 } from "lucide-react";
+import { Link } from "react-router-dom";
 import DecorativeShape from "../components/DecorativeShape";
 
 const WhyINF = () => {
@@ -11,7 +12,7 @@ const WhyINF = () => {
       features: [
         "50+ Partner Companies",
         "Direct Access to Recruiters",
-        "Exclusive Networking Events",
+        "Exclusive Networking Event",
       ],
     },
     {
@@ -53,7 +54,7 @@ const WhyINF = () => {
         {/* Section Header */}
         <div className="text-center mb-16">
           <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4">
-            Why an INF?
+            Why INF?
           </h2>
           <p className="text-lg text-gray-600 max-w-3xl mx-auto">
             The INF provides unparalleled access to internship pathways,
@@ -87,8 +88,8 @@ const WhyINF = () => {
               hospitality sector, ensuring you meet the right people for your
               career advancement.
             </p>
-            <a
-              href="#"
+            <Link
+              to="/aboutheinf"
               className="text-[#007e40] font-semibold hover:text-[#005a2d] transition-colors flex items-center gap-2 group inline-block"
             >
               Learn More
@@ -105,7 +106,7 @@ const WhyINF = () => {
                   d="M9 5l7 7-7 7"
                 />
               </svg>
-            </a>
+            </Link>
           </div>
         </div>
 
@@ -121,8 +122,8 @@ const WhyINF = () => {
               the needs of aspiring professionals, fostering a supportive
               community.
             </p>
-            <a
-              href="#"
+            <Link
+              to="/aboutheinf"
               className="text-[#007e40] font-semibold hover:text-[#005a2d] transition-colors flex items-center gap-2 group inline-block"
             >
               Learn More
@@ -139,7 +140,7 @@ const WhyINF = () => {
                   d="M9 5l7 7-7 7"
                 />
               </svg>
-            </a>
+            </Link>
           </div>
 
           {/* Image Right */}
