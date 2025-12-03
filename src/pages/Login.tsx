@@ -778,9 +778,9 @@ const LOGIN_HIGHLIGHTS: Highlight[] = [
 
                     {loginAs === 'student'
 
-                      ? 'Use your UM6P student address. Gmail works for official testing accounts.'
+                      ? 'Use your UM6P student address (@um6p.ma only).'
 
-                      : 'Sign in with the company profile that was invited to inf.'}
+                      : 'Sign in with the company profile that was invited to INF.'}
 
                   </p>
 

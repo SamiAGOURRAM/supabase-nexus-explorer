@@ -9,7 +9,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/contexts/ToastContext';
-import { User, Save, GraduationCap, Phone, FileText, Mail, Languages, Briefcase, Linkedin, BookOpen, Calendar, X, Trash2, AlertTriangle, Download, Building2, Clock, MapPin } from 'lucide-react';
+import { User, Save, GraduationCap, Phone, FileText, Mail, Languages, Briefcase, Linkedin, BookOpen, Calendar, X, AlertTriangle, Building2, Clock, MapPin } from 'lucide-react';
 import { validatePhoneNumber } from '@/utils/securityUtils';
 import { error as logError } from '@/utils/logger';
 import LoadingScreen from '@/components/shared/LoadingScreen';
@@ -17,7 +17,6 @@ import ErrorDisplay from '@/components/shared/ErrorDisplay';
 import ImageUpload from '@/components/shared/ImageUpload';
 import FileUpload from '@/components/shared/FileUpload';
 import { uploadProfilePhoto, uploadResume } from '@/utils/fileUpload';
-import { exportUserData, downloadUserDataAsCsv } from '@/utils/dataExport';
 import StudentLayout from '@/components/student/StudentLayout';
 
 type StudentProfile = {
@@ -56,10 +55,6 @@ export default function StudentProfile() {
     navigate('/');
   };
   const [languageInput, setLanguageInput] = useState('');
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [deleteConfirmText, setDeleteConfirmText] = useState('');
-  const [exportingData, setExportingData] = useState(false);
   const [bookings, setBookings] = useState<any[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(false);
   const { showSuccess, showError } = useToast();
@@ -135,10 +130,7 @@ export default function StudentProfile() {
 
     if (!profile) return false;
 
-    // Full name is required
-    if (!profile.full_name || profile.full_name.trim().length < 2) {
-      newErrors.full_name = 'Full name must be at least 2 characters';
-    }
+    // Full name is immutable - no validation needed as it cannot be changed
 
     // Student number is required
     if (!profile.student_number || profile.student_number.trim().length === 0) {
@@ -276,7 +268,7 @@ export default function StudentProfile() {
       const { error } = await supabase
         .from('profiles')
         .update({
-          full_name: profile.full_name.trim(),
+          // full_name is immutable - only admin can change it
           phone: profile.phone?.trim() || null,
           student_number: profile.student_number?.trim() || null,
           specialization: profile.specialization?.trim() || null,
@@ -366,98 +358,6 @@ export default function StudentProfile() {
     }
   };
 
-  const handleExportData = async () => {
-    if (!profile) return;
-    
-    setExportingData(true);
-    try {
-      const userData = await exportUserData(profile.id);
-      if (userData) {
-        downloadUserDataAsCsv(userData);
-        showSuccess('Your data has been exported successfully!');
-      } else {
-        showError('Failed to export data. Please try again.');
-      }
-    } catch (err: any) {
-      logError('Error exporting data:', err);
-      showError('Failed to export data. Please try again.');
-    } finally {
-      setExportingData(false);
-    }
-  };
-
-  const handleDeleteAccount = async () => {
-    if (deleteConfirmText !== 'DELETE') {
-      showError('Please type DELETE to confirm account deletion');
-      return;
-    }
-
-    if (!profile) return;
-
-    setDeleting(true);
-    try {
-      // Store profile data before deletion (we'll need it for file cleanup)
-      const profilePhotoUrl = profile.profile_photo_url;
-      const resumeUrl = profile.resume_url;
-
-      // Step 1: Delete files from storage FIRST (before profile deletion)
-      // This ensures we can still access the file paths
-      if (profilePhotoUrl) {
-        try {
-          // Extract path from URL - handle both signed URLs and direct paths
-          const photoPath = profilePhotoUrl.includes('/storage/v1/object/public/')
-            ? profilePhotoUrl.split('/storage/v1/object/public/')[1]
-            : profilePhotoUrl.split('/').slice(-2).join('/');
-          await supabase.storage.from('profile-photos').remove([photoPath]);
-        } catch (err) {
-          // Non-critical error - log but continue with deletion
-          logError('Error deleting profile photo:', err);
-        }
-      }
-
-      if (resumeUrl) {
-        try {
-          // Extract path from signed URL or use stored path
-          let resumePath: string | null = null;
-          if (resumeUrl.includes('/storage/v1/object/public/resumes/')) {
-            resumePath = resumeUrl.split('/storage/v1/object/public/resumes/')[1].split('?')[0];
-          } else if (resumeUrl.includes('/resumes/')) {
-            resumePath = resumeUrl.split('/resumes/')[1].split('?')[0];
-          }
-          
-          if (resumePath) {
-            await supabase.storage.from('resumes').remove([resumePath]);
-          }
-        } catch (err) {
-          // Non-critical error - log but continue with deletion
-          logError('Error deleting resume:', err);
-        }
-      }
-
-      // Step 2: Delete all user data from public schema (this will cascade)
-      const { error: deleteError } = await supabase.rpc('delete_user_account');
-
-      if (deleteError) {
-        throw new Error(`Failed to delete account data: ${deleteError.message}`);
-      }
-
-      // Step 3: Sign out the user (this invalidates the session)
-      await supabase.auth.signOut();
-      
-      // Step 4: Show success message and redirect
-      showSuccess('Your account has been deleted successfully. You have been signed out.');
-      navigate('/login', { 
-        state: { 
-          message: 'Your account has been deleted successfully. All your data has been removed in compliance with GDPR.' 
-        } 
-      });
-    } catch (err: any) {
-      logError('Error deleting account:', err);
-      showError(err.message || 'Failed to delete account. Please try again or contact support.');
-      setDeleting(false);
-    }
-  };
-
   if (loading) {
     return <LoadingScreen message="Loading profile..." />;
   }
@@ -533,15 +433,13 @@ export default function StudentProfile() {
               <input
                 type="text"
                 value={profile.full_name}
-                onChange={(e) => setProfile({ ...profile, full_name: e.target.value })}
-                className={`w-full px-4 py-2 bg-background border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground ${
-                  errors.full_name ? 'border-destructive' : 'border-border'
-                }`}
-                required
+                readOnly
+                disabled
+                className="w-full px-4 py-2 bg-gray-100 border border-border rounded-lg text-foreground cursor-not-allowed"
               />
-              {errors.full_name && (
-                <p className="mt-1 text-xs text-destructive">{errors.full_name}</p>
-              )}
+              <p className="mt-1 text-xs text-muted-foreground">
+                Full name cannot be modified. Contact the administrator at inf.um6p@um6p.ma for corrections.
+              </p>
             </div>
 
             {/* Student Number and Phone */}
@@ -926,15 +824,7 @@ export default function StudentProfile() {
               )}
             </div>
 
-            <div className="flex justify-between items-center pt-4 border-t border-border">
-              <button
-                onClick={handleExportData}
-                disabled={exportingData}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary hover:text-primary/80 transition-colors disabled:opacity-50"
-              >
-                <Download className="w-4 h-4" />
-                {exportingData ? 'Exporting...' : 'Download My Data (GDPR)'}
-              </button>
+            <div className="flex justify-end items-center pt-4 border-t border-border">
               <div className="flex gap-3">
                 <Link
                   to="/student"
@@ -956,71 +846,37 @@ export default function StudentProfile() {
             {/* Account Deletion Section - GDPR Compliance */}
             <div className="mt-8 pt-8 border-t border-border">
               <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-6">
-                <div className="flex items-start gap-3 mb-4">
+                <div className="flex items-start gap-3">
                   <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
                   <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-foreground mb-2">Delete Account</h3>
+                    <h3 className="text-lg font-semibold text-foreground mb-2">Delete Account or Download Your Data</h3>
                     <p className="text-sm text-muted-foreground mb-4">
-                      Permanently delete your account and all associated data. This action cannot be undone.
-                      <br />
-                      <span className="font-medium text-foreground">This will delete:</span>
+                      To request account deletion or download your personal data (GDPR), please contact us via email:
                     </p>
-                    <ul className="text-sm text-muted-foreground space-y-1 mb-4 list-disc list-inside">
-                      <li>Your profile and personal information</li>
-                      <li>All your bookings and interview history</li>
-                      <li>Your uploaded CV/resume and profile photo</li>
-                      <li>All other account-related data</li>
-                    </ul>
+                    <div className="bg-background border border-border rounded-lg p-4 mb-4">
+                      <p className="text-sm font-medium text-foreground mb-2">Email us at:</p>
+                      <a 
+                        href="mailto:inf.um6p@um6p.ma?subject=Account%20Deletion%20Request"
+                        className="text-primary hover:text-primary/80 font-semibold"
+                      >
+                        inf.um6p@um6p.ma
+                      </a>
+                      <p className="text-xs text-muted-foreground mt-3">
+                        Please include "Account Deletion Request" or "Data Download Request" in the subject line.
+                      </p>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      <span className="font-medium text-foreground">Account deletion will permanently remove:</span>
+                      <br />• Your profile and personal information
+                      <br />• All your bookings and interview history
+                      <br />• Your uploaded CV/resume and profile photo
+                      <br />• All other account-related data
+                    </p>
                   </div>
                 </div>
-
-                {!showDeleteConfirm ? (
-                  <button
-                    onClick={() => setShowDeleteConfirm(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 transition-colors text-sm font-medium"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    Delete My Account
-                  </button>
-                ) : (
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-foreground mb-2">
-                        Type <span className="font-mono text-destructive">DELETE</span> to confirm:
-                      </label>
-                      <input
-                        type="text"
-                        value={deleteConfirmText}
-                        onChange={(e) => setDeleteConfirmText(e.target.value)}
-                        placeholder="DELETE"
-                        className="w-full px-4 py-2 bg-background border border-destructive/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-destructive text-foreground"
-                      />
-                    </div>
-                    <div className="flex gap-3">
-                      <button
-                        onClick={() => {
-                          setShowDeleteConfirm(false);
-                          setDeleteConfirmText('');
-                        }}
-                        className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={handleDeleteAccount}
-                        disabled={deleting || deleteConfirmText !== 'DELETE'}
-                        className="flex items-center gap-2 px-4 py-2 bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        {deleting ? 'Deleting...' : 'Permanently Delete Account'}
-                      </button>
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           </div>
-        </div>
         </div>
       </div>
     </StudentLayout>
