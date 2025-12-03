@@ -383,19 +383,49 @@ export default function StudentProfile() {
 
   return (
     <StudentLayout onSignOut={handleSignOut}>
-      <div className="p-6 md:p-8">
-        <div className="max-w-4xl mx-auto space-y-6">
-          <div className="flex items-center gap-3">
-            <User className="w-6 h-6 text-primary" />
-            <h1 className="text-3xl md:text-4xl font-bold text-foreground">My Profile</h1>
+      <div className="min-h-screen bg-gray-50">
+        {/* Hero Section */}
+        <section className="relative overflow-hidden bg-gradient-to-br from-[#1a1f3a] via-[#2a3f5f] to-[#1a1f3a]">
+          <div className="absolute inset-0 opacity-[0.03]">
+            <div
+              className="absolute inset-0"
+              style={{
+                backgroundImage: "radial-gradient(circle at 2px 2px, white 1px, transparent 0)",
+                backgroundSize: "32px 32px",
+              }}
+            />
           </div>
-        {error && (
-          <div className="mb-6">
-            <ErrorDisplay error={error} onRetry={loadProfile} />
+          <div className="absolute top-0 right-1/4 w-96 h-96 bg-[#ffb300] rounded-full mix-blend-screen filter blur-3xl opacity-5" />
+          <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-purple-500 rounded-full mix-blend-screen filter blur-3xl opacity-5" />
+          
+          <div className="relative z-10 max-w-4xl mx-auto px-6 sm:px-8 lg:px-12 py-12 md:py-16">
+            <div className="mb-6">
+              <div className="inline-block mb-3">
+                <div className="flex items-center gap-2 px-4 py-1.5 bg-white/5 backdrop-blur-sm rounded-full border border-white/10">
+                  <User className="w-4 h-4 text-[#ffb300]" />
+                  <span className="text-sm text-white/80 font-medium">Student Profile</span>
+                </div>
+              </div>
+              <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2 leading-tight">
+                My Profile
+              </h1>
+              <p className="text-lg text-white/70 max-w-2xl">
+                Manage your personal information and preferences
+              </p>
+            </div>
           </div>
-        )}
+          <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+        </section>
 
-        <div className="bg-card rounded-xl border border-border p-6">
+        <div className="max-w-4xl mx-auto px-6 sm:px-8 lg:px-12 py-8 space-y-6">
+          
+          {error && (
+            <div className="mb-6">
+              <ErrorDisplay error={error} onRetry={loadProfile} />
+            </div>
+          )}
+
+          <div className="bg-card rounded-xl border border-border p-6">
           <div className="space-y-6">
             {/* Profile Photo */}
             <ImageUpload
@@ -879,7 +909,7 @@ export default function StudentProfile() {
           </div>
         </div>
       </div>
+      </div>
     </StudentLayout>
   );
 }
-

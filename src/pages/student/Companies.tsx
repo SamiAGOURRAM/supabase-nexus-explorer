@@ -149,58 +149,90 @@ export default function StudentCompanies() {
 
   return (
     <StudentLayout onSignOut={handleSignOut}>
-      <div className="p-6 md:p-8">
-        <div className="max-w-7xl mx-auto space-y-6">
-          <div>
-            <h1 className="text-3xl md:text-4xl font-bold text-foreground">Browse Companies</h1>
-            <p className="text-muted-foreground text-sm md:text-base mt-1">Explore verified companies participating in the event</p>
+      <div className="min-h-screen bg-gray-50">
+        {/* Hero Section */}
+        <section className="relative overflow-hidden bg-gradient-to-br from-[#1a1f3a] via-[#2a3f5f] to-[#1a1f3a]">
+          <div className="absolute inset-0 opacity-[0.03]">
+            <div
+              className="absolute inset-0"
+              style={{
+                backgroundImage: "radial-gradient(circle at 2px 2px, white 1px, transparent 0)",
+                backgroundSize: "32px 32px",
+              }}
+            />
           </div>
+          <div className="absolute top-0 right-1/4 w-96 h-96 bg-[#007e40] rounded-full mix-blend-screen filter blur-3xl opacity-5" />
+          <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-[#ffb300] rounded-full mix-blend-screen filter blur-3xl opacity-5" />
+          
+          <div className="relative z-10 max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-12 md:py-16">
+            <div className="mb-6">
+              <div className="inline-block mb-3">
+                <div className="flex items-center gap-2 px-4 py-1.5 bg-white/5 backdrop-blur-sm rounded-full border border-white/10">
+                  <Building2 className="w-4 h-4 text-[#007e40]" />
+                  <span className="text-sm text-white/80 font-medium">{companies.length} Companies</span>
+                </div>
+              </div>
+              <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2 leading-tight">
+                Browse Companies
+              </h1>
+              <p className="text-lg text-white/70 max-w-2xl">
+                Explore verified companies participating in events
+              </p>
+            </div>
+          </div>
+          <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+        </section>
+
+        <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-8 space-y-6">
         {/* Search */}
         <div className="mb-6">
           <div className="relative">
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
               placeholder="Search companies by name, industry, or location..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 bg-background border border-input rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+              className="w-full pl-12 pr-4 py-3.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#007e40]/20 focus:border-[#007e40] transition-all shadow-sm hover:shadow-md text-gray-900 placeholder:text-gray-400"
             />
           </div>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-          <div className="bg-card border border-border rounded-xl p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Companies</p>
-                <p className="text-2xl font-bold text-foreground mt-1">{companies.length}</p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
+          <div className="group bg-white rounded-2xl border border-gray-100 p-6 hover:shadow-xl hover:border-[#007e40]/30 transition-all duration-300">
+            <div className="flex items-start justify-between mb-4">
+              <div className="p-3 bg-gradient-to-br from-[#007e40] to-[#006633] rounded-xl shadow-md group-hover:scale-110 transition-transform duration-300">
+                <Building2 className="w-6 h-6 text-white" strokeWidth={2} />
               </div>
-              <Building2 className="w-8 h-8 text-primary" />
+              <div className="w-2 h-2 rounded-full bg-[#007e40] animate-pulse" />
             </div>
+            <p className="text-sm text-gray-600 font-medium mb-1">Total Companies</p>
+            <p className="text-3xl font-bold text-gray-900">{companies.length}</p>
           </div>
-          <div className="bg-card border border-border rounded-xl p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Verified</p>
-                <p className="text-2xl font-bold text-foreground mt-1">
-                  {companies.filter(c => c.is_verified).length}
-                </p>
+          <div className="group bg-white rounded-2xl border border-gray-100 p-6 hover:shadow-xl hover:border-green-200 transition-all duration-300">
+            <div className="flex items-start justify-between mb-4">
+              <div className="p-3 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl shadow-md group-hover:scale-110 transition-transform duration-300">
+                <CheckCircle className="w-6 h-6 text-white" strokeWidth={2} />
               </div>
-              <CheckCircle className="w-8 h-8 text-success" />
+              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
             </div>
+            <p className="text-sm text-gray-600 font-medium mb-1">Verified</p>
+            <p className="text-3xl font-bold text-gray-900">
+              {companies.filter(c => c.is_verified).length}
+            </p>
           </div>
-          <div className="bg-card border border-border rounded-xl p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Offers</p>
-                <p className="text-2xl font-bold text-foreground mt-1">
-                  {companies.reduce((sum, c) => sum + (c.total_offers || 0), 0)}
-                </p>
+          <div className="group bg-white rounded-2xl border border-gray-100 p-6 hover:shadow-xl hover:border-[#ffb300]/30 transition-all duration-300">
+            <div className="flex items-start justify-between mb-4">
+              <div className="p-3 bg-gradient-to-br from-[#ffb300] to-[#e6a200] rounded-xl shadow-md group-hover:scale-110 transition-transform duration-300">
+                <Briefcase className="w-6 h-6 text-white" strokeWidth={2} />
               </div>
-              <Briefcase className="w-8 h-8 text-warning" />
+              <div className="w-2 h-2 rounded-full bg-[#ffb300] animate-pulse" />
             </div>
+            <p className="text-sm text-gray-600 font-medium mb-1">Total Offers</p>
+            <p className="text-3xl font-bold text-gray-900">
+              {companies.reduce((sum, c) => sum + (c.total_offers || 0), 0)}
+            </p>
           </div>
         </div>
 
@@ -223,59 +255,62 @@ export default function StudentCompanies() {
               <Link
                 key={company.id}
                 to={`/student/companies/${company.id}`}
-                className="bg-card border border-border rounded-xl p-6 hover:border-primary hover:shadow-elegant transition-all group"
+                className="group bg-white border border-gray-100 rounded-2xl p-6 hover:border-[#007e40]/30 hover:shadow-2xl transition-all duration-300"
               >
                 <div className="flex items-start justify-between mb-4">
-                  <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                    <Building2 className="w-6 h-6 text-primary" />
+                  <div className="w-14 h-14 bg-[#007e40]/10 rounded-xl flex items-center justify-center group-hover:bg-[#007e40]/20 group-hover:scale-110 transition-all duration-300 shadow-sm">
+                    <Building2 className="w-7 h-7 text-[#007e40]" strokeWidth={2} />
                   </div>
                   {company.is_verified && (
-                    <div className="w-8 h-8 bg-success/10 rounded-full flex items-center justify-center">
-                      <CheckCircle className="w-5 h-5 text-success" />
+                    <div className="w-8 h-8 bg-green-50 rounded-full flex items-center justify-center border border-green-200">
+                      <CheckCircle className="w-5 h-5 text-green-600" strokeWidth={2.5} />
                     </div>
                   )}
                 </div>
 
-                <h3 className="text-lg font-semibold text-foreground mb-2 line-clamp-1">{company.company_name}</h3>
+                <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-1 group-hover:text-[#007e40] transition-colors">{company.company_name}</h3>
 
                 {company.industry && (
-                  <p className="text-sm text-muted-foreground mb-2">{company.industry}</p>
+                  <p className="text-sm text-gray-500 mb-2 font-medium">{company.industry}</p>
                 )}
 
                 {company.description && (
-                  <p className="text-sm text-muted-foreground mb-4 line-clamp-2 min-h-[2.5rem]">
+                  <p className="text-sm text-gray-600 mb-4 line-clamp-2 min-h-[2.5rem] leading-relaxed">
                     {company.description}
                   </p>
                 )}
 
-                <div className="space-y-2 mb-4">
+                <div className="space-y-2.5 mb-5 bg-gray-50/50 rounded-lg p-3">
                 {company.address && (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <MapPin className="w-3 h-3" />
-                    <span className="truncate">{company.address}</span>
+                  <div className="flex items-center gap-2 text-xs text-gray-600">
+                    <MapPin className="w-3.5 h-3.5 text-red-500 flex-shrink-0" strokeWidth={2.5} />
+                    <span className="truncate font-medium">{company.address}</span>
                   </div>
                 )}
                   {company.website && (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Globe className="w-3 h-3" />
-                      <span className="truncate">{company.website}</span>
+                    <div className="flex items-center gap-2 text-xs text-gray-600">
+                      <Globe className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" strokeWidth={2.5} />
+                      <span className="truncate font-medium">{company.website}</span>
                     </div>
                   )}
                   {company.total_offers !== undefined && (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Briefcase className="w-3 h-3" />
-                      <span>{company.total_offers} {company.total_offers === 1 ? 'offer' : 'offers'}</span>
+                    <div className="flex items-center gap-2 text-xs text-gray-600">
+                      <Briefcase className="w-3.5 h-3.5 text-[#ffb300] flex-shrink-0" strokeWidth={2.5} />
+                      <span className="font-medium">{company.total_offers} {company.total_offers === 1 ? 'offer' : 'offers'}</span>
                     </div>
                   )}
                 </div>
 
-                <div className="flex items-center justify-between pt-4 border-t border-border">
-                  <span className="text-xs text-primary font-medium group-hover:underline">
-                    View Profile →
+                <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                  <span className="text-sm text-[#007e40] font-semibold group-hover:gap-2 flex items-center gap-1 transition-all">
+                    View Profile
+                    <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                    </svg>
                   </span>
                   {company.is_verified && (
-                    <span className="px-2 py-1 bg-success/10 text-success text-xs font-medium rounded-full">
-                      Verified
+                    <span className="px-2.5 py-1 bg-green-50 text-green-700 text-xs font-bold rounded-full border border-green-200">
+                      ✓ Verified
                     </span>
                   )}
                 </div>

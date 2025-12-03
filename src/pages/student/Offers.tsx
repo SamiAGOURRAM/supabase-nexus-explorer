@@ -505,23 +505,41 @@ export default function StudentOffers() {
 
   return (
     <StudentLayout onSignOut={signOut}>
-      <div className="p-6 md:p-8">
-        <div className="max-w-7xl mx-auto space-y-6">
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-3xl md:text-4xl font-bold text-foreground">Browse Offers</h1>
-              <p className="text-muted-foreground text-sm md:text-base mt-1">Find your perfect internship opportunity</p>
-            </div>
-            {filteredOffers.length > 0 && (
-              <div className="flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full">
-                <Briefcase className="w-4 h-4 text-primary" />
-                <span className="text-sm font-semibold text-primary">
-                  {filteredOffers.length} {filteredOffers.length === 1 ? 'Offer' : 'Offers'}
-                </span>
-              </div>
-            )}
+      <div className="min-h-screen bg-gray-50">
+        {/* Hero Section */}
+        <section className="relative overflow-hidden bg-gradient-to-br from-[#1a1f3a] via-[#2a3f5f] to-[#1a1f3a]">
+          <div className="absolute inset-0 opacity-[0.03]">
+            <div
+              className="absolute inset-0"
+              style={{
+                backgroundImage: "radial-gradient(circle at 2px 2px, white 1px, transparent 0)",
+                backgroundSize: "32px 32px",
+              }}
+            />
           </div>
+          <div className="absolute top-0 right-1/4 w-96 h-96 bg-[#ffb300] rounded-full mix-blend-screen filter blur-3xl opacity-5" />
+          <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-[#007e40] rounded-full mix-blend-screen filter blur-3xl opacity-5" />
+          
+          <div className="relative z-10 max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-12 md:py-16">
+            <div className="mb-6">
+              <div className="inline-block mb-3">
+                <div className="flex items-center gap-2 px-4 py-1.5 bg-white/5 backdrop-blur-sm rounded-full border border-white/10">
+                  <Briefcase className="w-4 h-4 text-[#ffb300]" />
+                  <span className="text-sm text-white/80 font-medium">{filteredOffers.length} {filteredOffers.length === 1 ? 'Offer' : 'Offers'} Available</span>
+                </div>
+              </div>
+              <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2 leading-tight">
+                Browse Offers
+              </h1>
+              <p className="text-lg text-white/70 max-w-2xl">
+                Find your perfect internship opportunity
+              </p>
+            </div>
+          </div>
+          <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+        </section>
+
+        <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-8 space-y-6">
 
           {error && (
             <div>
