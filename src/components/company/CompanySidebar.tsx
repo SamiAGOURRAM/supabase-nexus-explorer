@@ -1,16 +1,15 @@
 import { Link, useLocation } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { 
   LayoutDashboard, 
   Briefcase, 
   Users, 
   UserCircle, 
   Clock,
-  LogOut,
   Menu,
   X,
   Home
 } from 'lucide-react';
-import { useState } from 'react';
 
 interface CompanySidebarProps {
   onSignOut: () => void;
@@ -19,12 +18,33 @@ interface CompanySidebarProps {
 export default function CompanySidebar({ onSignOut }: CompanySidebarProps) {
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 10);
+    };
+    
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const isActive = (path: string) => {
+    if (path === '/') {
+      return location.pathname === '/';
+    }
+    if (path === '/company') {
+      return location.pathname === '/company';
+    }
     return location.pathname === path || location.pathname.startsWith(path + '/');
   };
 
   const navItems = [
+    {
+      title: 'Home',
+      path: '/',
+      icon: Home,
+    },
     {
       title: 'Dashboard',
       path: '/company',
@@ -54,80 +74,125 @@ export default function CompanySidebar({ onSignOut }: CompanySidebarProps) {
 
   return (
     <>
-      {/* Mobile Menu Button */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="md:hidden fixed top-4 left-4 z-50 p-2 bg-card border border-border rounded-lg shadow-sm"
-      >
-        {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-      </button>
+      {/* Top Navigation Bar */}
+      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+        isScrolled 
+          ? "bg-transparent backdrop-blur-xl shadow-lg" 
+          : "bg-[#1a1f3a] shadow-md"
+      }`}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-20">
+            {/* Logo/Brand */}
+            <div className="flex-shrink-0">
+              <Link to="/" className="flex items-center group">
+                <img
+                  src={isScrolled ? "/logos/2.svg" : "/logos/1.svg"}
+                  alt="INF Logo"
+                  className="h-44 w-auto transition-all duration-300 group-hover:scale-105"
+                />
+              </Link>
+            </div>
 
-      {/* Overlay */}
-      {isOpen && (
-        <div 
-          className="md:hidden fixed inset-0 bg-background/80 backdrop-blur-sm z-40"
-          onClick={() => setIsOpen(false)}
-        />
-      )}
+            {/* Desktop Navigation */}
+            <div className="hidden lg:flex items-center space-x-1">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                const active = isActive(item.path);
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 font-semibold ${
+                      isScrolled
+                        ? active
+                          ? 'text-[#007e40] bg-[#007e40]/10'
+                          : 'text-gray-900 hover:text-[#007e40] hover:bg-[#007e40]/10'
+                        : active
+                        ? 'text-[#007e40] bg-white/10'
+                        : 'text-white hover:text-white hover:bg-white/10'
+                    }`}
+                  >
+                    <Icon className="w-5 h-5" />
+                    <span>{item.title}</span>
+                  </Link>
+                );
+              })}
+            </div>
 
-      {/* Sidebar */}
-      <aside className={`
-        fixed md:sticky top-0 left-0 z-40
-        w-64 bg-card border-r border-border min-h-screen flex flex-col
-        transition-transform duration-300 ease-in-out
-        ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-      `}>
-        {/* Logo/Header */}
-        <div className="p-6 border-b border-border flex justify-between items-center">
-          <div>
-            <h2 className="text-xl font-bold text-foreground">Company Portal</h2>
-            <p className="text-xs text-muted-foreground mt-1">Recruitment Center</p>
-          </div>
-        </div>
+            {/* Desktop Sign Out Button */}
+            <div className="hidden lg:block">
+              <button
+                onClick={onSignOut}
+                className="bg-[#007e40] text-white px-6 py-2.5 rounded-lg hover:bg-[#006633] transition-all duration-200 font-semibold shadow-lg hover:shadow-xl hover:scale-105"
+              >
+                Sign Out
+              </button>
+            </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto">
-          {/* Home Link */}
-          <Link
-            to="/"
-            onClick={() => setIsOpen(false)}
-            className="flex items-center gap-3 px-4 py-3 rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground transition-all duration-200 border border-border"
-          >
-            <Home className="w-5 h-5 flex-shrink-0" />
-            <span className="font-medium">Home</span>
-          </Link>
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const active = isActive(item.path);
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                onClick={() => setIsOpen(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
-                  active
-                    ? 'bg-primary text-primary-foreground shadow-soft'
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+            {/* Mobile Menu Button */}
+            <div className="lg:hidden flex items-center gap-3">
+              <button
+                onClick={onSignOut}
+                className={`px-4 py-2 rounded-lg transition-all duration-200 font-semibold text-sm ${
+                  isScrolled
+                    ? "bg-[#007e40] text-white hover:bg-[#006633] shadow-md"
+                    : "bg-[#007e40] text-white hover:bg-[#006633] shadow-lg"
                 }`}
               >
-                <Icon className="w-5 h-5 flex-shrink-0" />
-                <span className="font-medium">{item.title}</span>
-              </Link>
-            );
-          })}
-        </nav>
+                Sign Out
+              </button>
+              <button
+                onClick={() => setIsOpen(!isOpen)}
+                className={`p-2 rounded-lg transition-all ${
+                  isScrolled
+                    ? "text-gray-900 hover:bg-gray-100"
+                    : "text-white hover:bg-white/10"
+                }`}
+              >
+                {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              </button>
+            </div>
+          </div>
 
-        {/* Footer */}
-        <div className="p-4 border-t border-border">
-          <button
-            onClick={onSignOut}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground transition-all duration-200"
-          >
-            <LogOut className="w-5 h-5 flex-shrink-0" />
-            <span className="font-medium">Sign Out</span>
-          </button>
+          {/* Mobile Navigation */}
+          {isOpen && (
+            <div className={`lg:hidden pb-4 border-t ${
+              isScrolled 
+                ? "bg-white border-gray-200" 
+                : "bg-[#1a1f3a] border-white/10"
+            }`}>
+              <div className="flex flex-col space-y-1 pt-4">
+                {navItems.map((item) => {
+                  const Icon = item.icon;
+                  const active = isActive(item.path);
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      onClick={() => setIsOpen(false)}
+                      className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 font-semibold ${
+                        isScrolled
+                          ? active
+                            ? 'text-[#007e40] bg-[#007e40]/10'
+                            : 'text-gray-900 hover:text-[#007e40] hover:bg-[#007e40]/10'
+                          : active
+                          ? 'text-[#007e40] bg-white/10'
+                          : 'text-white hover:text-white hover:bg-white/10'
+                      }`}
+                    >
+                      <Icon className="w-5 h-5" />
+                      <span>{item.title}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
-      </aside>
+      </nav>
+
+      {/* Spacer */}
+      <div className="h-20" />
     </>
   );
 }

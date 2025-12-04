@@ -8,9 +8,9 @@ interface CompanyLayoutProps {
 
 export default function CompanyLayout({ children, onSignOut }: CompanyLayoutProps) {
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="min-h-screen bg-background">
       <CompanySidebar onSignOut={onSignOut} />
-      <main className="flex-1 w-full md:w-auto overflow-auto pt-16 md:pt-0">
+      <main className="w-full">
         {children}
       </main>
     </div>

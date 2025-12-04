@@ -288,58 +288,66 @@ export default function CompanyStudents() {
 
   return (
     <CompanyLayout onSignOut={signOut}>
-      <div className="p-6 md:p-8">
-        <div className="max-w-7xl mx-auto space-y-6">
-          {/* Header */}
-          <div>
-            <h1 className="text-3xl md:text-4xl font-bold text-foreground">Students</h1>
-            <p className="text-muted-foreground text-sm md:text-base mt-1">View students who booked interviews</p>
-          </div>
+      <div className="min-h-screen bg-gray-50">
+        {/* Hero Section */}
+        <section className="bg-[#1a1f3a] border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-12">
+            <h1 className="text-3xl font-bold text-white mb-2">
+              Students
+            </h1>
+            <p className="text-white/70">
+              View students who booked interviews
+            </p>
 
-          {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-card rounded-lg border border-border p-4">
-            <p className="text-sm text-muted-foreground">Unique Students</p>
-            <p className="text-2xl font-bold text-foreground">{stats.unique}</p>
+            {/* Stats Grid */}
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mt-8">
+              <div className="bg-white rounded-lg p-4 border border-gray-200">
+                <div className="text-2xl font-bold text-gray-900 mb-1">{stats.unique}</div>
+                <div className="text-sm text-gray-600">Unique Students</div>
+              </div>
+              <div className="bg-white rounded-lg p-4 border border-gray-200">
+                <div className="text-2xl font-bold text-gray-900 mb-1">{stats.confirmed}</div>
+                <div className="text-sm text-gray-600">Confirmed Bookings</div>
+              </div>
+              <div className="bg-white rounded-lg p-4 border border-gray-200">
+                <div className="text-2xl font-bold text-gray-900 mb-1">{stats.total}</div>
+                <div className="text-sm text-gray-600">Total Bookings</div>
+              </div>
+            </div>
           </div>
-          <div className="bg-card rounded-lg border border-border p-4">
-            <p className="text-sm text-muted-foreground">Confirmed Bookings</p>
-            <p className="text-2xl font-bold text-green-600">{stats.confirmed}</p>
-          </div>
-          <div className="bg-card rounded-lg border border-border p-4">
-            <p className="text-sm text-muted-foreground">Total Bookings</p>
-            <p className="text-2xl font-bold text-primary">{stats.total}</p>
-          </div>
-          </div>
+        </section>
+
+        {/* Main Content */}
+        <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-8 space-y-6">
 
           {/* Search and Filters */}
-          <div className="bg-card rounded-lg border border-border p-4 space-y-4">
+          <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-4">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
                 placeholder="Search students by name, email, or student number..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#007e40] focus:border-transparent"
               />
             </div>
             
             {/* Filters */}
             <div className="flex flex-wrap gap-4 items-end">
               <div className="flex items-center gap-2">
-                <Filter className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm font-medium text-foreground">Filters:</span>
+                <Filter className="w-4 h-4 text-gray-600" />
+                <span className="text-sm font-medium text-gray-900">Filters:</span>
               </div>
               
               <div className="flex-1 min-w-[200px]">
-                <label className="block text-xs font-medium text-muted-foreground mb-1">
+                <label className="block text-xs font-medium text-gray-600 mb-1">
                   Program
                 </label>
                 <select
                   value={filterProgram}
                   onChange={(e) => setFilterProgram(e.target.value)}
-                  className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#007e40] focus:border-transparent"
                 >
                   <option value="all">All Programs</option>
                   {uniquePrograms.map((program) => (

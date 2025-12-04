@@ -223,61 +223,70 @@ export default function CompanyOffers() {
 
   return (
     <CompanyLayout onSignOut={signOut}>
-      <div className="p-6 md:p-8">
-        <div className="max-w-7xl mx-auto space-y-6">
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-3xl md:text-4xl font-bold text-foreground">Manage Offers</h1>
-              <p className="text-muted-foreground text-sm md:text-base mt-1">Create and manage your job postings</p>
+      <div className="min-h-screen bg-gray-50">
+        {/* Hero Section */}
+        <section className="bg-[#1a1f3a] border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-12">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h1 className="text-3xl font-bold text-white mb-2">
+                  Manage Offers
+                </h1>
+                <p className="text-white/70">
+                  Create and manage your job postings
+                </p>
+              </div>
+              <Link
+                to="/company/offers/new"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-white text-gray-900 rounded-lg hover:bg-gray-100 transition-all font-semibold"
+              >
+                <Plus className="w-4 h-4" />
+                Create Offer
+              </Link>
             </div>
-            <Link
-              to="/company/offers/new"
-              className="flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
-            >
-              <Plus className="w-4 h-4" />
-              Create Offer
-            </Link>
-          </div>
 
-          {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-card rounded-lg border border-border p-4">
-              <p className="text-sm text-muted-foreground">Total Offers</p>
-              <p className="text-2xl font-bold text-foreground">{stats.total}</p>
-            </div>
-            <div className="bg-card rounded-lg border border-border p-4">
-              <p className="text-sm text-muted-foreground">Active</p>
-              <p className="text-2xl font-bold text-green-600">{stats.active}</p>
-            </div>
-            <div className="bg-card rounded-lg border border-border p-4">
-              <p className="text-sm text-muted-foreground">Inactive</p>
-              <p className="text-2xl font-bold text-muted-foreground">{stats.inactive}</p>
-            </div>
-            <div className="bg-card rounded-lg border border-border p-4">
-              <p className="text-sm text-muted-foreground">Total Bookings</p>
-              <p className="text-2xl font-bold text-primary">{stats.totalBookings}</p>
+            {/* Stats Grid */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-8">
+              <div className="bg-white rounded-lg p-4 border border-gray-200">
+                <div className="text-2xl font-bold text-gray-900 mb-1">{stats.total}</div>
+                <div className="text-sm text-gray-600">Total Offers</div>
+              </div>
+              <div className="bg-white rounded-lg p-4 border border-gray-200">
+                <div className="text-2xl font-bold text-gray-900 mb-1">{stats.active}</div>
+                <div className="text-sm text-gray-600">Active</div>
+              </div>
+              <div className="bg-white rounded-lg p-4 border border-gray-200">
+                <div className="text-2xl font-bold text-gray-900 mb-1">{stats.inactive}</div>
+                <div className="text-sm text-gray-600">Inactive</div>
+              </div>
+              <div className="bg-white rounded-lg p-4 border border-gray-200">
+                <div className="text-2xl font-bold text-gray-900 mb-1">{stats.totalBookings}</div>
+                <div className="text-sm text-gray-600">Total Bookings</div>
+              </div>
             </div>
           </div>
+        </section>
 
+        {/* Main Content */}
+        <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-8 space-y-6">
           {/* Filters */}
-          <div className="bg-card rounded-lg border border-border p-4">
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
             <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
                 placeholder="Search offers..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#007e40] focus:border-transparent"
               />
             </div>
             <div className="flex gap-2">
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value as any)}
-                className="px-4 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#007e40] focus:border-transparent"
               >
                 <option value="all">All Status</option>
                 <option value="active">Active</option>
@@ -286,7 +295,7 @@ export default function CompanyOffers() {
               <select
                 value={filterTag}
                 onChange={(e) => setFilterTag(e.target.value as any)}
-                className="px-4 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#007e40] focus:border-transparent"
               >
                 <option value="all">All Tags</option>
                 <option value="Opérationnel">Opérationnel</option>

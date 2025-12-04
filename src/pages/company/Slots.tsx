@@ -259,73 +259,89 @@ export default function CompanySlots() {
 
   return (
     <CompanyLayout onSignOut={signOut}>
-      <div className="p-6 md:p-8">
-        <div className="max-w-7xl mx-auto space-y-8">
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-3xl md:text-4xl font-bold text-foreground">Interview Schedule</h1>
-              <p className="text-muted-foreground text-sm md:text-base mt-1">
-                Manage and monitor your interview time slots
-              </p>
-            </div>
+      <div className="min-h-screen bg-gray-50">
+        {/* Hero Section */}
+        <section className="bg-[#1a1f3a] border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-12">
+            <h1 className="text-3xl font-bold text-white mb-2">
+              Interview Schedule
+            </h1>
+            <p className="text-white/70">
+              Manage and monitor your interview time slots
+            </p>
+
+            {/* Stats Grid */}
+            {slots.length > 0 && (
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-8">
+                <div className="bg-white rounded-lg p-4 border border-gray-200">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 bg-gray-50 rounded-lg">
+                      <Calendar className="w-5 h-5 text-gray-600" />
+                    </div>
+                  </div>
+                  <div className="text-2xl font-bold text-gray-900 mb-1">
+                    {stats.totalSlots}
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    Total Slots
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-lg p-4 border border-gray-200">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 bg-gray-50 rounded-lg">
+                      <CheckCircle2 className="w-5 h-5 text-gray-600" />
+                    </div>
+                  </div>
+                  <div className="text-2xl font-bold text-gray-900 mb-1">
+                    {stats.activeSlots}
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    Active
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-lg p-4 border border-gray-200">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 bg-gray-50 rounded-lg">
+                      <Users className="w-5 h-5 text-gray-600" />
+                    </div>
+                  </div>
+                  <div className="text-2xl font-bold text-gray-900 mb-1">
+                    {stats.totalBookings}
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    Bookings
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-lg p-4 border border-gray-200">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 bg-gray-50 rounded-lg">
+                      <TrendingUp className="w-5 h-5 text-gray-600" />
+                    </div>
+                  </div>
+                  <div className="text-2xl font-bold text-gray-900 mb-1">
+                    {stats.utilizationRate}%
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    Utilization
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
+        </section>
 
-          {/* Statistics Cards */}
-          {slots.length > 0 && (
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl border border-primary/20 p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Calendar className="w-4 h-4 text-primary" />
-                  <p className="text-xs text-muted-foreground">Total Slots</p>
-                </div>
-                <p className="text-2xl font-bold text-foreground">{stats.totalSlots}</p>
-              </div>
-              <div className="bg-gradient-to-br from-green-500/10 to-green-500/5 rounded-xl border border-green-500/20 p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <CheckCircle2 className="w-4 h-4 text-green-600" />
-                  <p className="text-xs text-muted-foreground">Active</p>
-                </div>
-                <p className="text-2xl font-bold text-foreground">{stats.activeSlots}</p>
-              </div>
-              <div className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 rounded-xl border border-blue-500/20 p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Users className="w-4 h-4 text-blue-600" />
-                  <p className="text-xs text-muted-foreground">Bookings</p>
-                </div>
-                <p className="text-2xl font-bold text-foreground">{stats.totalBookings}</p>
-              </div>
-              <div className="bg-gradient-to-br from-purple-500/10 to-purple-500/5 rounded-xl border border-purple-500/20 p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Circle className="w-4 h-4 text-purple-600" />
-                  <p className="text-xs text-muted-foreground">Available</p>
-                </div>
-                <p className="text-2xl font-bold text-foreground">{stats.availableSlots}</p>
-              </div>
-              <div className="bg-gradient-to-br from-orange-500/10 to-orange-500/5 rounded-xl border border-orange-500/20 p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <AlertCircle className="w-4 h-4 text-orange-600" />
-                  <p className="text-xs text-muted-foreground">Full</p>
-                </div>
-                <p className="text-2xl font-bold text-foreground">{stats.fullSlots}</p>
-              </div>
-              <div className="bg-gradient-to-br from-cyan-500/10 to-cyan-500/5 rounded-xl border border-cyan-500/20 p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <TrendingUp className="w-4 h-4 text-cyan-600" />
-                  <p className="text-xs text-muted-foreground">Utilization</p>
-                </div>
-                <p className="text-2xl font-bold text-foreground">{stats.utilizationRate}%</p>
-              </div>
-            </div>
-          )}
-
+        {/* Main Content */}
+        <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-8">
           {/* Slots List */}
           {slots.length === 0 ? (
             <EmptyState
               icon={Calendar}
               title="No Interview Slots"
               message="You haven't created any interview slots yet. Create slots through the Offers section when setting up your offers."
-              className="bg-card rounded-xl border border-border p-12"
+              className="bg-white rounded-lg border border-gray-200 p-12"
             />
           ) : (
             <div className="space-y-8">
@@ -336,17 +352,17 @@ export default function CompanySlots() {
                 const eventDate = new Date(firstSlot.event_date)
                 
                 return (
-                  <div key={eventId} className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+                  <div key={eventId} className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
                     {/* Event Header */}
-                    <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-b border-border p-6">
+                    <div className="bg-[#1a1f3a] border-b border-gray-200 p-6">
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex items-start gap-4">
-                          <div className="w-12 h-12 bg-primary/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                            <Calendar className="w-6 h-6 text-primary" />
+                          <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <Calendar className="w-6 h-6 text-white" />
                           </div>
                           <div>
-                            <h2 className="text-xl font-bold text-foreground mb-1">{firstSlot.event_name}</h2>
-                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                            <h2 className="text-xl font-bold text-white mb-1">{firstSlot.event_name}</h2>
+                            <div className="flex items-center gap-4 text-sm text-white/80">
                               <span>
                                 {eventDate.toLocaleDateString('en-US', {
                                   weekday: 'long',
@@ -355,7 +371,7 @@ export default function CompanySlots() {
                                   day: 'numeric'
                                 })}
                               </span>
-                              <span className="text-primary">•</span>
+                              <span className="text-white/60">•</span>
                               <span>{eventSlots.length} slot{eventSlots.length !== 1 ? 's' : ''}</span>
                             </div>
                           </div>
@@ -379,14 +395,14 @@ export default function CompanySlots() {
                           return (
                             <div
                               key={slot.id}
-                              className={`group relative rounded-xl border-2 transition-all duration-200 ${
+                              className={`group relative rounded-lg border-2 transition-all duration-200 ${
                                 !slot.is_active
-                                  ? 'bg-muted/20 border-muted/50 opacity-60'
+                                  ? 'bg-gray-50 border-gray-300 opacity-60'
                                   : isFull
-                                  ? 'bg-gradient-to-br from-green-50/50 to-green-50/30 dark:from-green-950/20 dark:to-green-950/10 border-green-500/30 shadow-green-500/5'
+                                  ? 'bg-green-50 border-green-500 shadow-sm'
                                   : hasBookings
-                                  ? 'bg-gradient-to-br from-blue-50/50 to-blue-50/30 dark:from-blue-950/20 dark:to-blue-950/10 border-blue-500/30 shadow-blue-500/5 hover:border-blue-500/50'
-                                  : 'bg-card border-border hover:border-primary/30 hover:shadow-md'
+                                  ? 'bg-blue-50 border-blue-500 shadow-sm hover:border-blue-600'
+                                  : 'bg-white border-gray-200 hover:border-[#007e40] hover:shadow-md'
                               }`}
                             >
                               {/* Status Badge */}
@@ -485,14 +501,14 @@ export default function CompanySlots() {
                                       {utilizationPercent}%
                                     </span>
                                   </div>
-                                  <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                                  <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
                                     <div
                                       className={`h-full transition-all duration-300 ${
                                         isFull
-                                          ? 'bg-gradient-to-r from-green-500 to-green-600'
+                                          ? 'bg-green-500'
                                           : hasBookings
-                                          ? 'bg-gradient-to-r from-blue-500 to-blue-600'
-                                          : 'bg-muted-foreground/30'
+                                          ? 'bg-blue-500'
+                                          : 'bg-gray-400'
                                       }`}
                                       style={{ width: `${Math.min(utilizationPercent, 100)}%` }}
                                     />
