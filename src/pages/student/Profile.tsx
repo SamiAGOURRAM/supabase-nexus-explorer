@@ -132,11 +132,6 @@ export default function StudentProfile() {
 
     // Full name is immutable - no validation needed as it cannot be changed
 
-    // Student number is required
-    if (!profile.student_number || profile.student_number.trim().length === 0) {
-      newErrors.student_number = 'Student number is required';
-    }
-
     // Specialization is required
     if (!profile.specialization || profile.specialization.trim().length === 0) {
       newErrors.specialization = 'Specialization is required';
@@ -385,36 +380,15 @@ export default function StudentProfile() {
     <StudentLayout onSignOut={handleSignOut}>
       <div className="min-h-screen bg-gray-50">
         {/* Hero Section */}
-        <section className="relative overflow-hidden bg-gradient-to-br from-[#1a1f3a] via-[#2a3f5f] to-[#1a1f3a]">
-          <div className="absolute inset-0 opacity-[0.03]">
-            <div
-              className="absolute inset-0"
-              style={{
-                backgroundImage: "radial-gradient(circle at 2px 2px, white 1px, transparent 0)",
-                backgroundSize: "32px 32px",
-              }}
-            />
+        <section className="bg-[#1a1f3a] border-b border-gray-200">
+          <div className="max-w-4xl mx-auto px-6 sm:px-8 lg:px-12 py-12">
+            <h1 className="text-3xl font-bold text-white mb-2">
+              My Profile
+            </h1>
+            <p className="text-white/70">
+              Manage your personal information and preferences
+            </p>
           </div>
-          <div className="absolute top-0 right-1/4 w-96 h-96 bg-[#ffb300] rounded-full mix-blend-screen filter blur-3xl opacity-5" />
-          <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-purple-500 rounded-full mix-blend-screen filter blur-3xl opacity-5" />
-          
-          <div className="relative z-10 max-w-4xl mx-auto px-6 sm:px-8 lg:px-12 py-12 md:py-16">
-            <div className="mb-6">
-              <div className="inline-block mb-3">
-                <div className="flex items-center gap-2 px-4 py-1.5 bg-white/5 backdrop-blur-sm rounded-full border border-white/10">
-                  <User className="w-4 h-4 text-[#ffb300]" />
-                  <span className="text-sm text-white/80 font-medium">Student Profile</span>
-                </div>
-              </div>
-              <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2 leading-tight">
-                My Profile
-              </h1>
-              <p className="text-lg text-white/70 max-w-2xl">
-                Manage your personal information and preferences
-              </p>
-            </div>
-          </div>
-          <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
         </section>
 
         <div className="max-w-4xl mx-auto px-6 sm:px-8 lg:px-12 py-8 space-y-6">
@@ -425,7 +399,7 @@ export default function StudentProfile() {
             </div>
           )}
 
-          <div className="bg-card rounded-xl border border-border p-6">
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
           <div className="space-y-6">
             {/* Profile Photo */}
             <ImageUpload
@@ -474,26 +448,6 @@ export default function StudentProfile() {
 
             {/* Student Number and Phone */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-2">
-                  <GraduationCap className="w-4 h-4" />
-                  Student Number *
-                </label>
-                <input
-                  type="text"
-                  value={profile.student_number || ''}
-                  onChange={(e) => setProfile({ ...profile, student_number: e.target.value })}
-                  className={`w-full px-4 py-2 bg-background border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground ${
-                    errors.student_number ? 'border-destructive' : 'border-border'
-                  }`}
-                  placeholder="e.g., 12345"
-                  required
-                />
-                {errors.student_number && (
-                  <p className="mt-1 text-xs text-destructive">{errors.student_number}</p>
-                )}
-              </div>
-
               <div>
                 <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-2">
                   <Phone className="w-4 h-4" />
@@ -723,10 +677,10 @@ export default function StudentProfile() {
             </div>
 
             {/* Internship Status */}
-            <div className="bg-muted/30 border border-border/50 rounded-xl p-6">
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-5">
               <div className="flex items-start gap-3">
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-foreground mb-3">Internship Status</h3>
+                  <h3 className="text-base font-semibold text-gray-900 mb-3">Internship Status</h3>
                   <div className="flex items-start gap-3">
                     <div className="flex items-center h-5 mt-0.5">
                       <input
@@ -734,14 +688,14 @@ export default function StudentProfile() {
                         type="checkbox"
                         checked={profile.is_deprioritized}
                         onChange={(e) => setProfile({ ...profile, is_deprioritized: e.target.checked })}
-                        className="w-4 h-4 text-primary border-border rounded focus:ring-primary"
+                        className="w-4 h-4 text-[#007e40] border-gray-300 rounded focus:ring-[#007e40]"
                       />
                     </div>
                     <div>
-                      <label htmlFor="is_deprioritized" className="font-medium text-foreground cursor-pointer">
+                      <label htmlFor="is_deprioritized" className="font-medium text-gray-900 cursor-pointer">
                         I have already secured an internship
                       </label>
-                      <p className="text-sm text-muted-foreground mt-1">
+                      <p className="text-sm text-gray-600 mt-1">
                         Check this box if you have already found an internship. This will mark your profile as "Secured Internship" to recruiters, 
                         indicating that you are not actively looking. You can still participate in the event.
                       </p>
@@ -752,24 +706,24 @@ export default function StudentProfile() {
             </div>
 
             {/* Interview History Section */}
-            <div className="bg-card rounded-xl border border-border p-6">
-              <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <h3 className="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
                 <Calendar className="w-5 h-5" />
                 Interview History
               </h3>
 
               {loadingBookings ? (
                 <div className="text-center py-8">
-                  <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">Loading interview history...</p>
+                  <div className="w-8 h-8 border-4 border-[#007e40] border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                  <p className="text-sm text-gray-600">Loading interview history...</p>
                 </div>
               ) : bookings.length === 0 ? (
                 <div className="text-center py-12">
-                  <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-                  <p className="text-muted-foreground mb-4">No interviews scheduled yet</p>
+                  <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600 mb-4">No interviews scheduled yet</p>
                   <Link
                     to="/student/offers"
-                    className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary hover:text-primary/80 transition-colors"
+                    className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-[#007e40] hover:text-[#005f30] transition-colors"
                   >
                     Browse Offers
                   </Link>
@@ -786,36 +740,36 @@ export default function StudentProfile() {
                         key={booking.id}
                         className={`p-4 rounded-lg border ${
                           isCancelled
-                            ? 'bg-muted/30 border-border opacity-60'
+                            ? 'bg-gray-50 border-gray-200 opacity-60'
                             : isPast
-                            ? 'bg-muted/30 border-border'
-                            : 'bg-background border-border'
+                            ? 'bg-gray-50 border-gray-200'
+                            : 'bg-white border-gray-200'
                         }`}
                       >
                         <div className="flex items-start justify-between gap-4 mb-3">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-2">
-                              <Building2 className="w-4 h-4 text-muted-foreground" />
-                              <h4 className="font-semibold text-foreground">{booking.company_name}</h4>
+                              <Building2 className="w-4 h-4 text-gray-600" />
+                              <h4 className="font-semibold text-gray-900">{booking.company_name}</h4>
                               {isCancelled && (
-                                <span className="px-2 py-1 bg-destructive/10 text-destructive text-xs font-medium rounded">
+                                <span className="px-2 py-1 bg-red-100 text-red-700 text-xs font-medium rounded">
                                   Cancelled
                                 </span>
                               )}
                               {!isCancelled && isPast && (
-                                <span className="px-2 py-1 bg-muted text-muted-foreground text-xs font-medium rounded">
+                                <span className="px-2 py-1 bg-gray-200 text-gray-700 text-xs font-medium rounded">
                                   Completed
                                 </span>
                               )}
                               {!isCancelled && !isPast && (
-                                <span className="px-2 py-1 bg-success/10 text-success text-xs font-medium rounded">
+                                <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded">
                                   Upcoming
                                 </span>
                               )}
                             </div>
-                            <p className="text-sm text-foreground mb-2">{booking.offer_title}</p>
+                            <p className="text-sm text-gray-900 mb-2">{booking.offer_title}</p>
                             {slotDate && (
-                              <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                              <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
                                 <div className="flex items-center gap-1">
                                   <Calendar className="w-4 h-4" />
                                   {slotDate.toLocaleDateString('en-US', {
@@ -841,7 +795,7 @@ export default function StudentProfile() {
                               </div>
                             )}
                             {booking.notes && (
-                              <p className="text-xs text-muted-foreground mt-2 italic">
+                              <p className="text-xs text-gray-600 mt-2 italic">
                                 Note: {booking.notes}
                               </p>
                             )}
@@ -854,18 +808,18 @@ export default function StudentProfile() {
               )}
             </div>
 
-            <div className="flex justify-end items-center pt-4 border-t border-border">
+            <div className="flex justify-end items-center pt-4 border-t border-gray-200">
               <div className="flex gap-3">
                 <Link
                   to="/student"
-                  className="px-6 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                  className="px-6 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
                 >
                   Cancel
                 </Link>
                 <button
                   onClick={handleSave}
                   disabled={saving || uploadingPhoto || uploadingResume}
-                  className="flex items-center gap-2 px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium disabled:opacity-50"
+                  className="flex items-center gap-2 px-6 py-2 bg-[#007e40] text-white rounded-lg hover:bg-[#006633] transition-colors text-sm font-medium disabled:opacity-50"
                 >
                   <Save className="w-4 h-4" />
                   {saving || uploadingPhoto || uploadingResume ? 'Saving...' : 'Save Changes'}
@@ -874,29 +828,29 @@ export default function StudentProfile() {
             </div>
 
             {/* Account Deletion Section - GDPR Compliance */}
-            <div className="mt-8 pt-8 border-t border-border">
-              <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-6">
+            <div className="mt-8 pt-8 border-t border-gray-200">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-6">
                 <div className="flex items-start gap-3">
-                  <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+                  <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
                   <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-foreground mb-2">Delete Account or Download Your Data</h3>
-                    <p className="text-sm text-muted-foreground mb-4">
+                    <h3 className="text-base font-semibold text-gray-900 mb-2">Delete Account or Download Your Data</h3>
+                    <p className="text-sm text-gray-600 mb-4">
                       To request account deletion or download your personal data (GDPR), please contact us via email:
                     </p>
-                    <div className="bg-background border border-border rounded-lg p-4 mb-4">
-                      <p className="text-sm font-medium text-foreground mb-2">Email us at:</p>
+                    <div className="bg-white border border-gray-200 rounded-lg p-4 mb-4">
+                      <p className="text-sm font-medium text-gray-900 mb-2">Email us at:</p>
                       <a 
                         href="mailto:inf.um6p@um6p.ma?subject=Account%20Deletion%20Request"
-                        className="text-primary hover:text-primary/80 font-semibold"
+                        className="text-[#007e40] hover:text-[#005f30] font-semibold"
                       >
                         inf.um6p@um6p.ma
                       </a>
-                      <p className="text-xs text-muted-foreground mt-3">
+                      <p className="text-xs text-gray-600 mt-3">
                         Please include "Account Deletion Request" or "Data Download Request" in the subject line.
                       </p>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      <span className="font-medium text-foreground">Account deletion will permanently remove:</span>
+                    <p className="text-xs text-gray-600">
+                      <span className="font-medium text-gray-900">Account deletion will permanently remove:</span>
                       <br />• Your profile and personal information
                       <br />• All your bookings and interview history
                       <br />• Your uploaded CV/resume and profile photo

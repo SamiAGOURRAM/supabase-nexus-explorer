@@ -496,66 +496,48 @@ export default function OfferDetail() {
 
   return (
     <StudentLayout onSignOut={signOut}>
-      <div className="p-6 md:p-8">
-        <div className="max-w-7xl mx-auto space-y-6">
-          <div className="flex items-center gap-4">
-            <Link to="/student/offers" className="text-muted-foreground hover:text-foreground">
+      <div className="min-h-screen bg-gray-50">
+        {/* Header */}
+        <div className="bg-white border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-6">
+            <Link to="/student/offers" className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4 transition-colors">
               <ArrowLeft className="w-5 h-5" />
+              <span>Back to Offers</span>
             </Link>
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-foreground">{offer.title}</h1>
-              <p className="text-sm text-muted-foreground mt-1">Internship Offer Details</p>
-            </div>
+            <h1 className="text-3xl font-bold text-gray-900">{offer.title}</h1>
+            <Link to={`/student/companies/${offer.company_id}`} className="inline-flex items-center gap-2 text-gray-600 hover:text-[#007e40] mt-2 transition-colors">
+              <Building2 className="w-4 h-4" />
+              <span className="font-medium">{offer.company_name}</span>
+              {offer.company_industry && <span className="text-sm text-gray-400">• {offer.company_industry}</span>}
+            </Link>
           </div>
+        </div>
+
+        <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Company Info Card */}
-            <Link 
-              to={`/student/companies/${offer.company_id}`}
-              className="block bg-card rounded-xl border border-border p-6 hover:border-primary transition-all hover:shadow-elegant"
-            >
-              <div className="flex items-start gap-4">
-                <div className="w-16 h-16 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <Building2 className="w-8 h-8 text-primary" />
-                </div>
-                <div className="flex-1">
-                  <h2 className="text-xl font-bold text-foreground mb-1 hover:text-primary">{offer.company_name}</h2>
-                  {offer.company_industry && (
-                    <p className="text-sm text-muted-foreground mb-2">{offer.company_industry}</p>
-                  )}
-                  {offer.company_description && (
-                    <p className="text-sm text-muted-foreground line-clamp-2">{offer.company_description}</p>
-                  )}
-                  <p className="text-xs text-primary mt-2">Click to view company profile →</p>
-                </div>
-              </div>
-            </Link>
-
             {/* Description */}
-            <div className="bg-card rounded-xl border border-border p-6">
-              <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
-                <Briefcase className="w-5 h-5 text-primary" />
-                About This Position
-              </h3>
-              <p className="text-muted-foreground whitespace-pre-wrap">{offer.description}</p>
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">About this position</h2>
+              <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{offer.description}</p>
             </div>
 
             {/* Requirements */}
             {offer.requirements && (
-              <div className="bg-card rounded-xl border border-border p-6">
-                <h3 className="text-lg font-bold text-foreground mb-4">Requirements</h3>
-                <p className="text-muted-foreground whitespace-pre-wrap">{offer.requirements}</p>
+              <div className="bg-white rounded-lg border border-gray-200 p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">Requirements</h2>
+                <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{offer.requirements}</p>
               </div>
             )}
 
             {/* Skills */}
             {offer.skills_required && offer.skills_required.length > 0 && (
-              <div className="bg-card rounded-xl border border-border p-6">
-                <h3 className="text-lg font-bold text-foreground mb-4">Required Skills</h3>
+              <div className="bg-white rounded-lg border border-gray-200 p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">Required Skills</h2>
                 <div className="flex flex-wrap gap-2">
                   {offer.skills_required.map((skill, idx) => (
-                    <span key={idx} className="px-3 py-1 bg-primary/10 text-primary text-sm rounded-full">
+                    <span key={idx} className="px-3 py-1.5 bg-gray-100 text-gray-700 text-sm rounded border border-gray-200">
                       {skill}
                     </span>
                   ))}
@@ -565,9 +547,9 @@ export default function OfferDetail() {
 
             {/* Benefits */}
             {offer.benefits && (
-              <div className="bg-card rounded-xl border border-border p-6">
-                <h3 className="text-lg font-bold text-foreground mb-4">Benefits</h3>
-                <p className="text-muted-foreground whitespace-pre-wrap">{offer.benefits}</p>
+              <div className="bg-white rounded-lg border border-gray-200 p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">Benefits</h2>
+                <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{offer.benefits}</p>
               </div>
             )}
           </div>
@@ -575,57 +557,56 @@ export default function OfferDetail() {
           {/* Sidebar */}
           <div className="space-y-6">
             {/* Quick Info */}
-            <div className="bg-card rounded-xl border border-border p-6 sticky top-4">
+            <div className="bg-white rounded-lg border border-gray-200 p-6 sticky top-6">
+              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Position Details</h2>
               <div className="space-y-4">
-                <div className="flex items-center gap-3 text-sm">
-                  <Tag className="w-4 h-4 text-primary" />
-                  <span className="text-muted-foreground">Department:</span>
-                  <span className="font-medium text-foreground">{offer.interest_tag}</span>
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Department</p>
+                  <p className="text-sm font-medium text-gray-900">{offer.interest_tag}</p>
                 </div>
 
                 {offer.location && (
-                  <div className="flex items-center gap-3 text-sm">
-                    <MapPin className="w-4 h-4 text-primary" />
-                    <span className="text-muted-foreground">Location:</span>
-                    <span className="font-medium text-foreground">{offer.location}</span>
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Location</p>
+                    <p className="text-sm font-medium text-gray-900">{offer.location}</p>
                   </div>
                 )}
 
                 {offer.duration_months && (
-                  <div className="flex items-center gap-3 text-sm">
-                    <Clock className="w-4 h-4 text-primary" />
-                    <span className="text-muted-foreground">Duration:</span>
-                    <span className="font-medium text-foreground">{offer.duration_months} months</span>
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Duration</p>
+                    <p className="text-sm font-medium text-gray-900">{offer.duration_months} months</p>
                   </div>
                 )}
 
                 {offer.salary_range && (
-                  <div className="flex items-center gap-3 text-sm">
-                    <DollarSign className="w-4 h-4 text-primary" />
-                    <span className="text-muted-foreground">Salary:</span>
-                    <span className="font-medium text-foreground">{offer.salary_range}</span>
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Salary Range</p>
+                    <p className="text-sm font-medium text-gray-900">{offer.salary_range}</p>
                   </div>
                 )}
 
-                <div className="pt-4 border-t border-border space-y-2">
-                  {offer.paid && (
-                    <div className="flex items-center gap-2 text-sm text-green-600">
-                      <CheckCircle className="w-4 h-4" />
-                      Paid Position
-                    </div>
-                  )}
-                  {offer.remote_possible && (
-                    <div className="flex items-center gap-2 text-sm text-blue-600">
-                      <CheckCircle className="w-4 h-4" />
-                      Remote Work Possible
-                    </div>
-                  )}
-                </div>
+                {(offer.paid || offer.remote_possible) && (
+                  <div className="pt-4 border-t border-gray-200 space-y-2">
+                    {offer.paid && (
+                      <div className="flex items-center gap-2 text-sm text-green-700">
+                        <CheckCircle className="w-4 h-4" />
+                        Paid Position
+                      </div>
+                    )}
+                    {offer.remote_possible && (
+                      <div className="flex items-center gap-2 text-sm text-blue-700">
+                        <CheckCircle className="w-4 h-4" />
+                        Remote Possible
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <button
                 onClick={handleBookInterview}
-                className="w-full mt-6 px-4 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-all font-medium hover:scale-105 active:scale-95"
+                className="w-full mt-6 px-4 py-3 bg-[#007e40] text-white rounded-lg hover:bg-[#006633] transition-colors font-medium"
               >
                 Book Interview
               </button>
@@ -637,71 +618,151 @@ export default function OfferDetail() {
 
       {/* Booking Modal */}
       {showBookingModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card rounded-xl border border-border max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-card border-b border-border p-6 flex items-start justify-between">
-              <div>
-                <h2 className="text-xl font-bold text-foreground mb-1">Select Interview Time</h2>
-                <p className="text-sm text-muted-foreground">{offer.title} at {offer.company_name}</p>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-2 md:p-4">
+          <div className="bg-card rounded-2xl border border-border max-w-4xl w-full max-h-[95vh] md:max-h-[90vh] flex flex-col shadow-2xl">
+            {/* Modal Header */}
+            <div className="relative bg-gradient-to-br from-primary/5 via-card to-card border-b border-border/50 p-4 md:p-5 flex-shrink-0">
+              <div className="absolute inset-0 opacity-5">
+                <div className="absolute top-0 right-0 w-48 h-48 bg-primary rounded-full blur-3xl"></div>
+                <div className="absolute bottom-0 left-0 w-32 h-32 bg-primary rounded-full blur-3xl"></div>
               </div>
-              <button onClick={() => setShowBookingModal(false)} className="text-muted-foreground hover:text-foreground">
-                <X className="w-5 h-5" />
-              </button>
+              
+              <div className="relative flex items-center gap-3 md:gap-4">
+                <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl flex items-center justify-center overflow-hidden bg-gradient-to-br from-white to-slate-50 shadow-md ring-1 ring-primary/10 flex-shrink-0">
+                  <Building2 className="w-6 h-6 text-primary" />
+                </div>
+                
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-lg md:text-xl font-bold text-foreground mb-1 flex items-center gap-2">
+                    <Calendar className="w-4 h-4 md:w-5 md:h-5 text-primary flex-shrink-0" />
+                    <span className="truncate">Book Interview</span>
+                  </h2>
+                  <p className="text-sm font-semibold text-foreground truncate">{offer.title}</p>
+                  <div className="flex items-center gap-3 mt-0.5">
+                    <p className="text-xs text-primary font-semibold flex items-center gap-1.5 truncate">
+                      <Briefcase className="w-3 h-3 flex-shrink-0" />
+                      {offer.company_name}
+                    </p>
+                  </div>
+                </div>
+                
+                <button
+                  onClick={() => setShowBookingModal(false)}
+                  className="text-muted-foreground hover:text-foreground hover:bg-muted/80 p-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-primary shadow-sm hover:shadow flex-shrink-0"
+                  aria-label="Close dialog"
+                >
+                  <X className="w-4 h-4 md:w-5 md:h-5" />
+                </button>
+              </div>
             </div>
 
-            <div className="p-6">
+            <div className="p-4 md:p-6 overflow-y-auto flex-1">
               {bookingLimit && (
-                <div className={`mb-4 p-4 rounded-lg border ${bookingLimit.can_book ? 'bg-blue-50 border-blue-200' : 'bg-red-50 border-red-200'}`}>
-                  <p className={`text-sm font-medium ${bookingLimit.can_book ? 'text-blue-900' : 'text-red-900'}`}>
-                    {bookingLimit.message}
-                  </p>
+                <div className={`mb-4 p-3 md:p-4 rounded-xl border backdrop-blur-sm ${
+                  bookingLimit.can_book 
+                    ? 'bg-gradient-to-br from-blue-50 to-blue-50/50 border-blue-200' 
+                    : 'bg-gradient-to-br from-red-50 to-red-50/50 border-red-200'
+                }`}>
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-lg ${bookingLimit.can_book ? 'bg-blue-500/10' : 'bg-red-500/10'}`}>
+                      {bookingLimit.can_book ? (
+                        <Briefcase className="w-4 h-4 text-blue-600" />
+                      ) : (
+                        <X className="w-4 h-4 text-red-600" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <p className={`text-xs md:text-sm font-bold ${
+                          bookingLimit.can_book ? 'text-blue-900' : 'text-red-900'
+                        }`}>
+                          {bookingLimit.message}
+                        </p>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                          bookingLimit.can_book 
+                            ? 'bg-blue-500/20 text-blue-700' 
+                            : 'bg-red-500/20 text-red-700'
+                        }`}>
+                          {bookingLimit.current_count}/{bookingLimit.max_allowed}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
 
               {validationWarning && (
-                <div className="mb-4 p-4 bg-orange-50 border border-orange-200 rounded-lg">
-                  <p className="text-sm text-orange-900">{validationWarning}</p>
+                <div className="mb-4 p-3 md:p-4 bg-gradient-to-br from-orange-50 to-orange-50/50 border border-orange-200 rounded-xl">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-orange-500/10 rounded-lg">
+                      <Clock className="w-4 h-4 text-orange-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-orange-900 mb-0.5">Time Conflict</p>
+                      <p className="text-xs text-orange-800">{validationWarning}</p>
+                    </div>
+                  </div>
                 </div>
               )}
 
               {loadingSlots ? (
                 <div className="flex flex-col items-center justify-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-3"></div>
-                  <p className="text-sm text-muted-foreground">Loading slots...</p>
+                  <div className="relative mb-4">
+                    <div className="animate-spin rounded-full h-12 w-12 border-3 border-primary/20 border-t-primary"></div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <Calendar className="w-6 h-6 text-primary animate-pulse" />
+                    </div>
+                  </div>
+                  <p className="text-sm text-muted-foreground font-semibold">Finding slots...</p>
                 </div>
               ) : availableSlots.length === 0 ? (
-                <div className="text-center py-12">
-                  <Calendar className="w-16 h-16 text-muted-foreground opacity-50 mx-auto mb-4" />
-                  <h3 className="font-semibold text-foreground mb-2">No Available Slots</h3>
-
-                  <p className="text-muted-foreground text-sm mb-4">
-                    All slots for {offer.company_name} are booked.
+                <div className="text-center py-12 animate-fade-in">
+                  <div className="relative inline-block mb-4">
+                    <div className="w-16 h-16 bg-gradient-to-br from-muted/50 to-muted/20 rounded-2xl flex items-center justify-center shadow-inner">
+                      <Calendar className="w-8 h-8 text-muted-foreground/50" />
+                    </div>
+                    <div className="absolute -top-1 -right-1 bg-orange-500 rounded-full p-1.5 shadow-md">
+                      <X className="w-3 h-3 text-white" />
+                    </div>
+                  </div>
+                  <h3 className="font-bold text-foreground mb-2 text-base">No Available Slots</h3>
+                  <p className="text-muted-foreground text-xs mb-4 max-w-xs mx-auto">
+                    All slots for <span className="font-semibold text-foreground">{offer.company_name}</span> are booked.
                   </p>
-                  <details className="text-left max-w-md mx-auto">
-                    <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">
-                      Debug Info (click to expand)
-                    </summary>
-                    <pre className="text-xs bg-muted p-3 rounded mt-2 overflow-auto">
-                      Company ID: {offer.company_id}{'\n'}
-                      Event ID: {eventId || 'Not set'}{'\n'}
-                      Check browser console for query details
-                    </pre>
-                  </details>
-                  <Link
-                    to="/student/offers"
-                    className="inline-block mt-4 px-4 py-2 text-sm text-primary hover:underline"
+                  <button
+                    onClick={() => setShowBookingModal(false)}
+                    className="px-4 py-2 bg-gradient-to-r from-primary to-primary/90 text-primary-foreground rounded-lg hover:shadow-lg transition-all text-sm font-semibold shadow-sm hover:scale-105 active:scale-95 inline-flex items-center gap-2"
                   >
-                    Browse Other Offers
-                  </Link>
+                    <ArrowLeft className="w-4 h-4" />
+                    Close
+                  </button>
                 </div>
               ) : (
                 <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 mb-4">
-                    {availableSlots.map((slot) => {
-                      const capacity = slot.capacity || 1; // Default to 1 if null
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 bg-primary/10 rounded-lg">
+                          <Clock className="w-4 h-4 text-primary" />
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-bold text-foreground">Available Slots</h3>
+                          <p className="text-xs text-muted-foreground">Select your time</p>
+                        </div>
+                      </div>
+                      <span className="text-xs bg-muted px-3 py-1 rounded-full font-semibold">
+                        {availableSlots.length}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-3 mb-4">
+                    {availableSlots.map((slot, idx) => {
+                      const capacity = slot.capacity || 1;
                       const spotsLeft = capacity - slot.bookings_count;
                       const isLowCapacity = spotsLeft <= 2;
                       const isSelected = selectedSlotId === slot.id;
+                      const slotDate = new Date(slot.start_time);
 
                       return (
                         <button
@@ -710,35 +771,40 @@ export default function OfferDetail() {
                             setSelectedSlotId(slot.id);
                             checkSlotConflict(slot.id);
                           }}
-                          className={`relative flex flex-col items-start p-4 rounded-lg border-2 transition-all hover:scale-105 min-h-[100px] ${
+                          style={{ animationDelay: `${idx * 20}ms` }}
+                          className={`relative p-3 rounded-xl border-2 transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary ${
                             isSelected 
-                              ? 'border-primary bg-primary/5 shadow-lg' 
-                              : 'border-border hover:border-primary bg-background'
+                              ? 'border-primary bg-gradient-to-br from-primary/15 to-primary/5 shadow-lg scale-105' 
+                              : 'border-border hover:border-primary/50 bg-card hover:shadow-md'
                           }`}
                         >
-                          {/* Capacity Badge - Top Right */}
-                          <div className={`absolute top-2 right-2 px-2.5 py-1 text-xs font-bold rounded-full border shadow-sm ${
+                          <div className="mb-2.5">
+                            <div className="text-base font-bold text-foreground flex items-center gap-1.5 mb-1">
+                              <Clock className="w-4 h-4 text-primary flex-shrink-0" />
+                              <span className="truncate leading-tight">
+                                {slotDate.toLocaleTimeString('en-US', {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </span>
+                            </div>
+                            <div className="text-sm font-semibold text-foreground/90 truncate">
+                              {slotDate.toLocaleDateString('en-US', {
+                                weekday: 'short',
+                                month: 'short',
+                                day: 'numeric',
+                              })}
+                            </div>
+                          </div>
+
+                          <div className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold rounded-full border ${
                             isLowCapacity 
-                              ? 'bg-orange-500/20 text-orange-700 border-orange-500/30' 
-                              : 'bg-green-500/20 text-green-700 border-green-500/30'
+                              ? 'bg-orange-500/20 text-orange-700 border-orange-500/40' 
+                              : 'bg-green-500/20 text-green-700 border-green-500/40'
                           }`}>
-                            {spotsLeft} left
+                            <div className={`w-1.5 h-1.5 rounded-full ${isLowCapacity ? 'bg-orange-600' : 'bg-green-600'} animate-pulse`}></div>
+                            <span>{spotsLeft} left</span>
                           </div>
-                          
-                          {/* Time Range */}
-                          <div className="text-base font-bold text-foreground mb-2 leading-tight pr-12">
-                            {formatTime(slot.start_time)} - {formatTime(slot.end_time)}
-                          </div>
-                          
-                          {/* Date */}
-                          <div className="text-sm font-semibold text-foreground/70 mb-auto">
-                            {formatDate(slot.start_time)}
-                          </div>
-                          
-                          {/* Selected Indicator */}
-                          {isSelected && (
-                            <div className="absolute inset-0 rounded-lg ring-2 ring-primary pointer-events-none" />
-                          )}
                         </button>
                       );
                     })}
@@ -748,7 +814,7 @@ export default function OfferDetail() {
                     <button
                       onClick={() => confirmBooking(selectedSlotId)}
                       disabled={!bookingLimit?.can_book || !!validationWarning || booking}
-                      className="w-full px-4 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      className="w-full px-5 py-3.5 bg-gradient-to-r from-primary to-primary/90 text-primary-foreground rounded-xl hover:shadow-lg transition-all font-bold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-md hover:scale-105 active:scale-95 disabled:hover:scale-100"
                     >
                       {booking ? (
                         <>
@@ -756,9 +822,15 @@ export default function OfferDetail() {
                           <span>Booking...</span>
                         </>
                       ) : validationWarning ? (
-                        'Cannot Book - Time Conflict'
+                        <>
+                          <X className="w-5 h-5" />
+                          <span>Cannot Book - Time Conflict</span>
+                        </>
                       ) : (
-                        'Confirm Booking'
+                        <>
+                          <CheckCircle className="w-5 h-5" />
+                          <span>Confirm Booking</span>
+                        </>
                       )}
                     </button>
                   )}

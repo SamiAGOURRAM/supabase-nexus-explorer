@@ -234,49 +234,28 @@ export default function StudentBookings() {
     <StudentLayout onSignOut={handleSignOut}>
       <div className="min-h-screen bg-gray-50">
         {/* Hero Section */}
-        <section className="relative overflow-hidden bg-gradient-to-br from-[#1a1f3a] via-[#2a3f5f] to-[#1a1f3a]">
-          <div className="absolute inset-0 opacity-[0.03]">
-            <div
-              className="absolute inset-0"
-              style={{
-                backgroundImage: "radial-gradient(circle at 2px 2px, white 1px, transparent 0)",
-                backgroundSize: "32px 32px",
-              }}
-            />
+        <section className="bg-[#1a1f3a] border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-12">
+            <h1 className="text-3xl font-bold text-white mb-2">
+              My Bookings
+            </h1>
+            <p className="text-white/70">
+              Manage your interview appointments
+            </p>
           </div>
-          <div className="absolute top-0 right-1/4 w-96 h-96 bg-blue-500 rounded-full mix-blend-screen filter blur-3xl opacity-5" />
-          <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-[#ffb300] rounded-full mix-blend-screen filter blur-3xl opacity-5" />
-          
-          <div className="relative z-10 max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-12 md:py-16">
-            <div className="mb-6">
-              <div className="inline-block mb-3">
-                <div className="flex items-center gap-2 px-4 py-1.5 bg-white/5 backdrop-blur-sm rounded-full border border-white/10">
-                  <Calendar className="w-4 h-4 text-blue-400" />
-                  <span className="text-sm text-white/80 font-medium">{upcomingBookings.length} Upcoming</span>
-                </div>
-              </div>
-              <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2 leading-tight">
-                My Bookings
-              </h1>
-              <p className="text-lg text-white/70 max-w-2xl">
-                Manage your interview appointments
-              </p>
-            </div>
-          </div>
-          <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
         </section>
 
         <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-8 space-y-6">
         {/* Event Selector */}
         {events.length > 0 && (
-          <div className="bg-card rounded-xl border border-border p-4 mb-6">
-            <label className="block text-sm font-medium text-foreground mb-2">
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <label className="block text-sm font-medium text-gray-900 mb-2">
               Filter by Event
             </label>
             <select
               value={selectedEventId}
               onChange={(e) => handleEventChange(e.target.value)}
-              className="w-full md:w-auto px-4 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full md:w-auto px-4 py-2 bg-white border border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#007e40] focus:border-transparent"
             >
               <option value="all">All Events</option>
               {events.map((event) => (
@@ -292,49 +271,46 @@ export default function StudentBookings() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="group bg-white rounded-2xl border border-gray-100 p-6 hover:shadow-xl hover:border-blue-200 transition-all duration-300">
-            <div className="flex items-start justify-between mb-4">
-              <div className="p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-md group-hover:scale-110 transition-transform duration-300">
-                <Calendar className="w-6 h-6 text-white" strokeWidth={2} />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-white rounded-lg border border-gray-200 p-5">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 bg-blue-50 rounded-lg">
+                <Calendar className="w-5 h-5 text-blue-600" />
               </div>
-              <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+              <p className="text-2xl font-bold text-gray-900">{bookings.length}</p>
             </div>
-            <p className="text-3xl font-bold text-gray-900 mb-1">{bookings.length}</p>
-            <p className="text-sm text-gray-600 font-medium">Total Bookings</p>
+            <p className="text-sm text-gray-600">Total Bookings</p>
           </div>
-          <div className="group bg-white rounded-2xl border border-gray-100 p-6 hover:shadow-xl hover:border-green-200 transition-all duration-300">
-            <div className="flex items-start justify-between mb-4">
-              <div className="p-3 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl shadow-md group-hover:scale-110 transition-transform duration-300">
-                <Clock className="w-6 h-6 text-white" strokeWidth={2} />
+          <div className="bg-white rounded-lg border border-gray-200 p-5">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 bg-green-50 rounded-lg">
+                <Clock className="w-5 h-5 text-green-600" />
               </div>
-              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+              <p className="text-2xl font-bold text-gray-900">{upcomingBookings.length}</p>
             </div>
-            <p className="text-3xl font-bold text-gray-900 mb-1">{upcomingBookings.length}</p>
-            <p className="text-sm text-gray-600 font-medium">Upcoming</p>
+            <p className="text-sm text-gray-600">Upcoming</p>
           </div>
-          <div className="group bg-white rounded-2xl border border-gray-100 p-6 hover:shadow-xl hover:border-purple-200 transition-all duration-300">
-            <div className="flex items-start justify-between mb-4">
-              <div className="p-3 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-md group-hover:scale-110 transition-transform duration-300">
-                <Briefcase className="w-6 h-6 text-white" strokeWidth={2} />
+          <div className="bg-white rounded-lg border border-gray-200 p-5">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 bg-purple-50 rounded-lg">
+                <Briefcase className="w-5 h-5 text-purple-600" />
               </div>
-              <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
+              <p className="text-2xl font-bold text-gray-900">{pastBookings.length}</p>
             </div>
-            <p className="text-3xl font-bold text-gray-900 mb-1">{pastBookings.length}</p>
-            <p className="text-sm text-gray-600 font-medium">Past</p>
+            <p className="text-sm text-gray-600">Past</p>
           </div>
         </div>
 
         {upcomingBookings.length > 0 ? (
-          <div className="bg-white rounded-2xl border border-gray-100 p-6 md:p-8 mb-8 shadow-sm">
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="p-2 bg-green-50 rounded-lg">
-                <Clock className="w-5 h-5 text-green-600" strokeWidth={2.5} />
+                <Clock className="w-5 h-5 text-green-600" />
               </div>
-              <h2 className="text-xl font-bold text-gray-900">Upcoming Interviews</h2>
+              <h2 className="text-lg font-bold text-gray-900">Upcoming Interviews</h2>
             </div>
             <div className="space-y-4">
-              {upcomingBookings.map((booking, index) => {
+              {upcomingBookings.map((booking) => {
                 const bookingDate = new Date(booking.slot_start_time);
                 const today = new Date();
                 const isToday = bookingDate.toDateString() === today.toDateString();
@@ -343,41 +319,40 @@ export default function StudentBookings() {
                 return (
                   <div
                     key={booking.id}
-                    className={`group relative p-5 rounded-xl border-2 transition-all duration-300 animate-fade-in hover:shadow-lg ${
+                    className={`p-4 rounded-lg border ${
                       isToday 
-                        ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-200 hover:border-green-300' 
+                        ? 'bg-green-50 border-green-200' 
                         : isTomorrow
-                        ? 'bg-gradient-to-br from-blue-50 to-blue-50 border-blue-200 hover:border-blue-300'
-                        : 'bg-white border-gray-200 hover:border-blue-300'
+                        ? 'bg-blue-50 border-blue-200'
+                        : 'bg-white border-gray-200'
                     }`}
-                    style={{ animationDelay: `${index * 50}ms` }}
                   >
                     {isToday && (
-                      <div className="absolute -top-3 left-6 px-3 py-1 bg-green-500 text-white text-xs font-bold rounded-full shadow-md">
+                      <div className="inline-block px-2 py-1 bg-green-500 text-white text-xs font-bold rounded mb-3">
                         Today
                       </div>
                     )}
                     {isTomorrow && (
-                      <div className="absolute -top-3 left-6 px-3 py-1 bg-blue-500 text-white text-xs font-bold rounded-full shadow-md">
+                      <div className="inline-block px-2 py-1 bg-blue-500 text-white text-xs font-bold rounded mb-3">
                         Tomorrow
                       </div>
                     )}
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-3">
-                          <div className="p-2 bg-white rounded-lg shadow-sm group-hover:shadow-md transition-shadow">
-                            <Building2 className="w-5 h-5 text-[#007e40]" strokeWidth={2} />
+                          <div className="p-2 bg-white rounded-lg border border-gray-200">
+                            <Building2 className="w-5 h-5 text-[#007e40]" />
                           </div>
                           <div>
-                            <h3 className="font-bold text-gray-900 text-lg">{booking.company_name}</h3>
+                            <h3 className="font-bold text-gray-900">{booking.company_name}</h3>
                             <p className="text-sm text-gray-600">{booking.offer_title}</p>
                           </div>
                         </div>
                         
-                        <div className="flex flex-wrap gap-4 text-sm bg-white/50 rounded-lg p-3">
-                          <div className="flex items-center gap-2 text-gray-700">
-                            <Calendar className="w-4 h-4 text-blue-600" strokeWidth={2.5} />
-                            <span className="font-medium">
+                        <div className="flex flex-wrap gap-4 text-sm text-gray-700">
+                          <div className="flex items-center gap-2">
+                            <Calendar className="w-4 h-4 text-blue-600" />
+                            <span>
                               {new Date(booking.slot_start_time).toLocaleDateString('en-US', {
                                 weekday: 'long',
                                 month: 'long',
@@ -385,9 +360,9 @@ export default function StudentBookings() {
                               })}
                             </span>
                           </div>
-                          <div className="flex items-center gap-2 text-gray-700">
-                            <Clock className="w-4 h-4 text-purple-600" strokeWidth={2.5} />
-                            <span className="font-medium">
+                          <div className="flex items-center gap-2">
+                            <Clock className="w-4 h-4 text-purple-600" />
+                            <span>
                               {new Date(booking.slot_start_time).toLocaleTimeString('en-US', {
                                 hour: '2-digit',
                                 minute: '2-digit',
@@ -395,9 +370,9 @@ export default function StudentBookings() {
                             </span>
                           </div>
                           {booking.slot_location && (
-                            <div className="flex items-center gap-2 text-gray-700">
-                              <MapPin className="w-4 h-4 text-red-600" strokeWidth={2.5} />
-                              <span className="font-medium">{booking.slot_location}</span>
+                            <div className="flex items-center gap-2">
+                              <MapPin className="w-4 h-4 text-red-600" />
+                              <span>{booking.slot_location}</span>
                             </div>
                           )}
                         </div>
@@ -405,14 +380,9 @@ export default function StudentBookings() {
                       <button
                         onClick={() => handleCancelBooking(booking.id)}
                         disabled={cancellingId === booking.id}
-                        className="px-4 py-2.5 text-sm font-semibold text-red-600 hover:text-white bg-white hover:bg-red-500 border-2 border-red-200 hover:border-red-500 rounded-xl transition-all hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95 duration-200"
+                        className="px-4 py-2 text-sm font-semibold text-red-600 hover:text-white bg-white hover:bg-red-500 border border-red-200 hover:border-red-500 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {cancellingId === booking.id ? (
-                          <span className="flex items-center gap-2">
-                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                            Cancelling...
-                          </span>
-                        ) : 'Cancel'}
+                        {cancellingId === booking.id ? 'Cancelling...' : 'Cancel'}
                       </button>
                     </div>
                   </div>
@@ -438,33 +408,33 @@ export default function StudentBookings() {
         ) : null}
 
         {pastBookings.length > 0 ? (
-          <div className="bg-white rounded-2xl border border-gray-100 p-6 md:p-8 shadow-sm">
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="p-2 bg-gray-50 rounded-lg">
-                <Briefcase className="w-5 h-5 text-gray-600" strokeWidth={2.5} />
+                <Briefcase className="w-5 h-5 text-gray-600" />
               </div>
-              <h2 className="text-xl font-bold text-gray-900">Past Bookings</h2>
+              <h2 className="text-lg font-bold text-gray-900">Past Bookings</h2>
             </div>
             <div className="space-y-3">
               {pastBookings.map((booking) => (
                 <div
                   key={booking.id}
-                  className="p-4 bg-gray-50/50 rounded-xl border border-gray-200"
+                  className="p-4 bg-gray-50 rounded-lg border border-gray-200"
                 >
                   <div className="flex items-center gap-3 mb-2">
-                    <div className="p-1.5 bg-white rounded-lg shadow-sm">
-                      <Building2 className="w-4 h-4 text-gray-500" strokeWidth={2} />
+                    <div className="p-2 bg-white rounded-lg">
+                      <Building2 className="w-4 h-4 text-gray-500" />
                     </div>
                     <h3 className="font-semibold text-gray-700">{booking.company_name}</h3>
                     {booking.status === 'cancelled' && (
-                      <span className="px-2.5 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-full">
+                      <span className="px-2 py-1 bg-red-100 text-red-700 text-xs font-bold rounded">
                         Cancelled
                       </span>
                     )}
                   </div>
-                  <p className="text-sm text-gray-600 mb-2 ml-9">{booking.offer_title}</p>
-                  <div className="flex items-center gap-2 text-xs text-gray-500 ml-9">
-                    <Calendar className="w-3.5 h-3.5" strokeWidth={2} />
+                  <p className="text-sm text-gray-600 mb-2 ml-11">{booking.offer_title}</p>
+                  <div className="flex items-center gap-2 text-xs text-gray-500 ml-11">
+                    <Calendar className="w-3.5 h-3.5" />
                     {new Date(booking.slot_start_time).toLocaleDateString('en-US', {
                       month: 'short',
                       day: 'numeric',

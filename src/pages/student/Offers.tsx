@@ -251,10 +251,18 @@ export default function StudentOffers() {
     if (slotsData) {
       debug('Processing', slotsData.length, 'slots to check capacity...');
       
-      // Count bookings for each slot
-      const slotsWithCounts = await Promise.all(
+      // Count bookings for each slot with detailed debugging
+      const slotsWithCounts
+       = await Promise.all(
         slotsData.map(async (slot) => {
-          const { count, error: countError } = await supabase
+          // First, count ALL bookings to see total
+          const { count: totalCount } = await supabase
+            .from('bookings')
+            .select('*', { count: 'exact', head: true })
+            .eq('slot_id', slot.id);
+
+          // Then count only confirmed bookings (what backend checks)
+          const { count: confirmedCount, error: countError } = await supabase
             .from('bookings')
             .select('*', { count: 'exact', head: true })
             .eq('slot_id', slot.id)
@@ -264,17 +272,40 @@ export default function StudentOffers() {
             logError('Error counting bookings for slot:', countError);
           }
 
+          // Also get the actual booking records to see their statuses
+          const { data: bookingRecords } = await supabase
+            .from('bookings')
+            .select('id, status, student_id')
+            .eq('slot_id', slot.id);
+
+          const capacity = slot.capacity || 1;
+          const confirmed = confirmedCount || 0;
+          const total = totalCount || 0;
+          const spotsLeft = capacity - confirmed;
+
+          debug(`Slot ${new Date(slot.start_time).toLocaleTimeString()}: ${confirmed}/${capacity} booked, ${spotsLeft} spots left (Total bookings: ${total}, Confirmed: ${confirmed})`);
+          
+          if (bookingRecords && bookingRecords.length > 0) {
+            debug(`  Booking statuses:`, bookingRecords.map(b => b.status));
+          }
+
           return {
             ...slot,
-            bookings_count: count || 0,
+            bookings_count: confirmed,
           };
         })
       );
 
       // Filter out full slots
-      // Default capacity to 1 if null/undefined (single interview slot)
       const available = slotsWithCounts.filter(
-        (slot) => slot.bookings_count < (slot.capacity || 1)
+        (slot) => {
+          const capacity = slot.capacity || 1;
+          const isFull = slot.bookings_count >= capacity;
+          if (isFull) {
+            debug(`  ❌ Slot ${new Date(slot.start_time).toLocaleTimeString()} is FULL (${slot.bookings_count}/${capacity})`);
+          }
+          return !isFull;
+        }
       );
 
       debug('Available slots after filtering:', available.length, 'out of', slotsWithCounts.length);
@@ -507,36 +538,15 @@ export default function StudentOffers() {
     <StudentLayout onSignOut={signOut}>
       <div className="min-h-screen bg-gray-50">
         {/* Hero Section */}
-        <section className="relative overflow-hidden bg-gradient-to-br from-[#1a1f3a] via-[#2a3f5f] to-[#1a1f3a]">
-          <div className="absolute inset-0 opacity-[0.03]">
-            <div
-              className="absolute inset-0"
-              style={{
-                backgroundImage: "radial-gradient(circle at 2px 2px, white 1px, transparent 0)",
-                backgroundSize: "32px 32px",
-              }}
-            />
+        <section className="bg-[#1a1f3a] border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-12">
+            <h1 className="text-3xl font-bold text-white mb-2">
+              Browse Offers
+            </h1>
+            <p className="text-white/70">
+              Find your perfect internship opportunity - {filteredOffers.length} {filteredOffers.length === 1 ? 'offer' : 'offers'} available
+            </p>
           </div>
-          <div className="absolute top-0 right-1/4 w-96 h-96 bg-[#ffb300] rounded-full mix-blend-screen filter blur-3xl opacity-5" />
-          <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-[#007e40] rounded-full mix-blend-screen filter blur-3xl opacity-5" />
-          
-          <div className="relative z-10 max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-12 md:py-16">
-            <div className="mb-6">
-              <div className="inline-block mb-3">
-                <div className="flex items-center gap-2 px-4 py-1.5 bg-white/5 backdrop-blur-sm rounded-full border border-white/10">
-                  <Briefcase className="w-4 h-4 text-[#ffb300]" />
-                  <span className="text-sm text-white/80 font-medium">{filteredOffers.length} {filteredOffers.length === 1 ? 'Offer' : 'Offers'} Available</span>
-                </div>
-              </div>
-              <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2 leading-tight">
-                Browse Offers
-              </h1>
-              <p className="text-lg text-white/70 max-w-2xl">
-                Find your perfect internship opportunity
-              </p>
-            </div>
-          </div>
-          <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
         </section>
 
         <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-8 space-y-6">
@@ -549,19 +559,19 @@ export default function StudentOffers() {
 
           {/* Event Selector */}
           {events.length > 0 && (
-            <div className="bg-card/80 backdrop-blur-sm rounded-xl border border-border shadow-sm hover:shadow-md transition-shadow p-5">
+            <div className="bg-white rounded-lg border border-gray-200 p-5">
             <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <Calendar className="w-4 h-4 text-primary" />
+              <div className="p-2 bg-gray-50 rounded-lg">
+                <Calendar className="w-4 h-4 text-gray-600" />
               </div>
-              <label className="text-sm font-semibold text-foreground">
+              <label className="text-sm font-semibold text-gray-900">
                 Select Event
               </label>
             </div>
             <select
               value={selectedEventId}
               onChange={(e) => setSelectedEventId(e.target.value)}
-              className="w-full px-4 py-3 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all hover:border-primary/50"
+              className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#007e40] focus:border-transparent transition-all"
             >
               {events.map((event) => (
                 <option key={event.id} value={event.id}>
@@ -577,26 +587,26 @@ export default function StudentOffers() {
           )}
 
           {/* Filters */}
-          <div className="bg-card/80 backdrop-blur-sm rounded-xl border border-border shadow-sm hover:shadow-md transition-shadow p-6">
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
           <div className="flex items-center gap-2 mb-4">
-            <Search className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-semibold text-foreground">Filter & Search</h2>
+            <Search className="w-5 h-5 text-gray-600" />
+            <h2 className="text-lg font-semibold text-gray-900">Filter & Search</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="md:col-span-2">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                 <input
                   type="text"
                   placeholder="Search offers, companies..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all hover:border-primary/50"
+                  className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#007e40] focus:border-transparent transition-all"
                 />
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-900 transition-colors"
                     aria-label="Clear search"
                   >
                     <X className="w-4 h-4" />
@@ -619,16 +629,16 @@ export default function StudentOffers() {
             <select
               value={filterPaid}
               onChange={(e) => setFilterPaid(e.target.value)}
-              className="px-4 py-3 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all hover:border-primary/50"
+              className="px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#007e40] focus:border-transparent transition-all"
             >
               <option value="">All Compensation</option>
               <option value="paid">💰 Paid</option>
               <option value="unpaid">Unpaid</option>
             </select>
           </div>
-          <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
-            <p className="text-sm text-muted-foreground">
-              Showing <span className="font-semibold text-foreground">{filteredOffers.length}</span> of <span className="font-semibold text-foreground">{offers.length}</span> offer{offers.length !== 1 ? 's' : ''}
+          <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
+            <p className="text-sm text-gray-600">
+              Showing <span className="font-semibold text-gray-900">{filteredOffers.length}</span> of <span className="font-semibold text-gray-900">{offers.length}</span> offer{offers.length !== 1 ? 's' : ''}
             </p>
             {(searchQuery || filterTag || filterPaid) && (
               <button
@@ -637,7 +647,7 @@ export default function StudentOffers() {
                   setFilterTag('');
                   setFilterPaid('');
                 }}
-                className="text-sm text-primary hover:text-primary/80 font-medium flex items-center gap-1 transition-colors"
+                className="text-sm text-[#007e40] hover:text-[#005f30] font-medium flex items-center gap-1 transition-colors"
               >
                 <X className="w-3 h-3" />
                 Clear filters
@@ -664,7 +674,7 @@ export default function StudentOffers() {
                     setFilterTag('');
                     setFilterPaid('');
                   }}
-                  className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-all font-medium shadow-sm hover:shadow-md inline-flex items-center gap-2"
+                  className="px-6 py-3 bg-[#007e40] text-white rounded-lg hover:bg-[#006633] transition-all font-medium inline-flex items-center gap-2"
                 >
                   <X className="w-4 h-4" />
                   Clear All Filters
@@ -842,7 +852,8 @@ export default function StudentOffers() {
                   ref={modalCloseRef}
                   onClick={() => setSelectedOffer(null)}
                   className="text-muted-foreground hover:text-foreground hover:bg-muted/80 p-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-primary shadow-sm hover:shadow flex-shrink-0"
-                  aria-label="Close dialog"
+                  aria-la
+                  bel="Close dialog"
                 >
                   <X className="w-4 h-4 md:w-5 md:h-5" />
                 </button>
@@ -883,6 +894,7 @@ export default function StudentOffers() {
                       </div>
                       {bookingLimit.can_book && bookingLimit.current_count === bookingLimit.max_allowed - 1 && (
                         <div className="flex items-center gap-1.5 mt-1.5 text-xs text-orange-700 dark:text-orange-300 font-semibold">
+                
                           <span>⚠️</span>
                           <span>Last booking for this phase!</span>
                         </div>
