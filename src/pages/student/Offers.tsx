@@ -846,7 +846,6 @@ export default function StudentOffers() {
                     )}
                   </div>
                 </div>
-                
                 {/* Close Button - Compact */}
                 <button
                   ref={modalCloseRef}
