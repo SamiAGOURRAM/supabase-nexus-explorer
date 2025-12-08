@@ -114,13 +114,21 @@ export default function EventSlots() {
       const companiesMap = new Map(companiesData?.map(c => [c.id, c.company_name]) || [])
 
       // Get booking counts for each slot
+      console.log('🔍 [ADMIN] Fetching booking counts for', slotsData.length, 'slots');
       const slotsWithCounts = await Promise.all(
         slotsData.map(async (slot: any) => {
-          const { count } = await supabase
+          const { count, data: bookingData } = await supabase
             .from('bookings')
-            .select('*', { count: 'exact', head: true })
+            .select('*', { count: 'exact', head: false })
             .eq('slot_id', slot.id)
             .eq('status', 'confirmed')
+
+          console.log(`🔍 [ADMIN] Slot ${new Date(slot.start_time).toLocaleTimeString()} (${slot.id.slice(0, 8)}):`, {
+            capacity: slot.capacity,
+            confirmed_bookings: count,
+            company_id: slot.company_id.slice(0, 8),
+            actual_records: bookingData?.length || 0
+          });
 
           return {
             ...slot,
@@ -128,6 +136,8 @@ export default function EventSlots() {
           }
         })
       )
+
+      console.log('🔍 [ADMIN] Total slots with counts:', slotsWithCounts.length);
 
       // Group by company
       const grouped = slotsWithCounts.reduce((acc: Record<string, CompanySlots>, slot: any) => {

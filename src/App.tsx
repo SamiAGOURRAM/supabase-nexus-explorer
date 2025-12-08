@@ -31,6 +31,7 @@ const About = lazy(() => import("./pages/About"));
 const AboutheINF = lazy(() => import("./pages/AboutheINF"));
 const Contact = lazy(() => import("./pages/Contact"));
 const SetPassword = lazy(() => import("./pages/auth/SetPassword"));
+const AuthCallback = lazy(() => import("./pages/auth/Callback"));
 const Login = lazy(() => import("./pages/Login"));
 const Signup = lazy(() => import("./pages/Signup"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
@@ -90,6 +91,7 @@ function AppRoutes() {
           <Route path="/signup" element={<Signup />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/offers" element={<Offers />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           

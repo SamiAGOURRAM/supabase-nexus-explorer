@@ -1,87 +1,22 @@
 import { useState, useEffect } from 'react';
-
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-
 import { supabase } from '@/lib/supabase';
-
 import {
-
-  Building2,
-
-  GraduationCap,
-
   AlertCircle,
-
-  Shield,
-
-  Sparkles,
-
   ArrowLeft,
-
   Eye,
-
   EyeOff,
-
+  Mail,
+  Lock,
+  Loader2,
 } from 'lucide-react';
-
-import type { LucideIcon } from 'lucide-react';
-
 import { checkRateLimitDirect, recordFailedAttempt, clearRateLimit } from '@/hooks/useRateLimit';
-
 import { useCaptcha, getCaptchaConfig } from '@/hooks/useCaptcha';
 import { debug, error as logError, warn } from '@/utils/logger';
 
 
 
-type Highlight = {
-
-  icon: LucideIcon;
-
-  title: string;
-
-  description: string;
-
-};
-
-
-
-const LOGIN_HIGHLIGHTS: Highlight[] = [
-
-  {
-
-    icon: GraduationCap,
-
-    title: 'Student cockpit',
-
-    description: 'Track bookings, offers, and interview slots from one place.',
-
-  },
-
-  {
-
-    icon: Building2,
-
-    title: 'Company lounge',
-
-    description: 'Manage posted offers and confirm interviews in real time.',
-
-  },
-
-  {
-
-    icon: Shield,
-
-    title: 'Secure by default',
-
-    description: 'Email verification + reCAPTCHA keep data protected.',
-
-  },
-
-];
-
-
-
-  export default function Login() {
+export default function Login() {
 
     const [email, setEmail] = useState('');
 
@@ -89,11 +24,17 @@ const LOGIN_HIGHLIGHTS: Highlight[] = [
 
     const [loading, setLoading] = useState(false);
 
+    const [azureLoading, setAzureLoading] = useState(false);
+
     const [error, setError] = useState('');
 
     const [loginAs, setLoginAs] = useState<'student' | 'company'>('student');
 
     const [showPassword, setShowPassword] = useState(false);
+
+    const [emailFocused, setEmailFocused] = useState(false);
+
+    const [passwordFocused, setPasswordFocused] = useState(false);
 
     const navigate = useNavigate();
 
@@ -114,6 +55,41 @@ const LOGIN_HIGHLIGHTS: Highlight[] = [
       checkUser();
 
     }, []);
+
+
+
+    const handleAzureADLogin = async () => {
+      if (loginAs !== 'student') {
+        setError('Azure AD sign-in is only available for students');
+        return;
+      }
+
+      setAzureLoading(true);
+      setError('');
+
+      try {
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: 'azure',
+          options: {
+            scopes: 'email profile openid User.Read',
+            redirectTo: `${window.location.origin}/auth/callback`,
+            queryParams: {
+              prompt: 'select_account',
+            }
+          },
+        });
+
+        if (error) {
+          console.error('Azure AD login error:', error);
+          setError(error.message || 'Failed to initiate Azure AD login');
+          setAzureLoading(false);
+        }
+      } catch (err) {
+        console.error('Azure AD login error:', err);
+        setError('An unexpected error occurred. Please try again.');
+        setAzureLoading(false);
+      }
+    };
 
 
 
@@ -521,432 +497,257 @@ const LOGIN_HIGHLIGHTS: Highlight[] = [
 
 
     return (
-
-      <div className="relative min-h-screen bg-white">
-
-        <div
-
-          className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#ffb300]/5 via-white to-[#007e40]/5"
-
-          aria-hidden="true"
-
-        />
-
-        <div className="relative z-10 mx-auto flex min-h-screen max-w-7xl flex-col gap-8 px-4 py-12 sm:px-6 lg:px-8">
-
-          <div className="flex items-center justify-between mb-4">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
+        {/* Simple header */}
+        <div className="bg-white/80 backdrop-blur-sm border-b border-gray-200/50">
+          <div className="max-w-7xl mx-auto px-4 py-5 sm:px-6 lg:px-8">
             <Link
               to="/"
-              className="inline-flex w-fit items-center gap-2 text-sm font-medium text-gray-600 transition-colors hover:text-[#007e40]"
+              className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-[#007e40] transition-all"
             >
               <ArrowLeft className="h-4 w-4" />
               Back to home
             </Link>
-            <Link
-              to="/offers"
-              className="inline-flex w-fit items-center gap-2 text-sm font-medium text-gray-600 transition-colors hover:text-[#007e40]"
-            >
-              Back to offers
-            </Link>
           </div>
-
-
-
-          <div className="grid flex-1 gap-8 lg:grid-cols-[1.05fr,0.95fr]">
-
-            <section className="hidden rounded-2xl border-2 border-gray-200 bg-gradient-to-br from-[#1a1f3a] via-[#007e40] to-[#1a1f3a] p-8 text-white shadow-xl lg:flex lg:flex-col relative overflow-hidden">
-
-              {/* Background Pattern */}
-              <div className="absolute inset-0 opacity-5">
-                <div
-                  className="absolute inset-0"
-                  style={{
-                    backgroundImage:
-                      "radial-gradient(circle at 2px 2px, white 1px, transparent 0)",
-                    backgroundSize: "40px 40px",
-                  }}
-                />
-              </div>
-
-              <div className="relative z-10">
-
-                <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full border border-white/20 mb-6">
-
-                  <Sparkles className="h-4 w-4 text-[#ffb300]" />
-
-                  <span className="text-xs font-semibold uppercase tracking-[0.3em] text-white">
-
-                    Unified Access
-
-                  </span>
-
-                </div>
-
-                <h1 className="text-4xl sm:text-5xl font-bold leading-tight mb-6">
-
-                  Reconnect with your recruiting hub in seconds.
-
-                </h1>
-
-                <p className="text-lg text-white/90 leading-relaxed">
-
-                  One secure login routes you to the right dashboard—student, company, or administrator—without any extra clicks.
-
-                </p>
-
-              </div>
-
-
-
-              <div className="mt-10 space-y-4 relative z-10">
-
-                {LOGIN_HIGHLIGHTS.map((highlight) => {
-
-                  const Icon = highlight.icon;
-
-                  return (
-
-                    <div
-
-                      key={highlight.title}
-
-                      className="flex gap-4 rounded-xl border-2 border-white/20 bg-white/10 backdrop-blur-sm p-4 hover:bg-white/15 transition-all"
-
-                    >
-
-                      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#ffb300]/20 flex-shrink-0">
-
-                        <Icon className="h-6 w-6 text-[#ffb300]" />
-
-                      </div>
-
-                      <div>
-
-                        <p className="text-base font-semibold text-white mb-1">{highlight.title}</p>
-
-                        <p className="text-sm text-white/80 leading-relaxed">{highlight.description}</p>
-
-                      </div>
-
-                    </div>
-
-                  );
-
-                })}
-
-              </div>
-
-
-
-              <p className="mt-auto pt-6 text-xs text-white/70 relative z-10">
-
-                Need assistance? Contact the INF events team at{' '}
-
-                <a href="mailto:inf.um6p@um6p.ma" className="font-semibold text-[#ffb300] hover:text-[#ffc940] transition-colors">inf.um6p@um6p.ma</a>
-
-              </p>
-
-            </section>
-
-
-
-            <section className="rounded-2xl border-2 border-gray-200 bg-white p-8 shadow-xl">
-
-              <div className="mb-8 text-center">
-
-                <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#007e40]/10 rounded-full border border-[#007e40]/20 mb-4">
-
-                  <Shield className="h-4 w-4 text-[#007e40]" />
-
-                  <span className="text-xs font-semibold uppercase tracking-[0.3em] text-[#007e40]">
-
-                    Secure Sign In
-
-                  </span>
-
-                </div>
-
-                <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-3">Welcome back to INF Platform</h2>
-
-                <p className="text-base text-gray-600">
-
-                  Choose your workspace and continue where you left off.
-
-                </p>
-
-              </div>
-
-
-
-              <div className="mb-6 flex gap-2 rounded-xl bg-[#f5f5f0] p-1">
-
-                <button
-
-                  type="button"
-
-                  onClick={() => setLoginAs('student')}
-
-                  aria-pressed={loginAs === 'student'}
-
-                  className={`flex-1 rounded-lg py-3 text-sm font-semibold transition-all ${
-
-                    loginAs === 'student'
-
-                      ? 'bg-[#ffb300] text-white shadow-lg'
-
-                      : 'text-gray-600 hover:text-gray-900'
-
-                  }`}
-
-                >
-
-                  Student
-
-                </button>
-
-                <button
-
-                  type="button"
-
-                  onClick={() => setLoginAs('company')}
-
-                  aria-pressed={loginAs === 'company'}
-
-                  className={`flex-1 rounded-lg py-3 text-sm font-semibold transition-all ${
-
-                    loginAs === 'company'
-
-                      ? 'bg-[#ffb300] text-white shadow-lg'
-
-                      : 'text-gray-600 hover:text-gray-900'
-
-                  }`}
-
-                >
-
-                  Company
-
-                </button>
-
-              </div>
-
-
-
-              {error && (
-
-                <div className="mb-6 flex items-start gap-3 rounded-xl border-2 border-red-300 bg-red-50 px-4 py-3 text-red-700">
-
-                  <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
-
-                  <span className="text-sm font-medium">{error}</span>
-
-                </div>
-
-              )}
-
-
-
-              <form onSubmit={handleEmailLogin} className="space-y-5">
-
-                <div className="space-y-2">
-
-                  <label htmlFor="email" className="block text-sm font-semibold text-gray-900">
-
-                    {loginAs === 'student' ? 'UM6P email (@um6p.ma)' : 'Company email'}
-
-                  </label>
-
-                  <input
-
-                    id="email"
-
-                    type="email"
-
-                    required
-
-                    value={email}
-
-                    onChange={(e) => setEmail(e.target.value)}
-
-                    placeholder={loginAs === 'student' ? 'prenom.nom@um6p.ma' : 'talent@company.com'}
-
-                    className="w-full rounded-lg border-2 border-gray-300 bg-white px-4 py-3.5 text-sm text-gray-900 transition focus:border-[#007e40] focus:outline-none focus:ring-2 focus:ring-[#007e40]/20"
-
-                  />
-
-                  <p className="text-xs text-gray-600">
-
-                    {loginAs === 'student'
-
-                      ? 'Use your UM6P student address (@um6p.ma only).'
-
-                      : 'Sign in with the company profile that was invited to INF.'}
-
-                  </p>
-
-                </div>
-
-
-
-                <div className="space-y-2">
-
-                  <label htmlFor="password" className="block text-sm font-semibold text-gray-900">
-
-                    Password
-
-                  </label>
-
-                  <div className="relative">
-
-                    <input
-
-                      id="password"
-
-                      type={showPassword ? 'text' : 'password'}
-
-                      required
-
-                      value={password}
-
-                      onChange={(e) => setPassword(e.target.value)}
-
-                      className="w-full rounded-lg border-2 border-gray-300 bg-white px-4 py-3.5 pr-12 text-sm text-gray-900 transition focus:border-[#007e40] focus:outline-none focus:ring-2 focus:ring-[#007e40]/20"
-
-                    />
-
-                    <button
-
-                      type="button"
-
-                      onClick={() => setShowPassword((prev) => !prev)}
-
-                      className="absolute inset-y-0 right-3 flex items-center text-gray-500 transition hover:text-gray-700"
-
-                    >
-
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-
-                    </button>
-
-                  </div>
-
-                </div>
-
-
-
-                <button
-
-                  type="submit"
-
-                  disabled={loading}
-
-                  className="w-full rounded-lg bg-[#ffb300] px-4 py-3.5 text-sm font-semibold text-white shadow-lg transition hover:bg-[#e6a200] hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-60"
-
-                >
-
-                  {loading ? 'Signing in…' : 'Sign in'}
-
-                </button>
-
-              </form>
-
-
-
-              {captchaConfig.enabled && (
-
-                <div className="mt-5 text-center">
-
-                  <p className="flex items-center justify-center gap-2 text-xs text-gray-600">
-
-                    <Shield className="h-3.5 w-3.5 text-[#007e40]" />
-
-                    Protected by reCAPTCHA
-
-                  </p>
-
-                  <p className="mt-1 flex items-center justify-center gap-2 text-xs text-gray-500">
-
-                    <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" className="hover:text-[#007e40] hover:underline transition-colors">
-
-                      Privacy
-
-                    </a>
-
-                    <span className="text-gray-300">|</span>
-
-                    <a href="https://policies.google.com/terms" target="_blank" rel="noopener noreferrer" className="hover:text-[#007e40] hover:underline transition-colors">
-
-                      Terms
-
-                    </a>
-
-                  </p>
-
-                </div>
-
-              )}
-
-
-
-              <div className="mt-8 space-y-4 text-sm text-gray-600">
-
-                <div className="flex flex-wrap items-center justify-between gap-2">
-
-                  <Link to="/forgot-password" className="font-semibold text-[#007e40] hover:text-[#005a2d] hover:underline transition-colors">
-
-                    Forgot password?
-
-                  </Link>
-
-                  <p>
-
-                    Need an account?{' '}
-
-                    <Link to="/signup" className="font-semibold text-[#007e40] hover:text-[#005a2d] hover:underline transition-colors">
-
-                      Student signup
-
-                    </Link>
-
-                  </p>
-
-                </div>
-
-                <p className="text-xs text-gray-500">
-
-                  Companies are onboarded by invitation. Reach out to your UM6P contact if you need access.
-
-                </p>
-
-                <div className="pt-4 border-t border-gray-200">
-
-                  <p className="text-xs text-gray-500 text-center">
-
-                    By signing in, you agree to our{' '}
-
-                    <Link to="/privacy-policy" className="text-[#007e40] hover:text-[#005a2d] hover:underline font-medium transition-colors">
-
-                      Privacy Policy
-
-                    </Link>
-
-                  </p>
-
-                </div>
-
-              </div>
-
-            </section>
-
-          </div>
-
         </div>
 
+        {/* Main content */}
+        <div className="flex items-center justify-center px-4 py-16 sm:px-6 lg:px-8">
+          <div className="w-full max-w-md">
+            {/* Logo */}
+            <div className="text-center mb-10 animate-in fade-in slide-in-from-top-4 duration-700">
+              <img
+                src="/logos/2.svg"
+                alt="UM6P Logo"
+                className="h-40 w-auto mx-auto mb-8 drop-shadow-sm"
+              />
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h2>
+              <p className="text-base text-gray-600">
+                Sign in to access your INF Platform
+              </p>
+            </div>
+
+            {/* Login card */}
+            <div className="bg-white rounded-2xl border border-gray-200/60 shadow-xl shadow-gray-200/50 p-8 sm:p-10 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-150">
+              {/* Role selector */}
+              <div className="mb-8">
+                <label className="block text-sm font-semibold text-gray-700 mb-3">
+                  I am a
+                </label>
+                <div className="flex gap-3 p-1.5 bg-gray-100/70 rounded-xl">
+                  <button
+                    type="button"
+                    onClick={() => setLoginAs('student')}
+                    className={`flex-1 py-3 px-4 rounded-lg text-sm font-semibold transition-all duration-300 ${
+                      loginAs === 'student'
+                        ? 'bg-[#007e40] text-white shadow-md shadow-[#007e40]/20 scale-105'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-white/50 hover:scale-102'
+                    }`}
+                  >
+                    Student
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLoginAs('company')}
+                    className={`flex-1 py-3 px-4 rounded-lg text-sm font-semibold transition-all duration-300 ${
+                      loginAs === 'company'
+                        ? 'bg-[#007e40] text-white shadow-md shadow-[#007e40]/20 scale-105'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-white/50 hover:scale-102'
+                    }`}
+                  >
+                    Company
+                  </button>
+                </div>
+              </div>
+
+              {error && (
+                <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 flex items-start gap-3 animate-in slide-in-from-top-2 fade-in duration-300">
+                  <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-700 leading-relaxed">{error}</p>
+                </div>
+              )}
+
+              <form onSubmit={handleEmailLogin} className="space-y-5">
+                <div>
+                  <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
+                    Email address
+                  </label>
+                  <div className="relative">
+                    <div className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-200 ${
+                      emailFocused ? 'text-[#007e40]' : 'text-gray-400'
+                    }`}>
+                      <Mail className="h-5 w-5" />
+                    </div>
+                    <input
+                      id="email"
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      onFocus={() => setEmailFocused(true)}
+                      onBlur={() => setEmailFocused(false)}
+                      placeholder={loginAs === 'student' ? 'firstname.lastname@um6p.ma' : 'contact@company.com'}
+                      className="w-full rounded-xl border-2 border-gray-200 pl-12 pr-4 py-3 text-sm placeholder:text-gray-400 focus:border-[#007e40] focus:outline-none focus:ring-4 focus:ring-[#007e40]/10 transition-all duration-200"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <div className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-200 ${
+                      passwordFocused ? 'text-[#007e40]' : 'text-gray-400'
+                    }`}>
+                      <Lock className="h-5 w-5" />
+                    </div>
+                    <input
+                      id="password"
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      onFocus={() => setPasswordFocused(true)}
+                      onBlur={() => setPasswordFocused(false)}
+                      className="w-full rounded-xl border-2 border-gray-200 pl-12 pr-12 py-3 text-sm focus:border-[#007e40] focus:outline-none focus:ring-4 focus:ring-[#007e40]/10 transition-all duration-200"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 transition-colors p-1 rounded-lg hover:bg-gray-100"
+                    >
+                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end text-sm">
+                  <Link
+                    to="/forgot-password"
+                    className="text-[#007e40] hover:text-[#005a2d] font-semibold hover:underline transition-all"
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full rounded-xl bg-gradient-to-r from-[#007e40] to-[#006633] px-4 py-3.5 text-base font-bold text-white hover:shadow-lg hover:shadow-[#007e40]/30 hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-[#007e40] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 transition-all duration-200 relative overflow-hidden group"
+                >
+                  <span className={`flex items-center justify-center gap-2 ${loading ? 'opacity-0' : 'opacity-100'} transition-opacity`}>
+                    Sign in
+                  </span>
+                  {loading && (
+                    <span className="absolute inset-0 flex items-center justify-center">
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      <span className="ml-2">Signing in...</span>
+                    </span>
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
+                </button>
+              </form>
+
+              {/* Azure AD Sign-in for Students */}
+              {loginAs === 'student' && (
+                <div className="mt-8">
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-gray-200"></div>
+                    </div>
+                    <div className="relative flex justify-center text-sm">
+                      <span className="bg-white px-4 text-gray-500 font-medium">Or continue with</span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleAzureADLogin}
+                    disabled={azureLoading}
+                    className="mt-6 w-full flex items-center justify-center gap-3 rounded-xl border-2 border-gray-200 bg-white px-4 py-3.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:border-gray-300 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#007e40] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 relative overflow-hidden group"
+                  >
+                    {!azureLoading && (
+                      <svg className="h-5 w-5" viewBox="0 0 21 21">
+                        <rect x="1" y="1" width="9" height="9" fill="#f25022" />
+                        <rect x="1" y="11" width="9" height="9" fill="#00a4ef" />
+                        <rect x="11" y="1" width="9" height="9" fill="#7fba00" />
+                        <rect x="11" y="11" width="9" height="9" fill="#ffb900" />
+                      </svg>
+                    )}
+                    {azureLoading && <Loader2 className="h-5 w-5 animate-spin text-[#0078d4]" />}
+                    <span>{azureLoading ? 'Connecting to Microsoft...' : 'Sign in with Microsoft'}</span>
+                    <div className="absolute inset-0 bg-gradient-to-r from-gray-50/0 via-gray-100/50 to-gray-50/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+                  </button>
+                </div>
+              )}
+
+              {/* Sign up link */}
+              {loginAs === 'student' && (
+                <div className="mt-8 pt-8 border-t border-gray-200/60">
+                  <p className="text-sm text-center text-gray-600">
+                    Don't have an account?{' '}
+                    <Link
+                      to="/signup"
+                      className="font-bold text-[#007e40] hover:text-[#005a2d] hover:underline transition-all"
+                    >
+                      Create account
+                    </Link>
+                  </p>
+                </div>
+              )}
+              
+              {loginAs === 'company' && (
+                <div className="mt-8 pt-8 border-t border-gray-200/60">
+                  <p className="text-xs text-center text-gray-500 bg-gray-50 rounded-lg py-2.5 px-4">
+                    Companies join by invitation only
+                  </p>
+                  <p className="mt-3 text-xs text-center text-gray-600">
+                    Contact us at{' '}
+                    <a
+                      href="mailto:inf.um6p@um6p.ma"
+                      className="font-semibold text-[#007e40] hover:text-[#005a2d] hover:underline transition-all"
+                    >
+                      inf.um6p@um6p.ma
+                    </a>
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="mt-10">
+              <div className="flex items-center justify-center gap-5 text-sm">
+                <Link
+                  to="/offers"
+                  className="text-gray-600 hover:text-[#007e40] font-medium transition-colors"
+                >
+                  Browse offers
+                </Link>
+                <span className="text-gray-300">•</span>
+                <a
+                  href="mailto:inf.um6p@um6p.ma"
+                  className="text-gray-600 hover:text-[#007e40] font-medium transition-colors"
+                >
+                  Need help?
+                </a>
+              </div>
+              {captchaConfig.enabled && (
+                <p className="text-xs text-center text-gray-500 mt-5">
+                  This site is protected by reCAPTCHA
+                </p>
+              )}
+              <p className="text-xs text-center text-gray-500 mt-3">
+                By signing in, you agree to our{' '}
+                <Link to="/privacy-policy" className="font-medium text-gray-600 hover:text-[#007e40] transition-colors">
+                  Privacy Policy
+                </Link>
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
-
     );
-
   }
-
-
-
+  
+  

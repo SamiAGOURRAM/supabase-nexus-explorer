@@ -93,6 +93,85 @@ export default function StudentOffers() {
     }
   }, [selectedEventId]);
 
+  // Real-time subscription for bookings updates
+  useEffect(() => {
+    if (!selectedOffer || !selectedEventId) return;
+
+    debug('Setting up real-time subscription for bookings updates');
+
+    // Function to refresh slots
+    const refreshSlots = async () => {
+      if (!selectedOffer) return;
+      
+      setLoadingSlots(true);
+      
+      const { data: slotsData } = await supabase
+        .from('event_slots')
+        .select('id, start_time, end_time, location, capacity, offer_id, company_id, event_id, is_active')
+        .eq('company_id', selectedOffer.company_id)
+        .eq('event_id', selectedEventId)
+        .eq('is_active', true)
+        .gte('start_time', new Date().toISOString())
+        .order('start_time', { ascending: true });
+
+      if (slotsData) {
+        const slotsWithCounts = await Promise.all(
+          slotsData.map(async (slot) => {
+            const { data: bookingRecords } = await supabase
+              .from('bookings')
+              .select('id, status')
+              .eq('slot_id', slot.id);
+
+            const confirmedBookings = bookingRecords?.filter(b => b.status === 'confirmed') || [];
+            const confirmed = confirmedBookings.length;
+
+            return {
+              ...slot,
+              bookings_count: confirmed,
+            };
+          })
+        );
+
+        const available = slotsWithCounts.filter(
+          (slot) => slot.bookings_count < (slot.capacity || 1)
+        );
+
+        setAvailableSlots(available);
+      }
+      
+      setLoadingSlots(false);
+    };
+
+    // Subscribe to changes in the bookings table
+    const channel = supabase
+      .channel('bookings-changes-' + selectedOffer.id)
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen to INSERT, UPDATE, DELETE
+          schema: 'public',
+          table: 'bookings',
+        },
+        (payload) => {
+          debug('📡 Booking change detected, refreshing slots:', payload);
+          refreshSlots();
+        }
+      )
+      .subscribe((status) => {
+        debug('📡 Real-time subscription status:', status);
+        if (status === 'SUBSCRIBED') {
+          debug('✅ Successfully subscribed to booking updates');
+        } else if (status === 'CHANNEL_ERROR') {
+          debug('❌ Real-time subscription error - Realtime might not be enabled');
+        }
+      });
+
+    return () => {
+      debug('Cleaning up real-time subscription');
+      supabase.removeChannel(channel);
+    };
+  }, [selectedOffer, selectedEventId]);
+
   const checkStudentAndLoadOffers = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
@@ -250,43 +329,102 @@ export default function StudentOffers() {
 
     if (slotsData) {
       debug('Processing', slotsData.length, 'slots to check capacity...');
+      debug('Slot IDs being checked:', slotsData.map(s => ({ 
+        id: s.id, 
+        time: new Date(s.start_time).toLocaleTimeString(),
+        capacity: s.capacity 
+      })));
+
+      // DEBUG: Get ALL bookings for this company/event regardless of slot
+      const { data: allCompanyBookings } = await supabase
+        .from('bookings')
+        .select('id, status, slot_id, event_slots!inner(start_time, company_id, event_id)')
+        .eq('event_slots.company_id', offer.company_id)
+        .eq('event_slots.event_id', selectedEventId)
+        .eq('status', 'confirmed');
+      
+      debug('🔍 ALL confirmed bookings for this company/event:', allCompanyBookings?.length || 0);
+      if (allCompanyBookings && allCompanyBookings.length > 0) {
+        debug('🔍 Booking slot IDs:', allCompanyBookings.map(b => ({
+          slot_id: b.slot_id,
+          time: new Date(b.event_slots.start_time).toLocaleTimeString()
+        })));
+      }
+
+      // DEBUG: Get ALL bookings without filters to see what we're missing
+      const { data: rawBookings } = await supabase
+        .from('bookings')
+        .select('id, status, slot_id, event_slots(start_time, company_id, event_id, is_active)')
+        .eq('status', 'confirmed');
+      
+      const bookingsForThisCompany = rawBookings?.filter(b => 
+        b.event_slots && b.event_slots.company_id === offer.company_id
+      );
+      
+      debug('🔍 RAW bookings for this company (all events):', bookingsForThisCompany?.length || 0);
+      if (bookingsForThisCompany && bookingsForThisCompany.length > 0) {
+        bookingsForThisCompany.forEach(b => {
+          debug(`  Booking ${b.id}:`, {
+            slot_id: b.slot_id,
+            time: b.event_slots?.start_time ? new Date(b.event_slots.start_time).toLocaleTimeString() : 'N/A',
+            event_id: b.event_slots?.event_id,
+            is_active: b.event_slots?.is_active,
+            matches_selected_event: b.event_slots?.event_id === selectedEventId
+          });
+        });
+      }
       
       // Count bookings for each slot with detailed debugging
-      const slotsWithCounts
-       = await Promise.all(
+      // IMPORTANT: Fetch fresh data without caching to ensure real-time accuracy
+      const slotsWithCounts = await Promise.all(
         slotsData.map(async (slot) => {
-          // First, count ALL bookings to see total
-          const { count: totalCount } = await supabase
+          // Get actual booking records to count confirmed bookings
+          const { data: bookingRecords, error: bookingsError } = await supabase
             .from('bookings')
-            .select('*', { count: 'exact', head: true })
+            .select('id, status, student_id, slot_id')
             .eq('slot_id', slot.id);
 
-          // Then count only confirmed bookings (what backend checks)
-          const { count: confirmedCount, error: countError } = await supabase
-            .from('bookings')
-            .select('*', { count: 'exact', head: true })
-            .eq('slot_id', slot.id)
-            .eq('status', 'confirmed');
-
-          if (countError) {
-            logError('Error counting bookings for slot:', countError);
+          if (bookingsError) {
+            logError(`Error fetching bookings for slot ${slot.id}:`, bookingsError);
           }
 
-          // Also get the actual booking records to see their statuses
-          const { data: bookingRecords } = await supabase
+          // DEBUG: Also check if there are ANY bookings with similar time
+          const slotTime = new Date(slot.start_time).toLocaleTimeString();
+          const { data: allBookingsForTime } = await supabase
             .from('bookings')
-            .select('id, status, student_id')
-            .eq('slot_id', slot.id);
+            .select('id, slot_id, status, event_slots!inner(start_time, company_id)')
+            .eq('event_slots.company_id', offer.company_id)
+            .eq('status', 'confirmed');
+          
+          const bookingsAtThisTime = allBookingsForTime?.filter(b => {
+            const bookingTime = new Date(b.event_slots.start_time).toLocaleTimeString();
+            return bookingTime === slotTime;
+          });
+
+          if (bookingsAtThisTime && bookingsAtThisTime.length > 0) {
+            debug(`⚠️ MISMATCH FOUND! Slot ${slotTime} (ID: ${slot.id})`);
+            debug(`  Current slot ID: ${slot.id}`);
+            debug(`  But found ${bookingsAtThisTime.length} bookings at this time with different slot IDs:`);
+            bookingsAtThisTime.forEach(b => {
+              debug(`    - Booking slot_id: ${b.slot_id} ${b.slot_id === slot.id ? '✓ MATCH' : '✗ DIFFERENT'}`);
+            });
+          }
+
+          // Count confirmed bookings manually from the actual records
+          const confirmedBookings = bookingRecords?.filter(b => b.status === 'confirmed') || [];
+          const confirmed = confirmedBookings.length;
+          const total = bookingRecords?.length || 0;
 
           const capacity = slot.capacity || 1;
-          const confirmed = confirmedCount || 0;
-          const total = totalCount || 0;
           const spotsLeft = capacity - confirmed;
 
-          debug(`Slot ${new Date(slot.start_time).toLocaleTimeString()}: ${confirmed}/${capacity} booked, ${spotsLeft} spots left (Total bookings: ${total}, Confirmed: ${confirmed})`);
+          const timeStr = new Date(slot.start_time).toLocaleTimeString();
+          debug(`Slot ${timeStr} (${slot.id}): Capacity=${capacity}, Confirmed=${confirmed}, Total=${total}, SpotsLeft=${spotsLeft}`);
           
           if (bookingRecords && bookingRecords.length > 0) {
-            debug(`  Booking statuses:`, bookingRecords.map(b => b.status));
+            debug(`  Booking statuses for ${timeStr}:`, bookingRecords.map(b => `${b.status}`));
+          } else {
+            debug(`  ⚠️ No bookings found for slot ${timeStr} (ID: ${slot.id})`);
           }
 
           return {
@@ -332,63 +470,84 @@ export default function StudentOffers() {
 
     // Clear previous errors when checking a new slot
     setBookingError(null);
+    setValidationWarning(null);
 
     const selectedSlot = availableSlots.find(s => s.id === slotId);
     if (!selectedSlot) return;
 
-    // Get existing bookings - simplified query to avoid nested join issues
-    const { data: existingBookings, error } = await supabase
-      .from('bookings')
-      .select('slot_id')
-      .eq('student_id', user.id)
-      .eq('status', 'confirmed');
+    try {
+      // Get existing bookings - simplified query to avoid nested join issues
+      const { data: existingBookings, error: bookingsError } = await supabase
+        .from('bookings')
+        .select('slot_id, id')
+        .eq('student_id', user.id)
+        .eq('status', 'confirmed');
 
-    if (error) {
-      logError('Error checking conflicts:', error);
-      return;
-    }
-
-    if (existingBookings && existingBookings.length > 0) {
-      // Get slot details for all existing bookings
-      const slotIds = existingBookings.map(b => b.slot_id);
-      const { data: slots, error: slotsError } = await supabase
-        .from('event_slots')
-        .select('id, start_time, end_time, company_id')
-        .in('id', slotIds);
-
-      if (slotsError) {
-        logError('Error fetching slots:', slotsError);
+      if (bookingsError) {
+        logError('Error checking conflicts:', bookingsError);
+        // Don't block the user from selecting the slot if there's an error checking conflicts
+        debug('Proceeding with slot selection despite conflict check error');
         return;
       }
 
-      if (slots && slots.length > 0) {
-        const slotStart = new Date(selectedSlot.start_time);
-        const slotEnd = new Date(selectedSlot.end_time);
+      if (existingBookings && existingBookings.length > 0) {
+        // Get slot details for all existing bookings
+        const slotIds = existingBookings.map(b => b.slot_id).filter(Boolean);
+        
+        if (slotIds.length === 0) {
+          setValidationWarning(null);
+          return;
+        }
 
-        for (const existingSlot of slots) {
-          const bookingStart = new Date(existingSlot.start_time);
-          const bookingEnd = new Date(existingSlot.end_time);
+        const { data: slots, error: slotsError } = await supabase
+          .from('event_slots')
+          .select('id, start_time, end_time, company_id')
+          .in('id', slotIds);
 
-          // Check for time overlap
-          if (slotStart < bookingEnd && slotEnd > bookingStart) {
-            // Get company name separately to avoid nested join issues
-            const { data: company } = await supabase
-              .from('companies')
-              .select('company_name')
-              .eq('id', existingSlot.company_id)
-              .single();
+        if (slotsError) {
+          logError('Error fetching slots:', slotsError);
+          // Don't block slot selection if we can't check conflicts
+          debug('Proceeding with slot selection despite slot fetch error');
+          return;
+        }
 
-            const companyName = company?.company_name || 'Unknown Company';
-            setValidationWarning(
-              `⚠️ Time conflict detected! You already have an interview with ${companyName} at ${bookingStart.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`
-            );
-            return;
+        if (slots && slots.length > 0) {
+          const slotStart = new Date(selectedSlot.start_time);
+          const slotEnd = new Date(selectedSlot.end_time);
+
+          for (const existingSlot of slots) {
+            const bookingStart = new Date(existingSlot.start_time);
+            const bookingEnd = new Date(existingSlot.end_time);
+
+            // Check for time overlap
+            if (slotStart < bookingEnd && slotEnd > bookingStart) {
+              // Get company name separately to avoid nested join issues
+              const { data: company, error: companyError } = await supabase
+                .from('companies')
+                .select('company_name')
+                .eq('id', existingSlot.company_id)
+                .single();
+
+              if (companyError) {
+                logError('Error fetching company name:', companyError);
+              }
+
+              const companyName = company?.company_name || 'Unknown Company';
+              setValidationWarning(
+                `⚠️ Time conflict detected! You already have an interview with ${companyName} at ${bookingStart.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`
+              );
+              return;
+            }
           }
         }
       }
-    }
 
-    setValidationWarning(null);
+      setValidationWarning(null);
+    } catch (err) {
+      logError('Unexpected error in checkSlotConflict:', err);
+      // Don't block slot selection on unexpected errors
+      setValidationWarning(null);
+    }
   };
 
   const confirmBooking = async (slotId: string) => {
@@ -403,6 +562,36 @@ export default function StudentOffers() {
       if (!user) {
         showError('You must be logged in to book an interview');
         return;
+      }
+
+      // CRITICAL: Re-check slot availability in real-time before booking
+      const { data: slotData } = await supabase
+        .from('event_slots')
+        .select('id, capacity')
+        .eq('id', slotId)
+        .single();
+
+      if (slotData) {
+        const { count: currentBookings } = await supabase
+          .from('bookings')
+          .select('*', { count: 'exact', head: true })
+          .eq('slot_id', slotId)
+          .eq('status', 'confirmed');
+
+        const spotsLeft = slotData.capacity - (currentBookings || 0);
+        
+        debug(`🔍 Real-time availability check for slot ${slotId}: ${spotsLeft} spots left (${currentBookings}/${slotData.capacity})`);
+
+        if (spotsLeft <= 0) {
+          const errorMsg = 'This slot was just filled by another student. Please select a different time.';
+          setBookingError(errorMsg);
+          showError(errorMsg);
+          // Refresh the slots to show updated availability
+          if (selectedOffer) {
+            await handleBookInterview(selectedOffer);
+          }
+          return;
+        }
       }
 
       // Final validation check
@@ -851,8 +1040,7 @@ export default function StudentOffers() {
                   ref={modalCloseRef}
                   onClick={() => setSelectedOffer(null)}
                   className="text-muted-foreground hover:text-foreground hover:bg-muted/80 p-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-primary shadow-sm hover:shadow flex-shrink-0"
-                  aria-la
-                  bel="Close dialog"
+                  aria-label="Close dialog"
                 >
                   <X className="w-4 h-4 md:w-5 md:h-5" />
                 </button>

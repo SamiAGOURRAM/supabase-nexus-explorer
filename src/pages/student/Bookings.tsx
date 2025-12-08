@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/contexts/ToastContext';
-import { Calendar, Clock, MapPin, Building2, Briefcase } from 'lucide-react';
+import { Calendar, Clock, MapPin, Building2, Briefcase, AlertTriangle, X } from 'lucide-react';
 import LoadingScreen from '@/components/shared/LoadingScreen';
 import ErrorDisplay from '@/components/shared/ErrorDisplay';
 import EmptyState from '@/components/shared/EmptyState';
@@ -30,6 +30,13 @@ export default function StudentBookings() {
   const [events, setEvents] = useState<Array<{ id: string; name: string; date: string }>>([]);
   const [selectedEventId, setSelectedEventId] = useState<string>('all');
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [confirmCancelModal, setConfirmCancelModal] = useState<{ show: boolean; bookingId: string | null; companyName: string; offerTitle: string; slotTime: string }>({
+    show: false,
+    bookingId: null,
+    companyName: '',
+    offerTitle: '',
+    slotTime: ''
+  });
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -145,8 +152,6 @@ export default function StudentBookings() {
   };
 
   const handleCancelBooking = async (bookingId: string) => {
-    if (!confirm('Are you sure you want to cancel this interview?')) return;
-
     try {
       setCancellingId(bookingId);
       if (!user) {
@@ -184,7 +189,26 @@ export default function StudentBookings() {
       showError(error.message || 'Failed to cancel booking. Please try again.');
     } finally {
       setCancellingId(null);
+      setConfirmCancelModal({ show: false, bookingId: null, companyName: '', offerTitle: '', slotTime: '' });
     }
+  };
+
+  const showCancelConfirmation = (booking: Booking) => {
+    const slotTime = new Date(booking.slot_start_time).toLocaleString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    
+    setConfirmCancelModal({
+      show: true,
+      bookingId: booking.id,
+      companyName: booking.company_name,
+      offerTitle: booking.offer_title,
+      slotTime: slotTime
+    });
   };
 
   const upcomingBookings = useMemo(
@@ -378,7 +402,7 @@ export default function StudentBookings() {
                         </div>
                       </div>
                       <button
-                        onClick={() => handleCancelBooking(booking.id)}
+                        onClick={() => showCancelConfirmation(booking)}
                         disabled={cancellingId === booking.id}
                         className="px-4 py-2 text-sm font-semibold text-red-600 hover:text-white bg-white hover:bg-red-500 border border-red-200 hover:border-red-500 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                       >
@@ -466,6 +490,78 @@ export default function StudentBookings() {
         )}
         </div>
       </div>
+
+      {/* Cancel Confirmation Modal */}
+      {confirmCancelModal.show && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full mx-4 animate-fade-in">
+            <div className="p-6">
+              {/* Header */}
+              <div className="flex items-start gap-4 mb-4">
+                <div className="flex-shrink-0 w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                  <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">
+                    Cancel Interview?
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    This action cannot be undone
+                  </p>
+                </div>
+                <button
+                  onClick={() => setConfirmCancelModal({ show: false, bookingId: null, companyName: '', offerTitle: '', slotTime: '' })}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4 mb-6">
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="w-4 h-4 text-gray-500" />
+                    <span className="font-semibold text-gray-900 dark:text-white">{confirmCancelModal.companyName}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Briefcase className="w-4 h-4 text-gray-500" />
+                    <span className="text-gray-700 dark:text-gray-300">{confirmCancelModal.offerTitle}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-gray-500" />
+                    <span className="text-gray-700 dark:text-gray-300">{confirmCancelModal.slotTime}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setConfirmCancelModal({ show: false, bookingId: null, companyName: '', offerTitle: '', slotTime: '' })}
+                  className="flex-1 px-4 py-2.5 text-sm font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                >
+                  Keep Interview
+                </button>
+                <button
+                  onClick={() => confirmCancelModal.bookingId && handleCancelBooking(confirmCancelModal.bookingId)}
+                  disabled={cancellingId === confirmCancelModal.bookingId}
+                  className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {cancellingId === confirmCancelModal.bookingId ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Cancelling...
+                    </span>
+                  ) : (
+                    'Yes, Cancel'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </StudentLayout>
   );
 }
