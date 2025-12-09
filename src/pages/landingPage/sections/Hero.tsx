@@ -1,5 +1,58 @@
 import { ArrowRight, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+
+const AnimatedCounter = ({ end, duration = 2000, label }: { end: number; duration?: number; label: string }) => {
+  const [count, setCount] = useState(0);
+  const [isVisible, setIsVisible] = useState(false);
+  const counterRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !isVisible) {
+          setIsVisible(true);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (counterRef.current) {
+      observer.observe(counterRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [isVisible]);
+
+  useEffect(() => {
+    if (!isVisible) return;
+
+    let startTime: number | null = null;
+    const step = (timestamp: number) => {
+      if (!startTime) startTime = timestamp;
+      const progress = Math.min((timestamp - startTime) / duration, 1);
+      
+      setCount(Math.floor(progress * end));
+      
+      if (progress < 1) {
+        requestAnimationFrame(step);
+      }
+    };
+
+    requestAnimationFrame(step);
+  }, [isVisible, end, duration]);
+
+  return (
+    <div ref={counterRef} className="text-center">
+      <div className="text-3xl sm:text-4xl font-bold text-[#ffb300] mb-2">
+        {count}+
+      </div>
+      <div className="text-sm text-gray-400 uppercase tracking-wider">
+        {label}
+      </div>
+    </div>
+  );
+};
 
 const Hero = () => {
   const navigate = useNavigate();
@@ -82,21 +135,10 @@ const Hero = () => {
 
         {/* Stats */}
         <div className="mt-20 grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto">
-          {[
-            { value: "500+", label: "Students" },
-            { value: "50+", label: "Companies" },
-            { value: "200+", label: "Internships" },
-            { value: "10+", label: "Events" },
-          ].map((stat, index) => (
-            <div key={index} className="text-center">
-              <div className="text-3xl sm:text-4xl font-bold text-[#ffb300] mb-2">
-                {stat.value}
-              </div>
-              <div className="text-sm text-gray-400 uppercase tracking-wider">
-                {stat.label}
-              </div>
-            </div>
-          ))}
+          <AnimatedCounter end={500} label="Students" />
+          <AnimatedCounter end={50} label="Companies" />
+          <AnimatedCounter end={200} label="Internships" />
+          <AnimatedCounter end={10} label="Events" />
         </div>
       </div>
 

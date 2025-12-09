@@ -1,6 +1,70 @@
 import { Building2, Handshake, TrendingUp, Users2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import DecorativeShape from "../components/DecorativeShape";
+import { useEffect, useRef, useState } from "react";
+
+const AnimatedStat = ({ 
+  icon: Icon, 
+  end, 
+  label, 
+  isPercentage = false 
+}: { 
+  icon: React.ElementType; 
+  end: number; 
+  label: string; 
+  isPercentage?: boolean;
+}) => {
+  const [count, setCount] = useState(0);
+  const [isVisible, setIsVisible] = useState(false);
+  const statRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !isVisible) {
+          setIsVisible(true);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (statRef.current) {
+      observer.observe(statRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [isVisible]);
+
+  useEffect(() => {
+    if (!isVisible) return;
+
+    let startTime: number | null = null;
+    const duration = 2000;
+    
+    const step = (timestamp: number) => {
+      if (!startTime) startTime = timestamp;
+      const progress = Math.min((timestamp - startTime) / duration, 1);
+      
+      setCount(Math.floor(progress * end));
+      
+      if (progress < 1) {
+        requestAnimationFrame(step);
+      }
+    };
+
+    requestAnimationFrame(step);
+  }, [isVisible, end]);
+
+  return (
+    <div ref={statRef} className="text-center">
+      <Icon size={32} className="mx-auto mb-4 text-[#ffb300]" />
+      <div className="text-4xl font-bold mb-2">
+        {count}{isPercentage ? "%" : "+"}
+      </div>
+      <div className="text-gray-200 text-sm">{label}</div>
+    </div>
+  );
+};
 
 const WhyINF = () => {
   const reasons = [
@@ -160,21 +224,10 @@ const WhyINF = () => {
         {/* Stats Section */}
         <div className="bg-gradient-to-br from-[#007e40] to-[#005a2d] rounded-3xl p-12 text-white">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {[
-              { icon: TrendingUp, value: "95%", label: "Placement Rate" },
-              { icon: Handshake, value: "200+", label: "Internships Secured" },
-              { icon: Building2, value: "50+", label: "Partner Companies" },
-              { icon: Users2, value: "500+", label: "Students Reached" },
-            ].map((stat, index) => {
-              const Icon = stat.icon;
-              return (
-                <div key={index} className="text-center">
-                  <Icon size={32} className="mx-auto mb-4 text-[#ffb300]" />
-                  <div className="text-4xl font-bold mb-2">{stat.value}</div>
-                  <div className="text-gray-200 text-sm">{stat.label}</div>
-                </div>
-              );
-            })}
+            <AnimatedStat icon={TrendingUp} end={95} label="Placement Rate" isPercentage={true} />
+            <AnimatedStat icon={Handshake} end={200} label="Internships Secured" />
+            <AnimatedStat icon={Building2} end={50} label="Partner Companies" />
+            <AnimatedStat icon={Users2} end={500} label="Students Reached" />
           </div>
         </div>
       </div>
