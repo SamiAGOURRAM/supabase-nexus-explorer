@@ -42,11 +42,10 @@ export default function AuthCallback() {
         const user = session.user;
         console.log('Azure AD user authenticated:', user.email);
 
-        // Verify the user has a @um6p.ma email
-        if (!user.email || !user.email.endsWith('@um6p.ma')) {
-          console.error('Invalid email domain:', user.email);
-          setError('Only @um6p.ma email addresses are allowed for student login.');
-          // Sign out the user
+        // Verify the user has an email address
+        if (!user.email) {
+          console.error('No email address provided');
+          setError('Unable to retrieve email address. Please contact support.');
           await supabase.auth.signOut();
           setTimeout(() => navigate('/login'), 3000);
           return;

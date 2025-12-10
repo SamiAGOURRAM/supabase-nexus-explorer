@@ -1,8 +1,10 @@
 import { ArrowRight, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
+import { useUser } from "@/contexts/UserContext";
+import { supabase } from "@/lib/supabase";
 
-const AnimatedCounter = ({ end, duration = 2000, label }: { end: number; duration?: number; label: string }) => {
+const AnimatedCounter = ({ end, duration = 2500, label }: { end: number; duration?: number; label: string }) => {
   const [count, setCount] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
   const counterRef = useRef<HTMLDivElement>(null);
@@ -28,11 +30,19 @@ const AnimatedCounter = ({ end, duration = 2000, label }: { end: number; duratio
     if (!isVisible) return;
 
     let startTime: number | null = null;
+    
+    // Easing function for smooth deceleration
+    const easeOutExpo = (x: number): number => {
+      return x === 1 ? 1 : 1 - Math.pow(2, -10 * x);
+    };
+
     const step = (timestamp: number) => {
       if (!startTime) startTime = timestamp;
       const progress = Math.min((timestamp - startTime) / duration, 1);
       
-      setCount(Math.floor(progress * end));
+      // Apply easing for smoother animation
+      const easedProgress = easeOutExpo(progress);
+      setCount(Math.floor(easedProgress * end));
       
       if (progress < 1) {
         requestAnimationFrame(step);
@@ -43,9 +53,9 @@ const AnimatedCounter = ({ end, duration = 2000, label }: { end: number; duratio
   }, [isVisible, end, duration]);
 
   return (
-    <div ref={counterRef} className="text-center">
-      <div className="text-3xl sm:text-4xl font-bold text-[#ffb300] mb-2">
-        {count}+
+    <div ref={counterRef} className="text-center transform transition-all duration-300 hover:scale-110">
+      <div className="text-3xl sm:text-4xl font-bold text-[#ffb300] mb-2 tabular-nums">
+        {count.toLocaleString()}+
       </div>
       <div className="text-sm text-gray-400 uppercase tracking-wider">
         {label}
@@ -56,6 +66,24 @@ const AnimatedCounter = ({ end, duration = 2000, label }: { end: number; duratio
 
 const Hero = () => {
   const navigate = useNavigate();
+  const { user } = useUser();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setIsAuthenticated(!!session);
+    };
+    checkAuth();
+  }, [user]);
+
+  const handleGetStarted = () => {
+    if (isAuthenticated) {
+      navigate("/offers");
+    } else {
+      navigate("/signup");
+    }
+  };
 
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
@@ -116,7 +144,7 @@ const Hero = () => {
         {/* CTA Buttons */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
           <button
-            onClick={() => navigate("/signup")}
+            onClick={handleGetStarted}
             className="group px-8 py-4 bg-[#ffb300] text-white rounded-lg hover:bg-[#e6a200] transition-all duration-300 font-semibold text-lg shadow-xl hover:shadow-2xl hover:scale-105 flex items-center gap-2"
           >
             Get Started

@@ -39,13 +39,20 @@ const AnimatedStat = ({
     if (!isVisible) return;
 
     let startTime: number | null = null;
-    const duration = 2000;
+    const duration = 2500;
+    
+    // Easing function for smooth deceleration
+    const easeOutExpo = (x: number): number => {
+      return x === 1 ? 1 : 1 - Math.pow(2, -10 * x);
+    };
     
     const step = (timestamp: number) => {
       if (!startTime) startTime = timestamp;
       const progress = Math.min((timestamp - startTime) / duration, 1);
       
-      setCount(Math.floor(progress * end));
+      // Apply easing for smoother animation
+      const easedProgress = easeOutExpo(progress);
+      setCount(Math.floor(easedProgress * end));
       
       if (progress < 1) {
         requestAnimationFrame(step);
@@ -56,10 +63,10 @@ const AnimatedStat = ({
   }, [isVisible, end]);
 
   return (
-    <div ref={statRef} className="text-center">
-      <Icon size={32} className="mx-auto mb-4 text-[#ffb300]" />
-      <div className="text-4xl font-bold mb-2">
-        {count}{isPercentage ? "%" : "+"}
+    <div ref={statRef} className="text-center transform transition-all duration-300 hover:scale-110">
+      <Icon size={32} className="mx-auto mb-4 text-[#ffb300] transition-transform duration-300 group-hover:rotate-12" />
+      <div className="text-4xl font-bold mb-2 tabular-nums">
+        {count.toLocaleString()}{isPercentage ? "%" : "+"}
       </div>
       <div className="text-gray-200 text-sm">{label}</div>
     </div>
