@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/contexts/ToastContext';
-import { ArrowLeft, Building2, MapPin, Clock, DollarSign, Tag, Briefcase, CheckCircle, Calendar, X } from 'lucide-react';
+import { ArrowLeft, Building2, Clock, Briefcase, CheckCircle, Calendar, X } from 'lucide-react';
 import { extractNestedObject } from '@/utils/supabaseTypes';
 import { debug, error as logError } from '@/utils/logger';
 import LoadingScreen from '@/components/shared/LoadingScreen';
@@ -443,20 +443,7 @@ export default function OfferDetail() {
     }
   };
 
-  const formatTime = (dateString: string) => {
-    return new Date(dateString).toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-    });
-  };
 
   if (loading) {
     return <LoadingScreen message="Loading offer details..." />;

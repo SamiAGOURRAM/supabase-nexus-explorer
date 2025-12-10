@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/contexts/ToastContext';
-import { Calendar, Clock, MapPin, Users, CheckCircle2, Circle, AlertCircle, TrendingUp } from 'lucide-react';
+import { Calendar, Clock, MapPin, Users, CheckCircle2, TrendingUp } from 'lucide-react';
 import { extractFirstFromNested } from '@/utils/supabaseTypes';
 import LoadingScreen from '@/components/shared/LoadingScreen';
 import ErrorDisplay from '@/components/shared/ErrorDisplay';
