@@ -173,12 +173,11 @@ export default function StudentDashboard() {
             </p>
 
             {/* Stats Grid */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-8">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mt-8">
               {[
                 { value: stats.bookings, label: "Interviews", icon: Calendar },
                 { value: stats.offers, label: "Open Positions", icon: Briefcase },
                 { value: phaseInfo ? phaseInfo.currentPhase : 0, label: "Current Phase", icon: TrendingUp },
-                { value: phaseInfo ? phaseInfo.currentBookings : 0, label: "Applications", icon: CheckCircle2 },
               ].map((stat, index) => {
                 const Icon = stat.icon;
                 return (

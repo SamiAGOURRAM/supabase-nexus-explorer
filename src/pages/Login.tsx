@@ -24,8 +24,6 @@ export default function Login() {
 
     const [loading, setLoading] = useState(false);
 
-    const [azureLoading, setAzureLoading] = useState(false);
-
     const [error, setError] = useState('');
 
     const [loginAs, setLoginAs] = useState<'student' | 'company'>('student');
@@ -55,42 +53,6 @@ export default function Login() {
       checkUser();
 
     }, []);
-
-
-
-    const handleAzureADLogin = async () => {
-      if (loginAs !== 'student') {
-        setError('Azure AD sign-in is only available for students');
-        return;
-      }
-
-      setAzureLoading(true);
-      setError('');
-
-      try {
-        const { error } = await supabase.auth.signInWithOAuth({
-          provider: 'azure',
-          options: {
-            scopes: 'email profile openid User.Read',
-            redirectTo: `${window.location.origin}/auth/callback`,
-            queryParams: {
-              prompt: 'select_account',
-            }
-          },
-        });
-
-        if (error) {
-          console.error('Azure AD login error:', error);
-          setError(error.message || 'Failed to initiate Azure AD login');
-          setAzureLoading(false);
-        }
-      } catch (err) {
-        console.error('Azure AD login error:', err);
-        setError('An unexpected error occurred. Please try again.');
-        setAzureLoading(false);
-      }
-    };
-
 
 
     const checkUser = async () => {
@@ -497,9 +459,9 @@ export default function Login() {
 
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
-        {/* Simple header */}
-        <div className="bg-white/80 backdrop-blur-sm border-b border-gray-200/50">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 flex items-center justify-center">
+        {/* Simple header - absolute positioned */}
+        <div className="absolute top-0 left-0 right-0 bg-white/80 backdrop-blur-sm border-b border-gray-200/50">
           <div className="max-w-7xl mx-auto px-4 py-5 sm:px-6 lg:px-8">
             <Link
               to="/"
@@ -511,24 +473,39 @@ export default function Login() {
           </div>
         </div>
 
-        {/* Main content */}
-        <div className="flex items-center justify-center px-4 py-16 sm:px-6 lg:px-8">
-          <div className="w-full max-w-md">
-            {/* Logo */}
-            <div className="text-center mb-10 animate-in fade-in slide-in-from-top-4 duration-700">
-              <img
-                src="/logos/2.svg"
-                alt="UM6P Logo"
-                className="h-40 w-auto mx-auto mb-8 drop-shadow-sm"
-              />
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h2>
-              <p className="text-base text-gray-600">
-                Sign in to access your INF Platform
-              </p>
-            </div>
+        {/* Main content - centered */}
+        <div className="w-full max-w-5xl px-4 sm:px-6 lg:px-8">
+          {/* Login card with two columns */}
+          <div className="bg-white rounded-2xl border border-gray-200/60 shadow-xl shadow-gray-200/50 p-8 sm:p-10 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-150">
+            <div className="grid md:grid-cols-5 gap-8 items-center">
+              {/* Logo section - left side (2 columns) */}
+              <div className="hidden md:flex md:col-span-2 flex-col items-center justify-center pr-8 border-r border-gray-200">
+                <img
+                  src="/logos/2.svg"
+                  alt="UM6P Logo"
+                  className="h-48 w-auto mb-4 drop-shadow-sm"
+                />
+                <h2 className="text-2xl font-bold text-gray-900 mb-2 text-center">Welcome Back</h2>
+                <p className="text-sm text-gray-600 text-center">
+                  Sign in to access your INF Platform
+                </p>
+              </div>
 
-            {/* Login card */}
-            <div className="bg-white rounded-2xl border border-gray-200/60 shadow-xl shadow-gray-200/50 p-8 sm:p-10 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-150">
+              {/* Mobile logo (shown only on mobile) */}
+              <div className="md:hidden text-center mb-6">
+                <img
+                  src="/logos/2.svg"
+                  alt="UM6P Logo"
+                  className="h-32 w-auto mx-auto mb-3 drop-shadow-sm"
+                />
+                <h2 className="text-xl font-bold text-gray-900 mb-1">Welcome Back</h2>
+                <p className="text-xs text-gray-600">
+                  Sign in to access your INF Platform
+                </p>
+              </div>
+
+              {/* Form section - right side (3 columns) */}
+              <div className="md:col-span-3">
               {/* Role selector */}
               <div className="mb-8">
                 <label className="block text-sm font-semibold text-gray-700 mb-3">
@@ -649,39 +626,6 @@ export default function Login() {
                 </button>
               </form>
 
-              {/* Azure AD Sign-in for Students */}
-              {loginAs === 'student' && (
-                <div className="mt-8">
-                  <div className="relative">
-                    <div className="absolute inset-0 flex items-center">
-                      <div className="w-full border-t border-gray-200"></div>
-                    </div>
-                    <div className="relative flex justify-center text-sm">
-                      <span className="bg-white px-4 text-gray-500 font-medium">Or continue with</span>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={handleAzureADLogin}
-                    disabled={azureLoading}
-                    className="mt-6 w-full flex items-center justify-center gap-3 rounded-xl border-2 border-gray-200 bg-white px-4 py-3.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:border-gray-300 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#007e40] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 relative overflow-hidden group"
-                  >
-                    {!azureLoading && (
-                      <svg className="h-5 w-5" viewBox="0 0 21 21">
-                        <rect x="1" y="1" width="9" height="9" fill="#f25022" />
-                        <rect x="1" y="11" width="9" height="9" fill="#00a4ef" />
-                        <rect x="11" y="1" width="9" height="9" fill="#7fba00" />
-                        <rect x="11" y="11" width="9" height="9" fill="#ffb900" />
-                      </svg>
-                    )}
-                    {azureLoading && <Loader2 className="h-5 w-5 animate-spin text-[#0078d4]" />}
-                    <span>{azureLoading ? 'Connecting to Microsoft...' : 'Sign in with Microsoft'}</span>
-                    <div className="absolute inset-0 bg-gradient-to-r from-gray-50/0 via-gray-100/50 to-gray-50/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
-                  </button>
-                </div>
-              )}
-
               {/* Sign up link */}
               {loginAs === 'student' && (
                 <div className="mt-8 pt-8 border-t border-gray-200/60">
@@ -716,8 +660,8 @@ export default function Login() {
             </div>
 
             {/* Footer */}
-            <div className="mt-10">
-              <div className="flex items-center justify-center gap-5 text-sm">
+            <div className="mt-10 space-y-4">
+              <div className="flex items-center justify-center gap-4 text-sm">
                 <Link
                   to="/offers"
                   className="text-gray-600 hover:text-[#007e40] font-medium transition-colors"
@@ -732,17 +676,20 @@ export default function Login() {
                   Need help?
                 </a>
               </div>
+              
               {captchaConfig.enabled && (
-                <p className="text-xs text-center text-gray-500 mt-5">
+                <p className="text-xs text-center text-gray-500">
                   This site is protected by reCAPTCHA
                 </p>
               )}
-              <p className="text-xs text-center text-gray-500 mt-3">
+              
+              <p className="text-xs text-center text-gray-500">
                 By signing in, you agree to our{' '}
                 <Link to="/privacy-policy" className="font-medium text-gray-600 hover:text-[#007e40] transition-colors">
                   Privacy Policy
                 </Link>
               </p>
+            </div>
             </div>
           </div>
         </div>

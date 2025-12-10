@@ -91,7 +91,7 @@ export default function PrivacyPolicy() {
             <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 mb-4">
               <h3 className="font-semibold text-foreground mb-2">Data is shared with:</h3>
               <ul className="list-disc list-inside space-y-1 text-muted-foreground ml-4">
-                <li><strong>UM6P Departments:</strong> SHBM (School of Hospitality Business and Management) and Career Center for event management and coordination</li>
+                <li><strong>UM6P Departments:</strong> SHBM (School of Hospitality, Business & Management) and Career Center for event management and coordination</li>
                 <li><strong>Participating Companies:</strong> Only verified companies that are participating in the INF event can view student profiles and CVs for internship matching purposes</li>
               </ul>
             </div>
@@ -228,7 +228,7 @@ export default function PrivacyPolicy() {
                 <strong>Email:</strong> <a href="mailto:inf.um6p@um6p.ma" className="text-primary hover:underline">inf.um6p@um6p.ma</a>
               </p>
               <p className="text-foreground mt-2">
-                <strong>Organization:</strong> UM6P - School of Hospitality Business and Management (SHBM)
+                <strong>Organization:</strong> UM6P - School of Hospitality, Business & Management (SHBM)
               </p>
             </div>
           </section>

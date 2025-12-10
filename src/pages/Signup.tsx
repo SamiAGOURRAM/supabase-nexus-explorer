@@ -3,13 +3,11 @@ import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import {
   AlertCircle,
-  Info,
   Eye,
   EyeOff,
   CheckCircle2,
   XCircle,
   Shield,
-  Sparkles,
   ArrowLeft,
   Mail,
   Settings,
@@ -298,183 +296,89 @@ export default function Signup() {
 
   // Signup form
   return (
-    <div className="relative min-h-screen bg-white">
-      <div
-        className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#ffb300]/5 via-white to-[#007e40]/5"
-        aria-hidden="true"
-      />
-      <div className="relative z-10 mx-auto flex min-h-screen max-w-7xl flex-col gap-8 px-4 py-12 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between mb-4">
-          <Link
-            to="/"
-            className="inline-flex w-fit items-center gap-2 text-sm font-medium text-gray-600 transition-colors hover:text-[#007e40]"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to home
-          </Link>
-          <Link
-            to="/login"
-            className="inline-flex w-fit items-center gap-2 text-sm font-medium text-gray-600 transition-colors hover:text-[#007e40]"
-          >
-            Already registered? Sign in
-          </Link>
-        </div>
-
-        <div className="grid flex-1 gap-8 lg:grid-cols-[1.05fr,0.95fr]">
-          <section className="hidden rounded-2xl border-2 border-gray-200 bg-gradient-to-br from-[#1a1f3a] via-[#007e40] to-[#1a1f3a] p-8 text-white shadow-xl lg:flex lg:flex-col relative overflow-hidden">
-            {/* Background Pattern */}
-            <div className="absolute inset-0 opacity-5">
-              <div
-                className="absolute inset-0"
-                style={{
-                  backgroundImage:
-                    "radial-gradient(circle at 2px 2px, white 1px, transparent 0)",
-                  backgroundSize: "40px 40px",
-                }}
-              />
-            </div>
-
-            <div className="relative z-10">
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full border border-white/20 mb-6">
-                <Sparkles className="h-4 w-4 text-[#ffb300]" />
-                <span className="text-xs font-semibold uppercase tracking-[0.3em] text-white">
-                  Student onboarding
-                </span>
-              </div>
-
-              <h1 className="text-4xl sm:text-5xl font-bold leading-tight mb-6">
-                Your inf profile starts here.
-              </h1>
-
-              <p className="text-lg text-white/90 leading-relaxed">
-                Complete the secure signup once to unlock priority booking, personalized schedules, and curated employer updates for each inf hiring sprint.
-              </p>
-            </div>
-
-            <div className="mt-10 space-y-4 relative z-10">
-              <div className="flex gap-4 rounded-xl border-2 border-white/20 bg-white/10 backdrop-blur-sm p-4 hover:bg-white/15 transition-all">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#ffb300]/20 flex-shrink-0">
-                  <Shield className="h-6 w-6 text-[#ffb300]" />
-                </div>
-                <div>
-                  <p className="text-base font-semibold text-white mb-1">Secure by default</p>
-                  <p className="text-sm text-white/80 leading-relaxed">
-                    Email verification + reCAPTCHA guard every account.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex gap-4 rounded-xl border-2 border-white/20 bg-white/10 backdrop-blur-sm p-4 hover:bg-white/15 transition-all">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#ffb300]/20 flex-shrink-0">
-                  <Mail className="h-6 w-6 text-[#ffb300]" />
-                </div>
-                <div>
-                  <p className="text-base font-semibold text-white mb-1">Email requirements</p>
-                  <p className="text-sm text-white/80 leading-relaxed">
-                    Only @um6p.ma email addresses are accepted.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex gap-4 rounded-xl border-2 border-white/20 bg-white/10 backdrop-blur-sm p-4 hover:bg-white/15 transition-all">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#ffb300]/20 flex-shrink-0">
-                  <Settings className="h-6 w-6 text-[#ffb300]" />
-                </div>
-                <div>
-                  <p className="text-base font-semibold text-white mb-1">Flexible booking</p>
-                  <p className="text-sm text-white/80 leading-relaxed">
-                    Update your booking priority any time inside the portal.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-auto pt-6 relative z-10">
-              <p className="text-xs text-white/70 mb-2">
-                Need assistance? Contact the inf events team at{' '}
-                <a
-                  href="mailto:inf.um6p@um6p.ma"
-                  className="font-semibold text-[#ffb300] hover:text-[#ffc940] transition-colors"
-                >
-                  inf.um6p@um6p.ma
-                </a>
-              </p>
-            </div>
-          </section>
-
-          <section className="rounded-2xl border-2 border-gray-200 bg-white p-8 shadow-xl">
-            {/* Header */}
-            <div className="mb-8 text-center">
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#007e40]/10 rounded-full border border-[#007e40]/20 mb-4">
-                <Shield className="h-4 w-4 text-[#007e40]" />
-                <span className="text-xs font-semibold uppercase tracking-[0.3em] text-[#007e40]">
-                  Student Registration
-                </span>
-              </div>
-              <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-3">Create Your Account</h2>
-              <p className="text-base text-gray-600">
-                Join the INF Platform and unlock exclusive internship opportunities.
-              </p>
-            </div>
-
-          {/* Info Banner */}
-          <div className="mb-6 rounded-xl border border-[#007e40]/25 bg-[#007e40]/5 p-5">
-            <div className="flex gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#007e40]/10">
-                <Info className="h-5 w-5 text-[#007e40]" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-[#007e40]">UM6P students only</p>
-                <p className="text-xs text-[#007e40]/80">
-                  Companies join by invitation—contact the inf administrator for partner access.
-                </p>
-              </div>
-            </div>
-            <div className="mt-4 flex flex-wrap items-center gap-4 text-xs font-medium text-[#007e40]/90">
-              <span className="flex items-center gap-2">
-                <Shield className="h-3.5 w-3.5" />
-                Enhanced security: email verification {captchaConfig.enabled && '+ reCAPTCHA'}
-              </span>
-              <span className="flex items-center gap-2">
-                <Sparkles className="h-3.5 w-3.5" />
-                @um6p.ma only
-              </span>
-            </div>
-          </div>
-
-          {/* GDPR: Purpose Statement */}
-          <div className="mb-6 rounded-xl border border-[#007e40]/20 bg-[#007e40]/5 p-4">
-            <p className="text-sm text-gray-900 mb-2">
-              <strong>Purpose of Data Collection:</strong>
-            </p>
-            <p className="text-xs text-gray-600 mb-3">
-              We collect your information to connect you with companies for internship opportunities 
-              during the INF event. Your data will only be used for matching purposes and event management.
-            </p>
-            <Link 
-              to="/privacy-policy" 
-              className="text-xs text-[#007e40] hover:underline font-medium"
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 flex items-center justify-center">
+      {/* Simple header - absolute positioned */}
+      <div className="absolute top-0 left-0 right-0 bg-white/80 backdrop-blur-sm border-b border-gray-200/50">
+        <div className="max-w-7xl mx-auto px-4 py-5 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between">
+            <Link
+              to="/"
+              className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-[#007e40] transition-all"
             >
-              Read our Privacy Policy →
+              <ArrowLeft className="h-4 w-4" />
+              Back to home
+            </Link>
+            <Link
+              to="/login"
+              className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-[#007e40] transition-all"
+            >
+              Already have an account? Sign in
             </Link>
           </div>
+        </div>
+      </div>
 
-          {/* GDPR: Data Sharing Notice */}
-          <div className="mb-6 rounded-xl border border-[#ffb300]/20 bg-[#ffb300]/5 p-4">
-            <p className="text-sm font-semibold text-gray-900 mb-2">Data Sharing:</p>
-            <p className="text-xs text-gray-600 mb-2">
-              Your profile information will be shared with:
-            </p>
-            <ul className="text-xs text-gray-600 space-y-1 list-disc list-inside ml-2 mb-2">
-              <li>UM6P departments (SHBM, Career Center) for event management</li>
-              <li>Verified companies participating in the INF event</li>
-            </ul>
-            <p className="text-xs text-gray-600">
-              Your data will not be sold or used for commercial purposes outside the INF event.
-            </p>
-          </div>
+      {/* Main content - centered */}
+      <div className="w-full max-w-6xl px-4 sm:px-6 lg:px-8 pt-20">
+        {/* Signup card */}
+        <div className="bg-white rounded-2xl border border-gray-200/60 shadow-xl shadow-gray-200/50 p-8 sm:p-10 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-150">
+          <div className="grid md:grid-cols-5 gap-10 items-start">
+            {/* Logo section - left side (2 columns) */}
+            <div className="hidden md:flex md:col-span-2 flex-col pr-8 border-r border-gray-200">
+              <img
+                src="/logos/2.svg"
+                alt="UM6P Logo"
+                className="h-48 w-auto mb-6 drop-shadow-sm mx-auto"
+              />
+              <h2 className="text-2xl font-bold text-gray-900 mb-4 text-center">Join INF Platform</h2>
+              <p className="text-sm text-gray-600 text-center mb-6">
+                Create your account to access exclusive internship opportunities
+              </p>
+              
+              {/* Feature highlights */}
+              <div className="space-y-3 mt-4">
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-gray-50 border border-gray-200">
+                  <Shield className="h-5 w-5 text-[#007e40] flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">Secure by default</p>
+                    <p className="text-xs text-gray-600">Email verification + reCAPTCHA protection</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-gray-50 border border-gray-200">
+                  <Mail className="h-5 w-5 text-[#007e40] flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">@um6p.ma only</p>
+                    <p className="text-xs text-gray-600">Exclusive access for SHBM-UM6P students</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-gray-50 border border-gray-200">
+                  <Settings className="h-5 w-5 text-[#007e40] flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">Full control</p>
+                    <p className="text-xs text-gray-600">Manage your profile and bookings anytime</p>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-          {/* Error Message */}
+            {/* Mobile logo (shown only on mobile) */}
+            <div className="md:hidden text-center mb-6">
+              <img
+                src="/logos/2.svg"
+                alt="UM6P Logo"
+                className="h-32 w-auto mx-auto mb-3 drop-shadow-sm"
+              />
+              <h2 className="text-xl font-bold text-gray-900 mb-1">Join INF Platform</h2>
+              <p className="text-xs text-gray-600">
+                Create your account to access exclusive opportunities
+              </p>
+            </div>
+
+            {/* Form section - right side (3 columns) */}
+            <div className="md:col-span-3">
+              <h3 className="text-xl font-bold text-gray-900 mb-6">Create Your Account</h3>
+
+              {/* Error Message */}
           {error && (
             <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-start gap-3">
               <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
@@ -693,17 +597,24 @@ export default function Signup() {
             </div>
           )}
 
-          {/* Additional Links */}
-          <div className="mt-6 text-center">
-            <Link
-              to="/login"
-              className="text-sm text-[#007e40] hover:underline font-medium"
-            >
-              Already have an account? Sign in
-            </Link>
+              {/* Footer - moved inside form section */}
+              <div className="mt-10 space-y-4">
+                {captchaConfig.enabled && (
+                  <p className="text-xs text-center text-gray-500">
+                    This site is protected by reCAPTCHA
+                  </p>
+                )}
+                
+                <p className="text-xs text-center text-gray-500">
+                  By signing up, you agree to our{' '}
+                  <Link to="/privacy-policy" className="font-medium text-gray-600 hover:text-[#007e40] transition-colors">
+                    Privacy Policy
+                  </Link>
+                </p>
+              </div>
+            </div>
           </div>
-        </section>
-      </div>
+        </div>
       </div>
     </div>
   );

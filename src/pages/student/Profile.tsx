@@ -840,10 +840,10 @@ export default function StudentProfile() {
                     <div className="bg-white border border-gray-200 rounded-lg p-4 mb-4">
                       <p className="text-sm font-medium text-gray-900 mb-2">Email us at:</p>
                       <a 
-                        href="mailto:inf.um6p@um6p.ma?subject=Account%20Deletion%20Request"
+                        href="mailto:inf.shbm@um6p.ma?subject=Account%20Deletion%20Request"
                         className="text-[#007e40] hover:text-[#005f30] font-semibold"
                       >
-                        inf.um6p@um6p.ma
+                        inf.shbm@um6p.ma
                       </a>
                       <p className="text-xs text-gray-600 mt-3">
                         Please include "Account Deletion Request" or "Data Download Request" in the subject line.

@@ -43,11 +43,11 @@ const Footer = () => {
               <img src="/logos/1.svg" alt="INF Logo" className="h-32 sm:h-36 md:h-40 lg:h-44 w-auto" />
             </a>
             <p className="text-gray-400 mb-4">
-              The Internship & Networking Forum at SHBM — UM6P. Your gateway to
+              The Internship & Networking Forum at SHBM-UM6P. Your gateway to
               hospitality careers and industry connections.
             </p>
             <p className="text-sm text-gray-500">
-              School of Hospitality & Business Management
+              School of Hospitality, Business & Management
               <br />
               Université Mohammed VI Polytechnique
             </p>
@@ -62,7 +62,7 @@ const Footer = () => {
                   href="/offers"
                   className="text-gray-400 hover:text-[#ffb300] transition-colors"
                 >
-                  Offerings
+                  Offers
                 </a>
               </li>
               <li>
@@ -79,7 +79,7 @@ const Footer = () => {
                   href="/aboutheinf"
                   className="text-gray-400 hover:text-[#ffb300] transition-colors"
                 >
-                  About the INF
+                  About the INF Platform
                 </a>
               </li>
               <li>

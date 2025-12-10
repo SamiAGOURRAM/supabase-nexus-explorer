@@ -7,8 +7,7 @@ import {
   UserCircle, 
   Clock,
   Menu,
-  X,
-  Home
+  X
 } from 'lucide-react';
 
 interface CompanySidebarProps {
@@ -40,11 +39,6 @@ export default function CompanySidebar({ onSignOut }: CompanySidebarProps) {
   };
 
   const navItems = [
-    {
-      title: 'Home',
-      path: '/',
-      icon: Home,
-    },
     {
       title: 'Dashboard',
       path: '/company',

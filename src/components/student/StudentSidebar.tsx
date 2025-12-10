@@ -7,8 +7,7 @@ import {
   Calendar, 
   User,
   Menu,
-  X,
-  Home
+  X
 } from 'lucide-react';
 
 interface StudentSidebarProps {
@@ -40,11 +39,6 @@ export default function StudentSidebar({ onSignOut }: StudentSidebarProps) {
   };
 
   const navItems = [
-    {
-      title: 'Home',
-      path: '/',
-      icon: Home,
-    },
     {
       title: 'Dashboard',
       path: '/student',

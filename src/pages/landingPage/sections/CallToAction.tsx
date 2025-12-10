@@ -40,9 +40,8 @@ const CallToAction = () => {
 
         {/* Description */}
         <p className="text-xl text-gray-200 mb-12 max-w-2xl mx-auto">
-          Don't miss your chance to connect with leading employers and fellow
-          aspiring professionals. Sign up and take the first step toward your
-          future in hospitality.
+          If you are an SHBM Bachelor student (Year 1, 3, or 4) or an IVET trainee, this platform is built for you.
+          Connect with leading employers, grow your network, and take the first step toward your future in hospitality.
         </p>
 
         {/* CTA Buttons */}

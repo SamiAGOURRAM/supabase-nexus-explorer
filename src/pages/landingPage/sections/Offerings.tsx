@@ -70,7 +70,7 @@ const Offerings = () => {
         {/* Section Header */}
         <div className="text-center mb-20">
           <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-6">
-            Explore Our Key Offerings
+            Explore Our Key Offers
           </h2>
           <p className="text-lg text-gray-600 max-w-3xl mx-auto leading-relaxed">
             Discover opportunities designed to connect students with top-tier

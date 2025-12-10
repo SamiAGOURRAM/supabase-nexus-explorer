@@ -46,7 +46,7 @@ const Story = () => {
               mentorship, and real-world opportunity.
             </p>
             <p className="text-lg text-gray-700 mb-8 leading-relaxed">
-              Built by SHBM students, powered by industry connections, and
+              Built by SHBM students, created for students, powered by industry connections, and
               designed to help you take control of your career journey.
             </p>
             <Link

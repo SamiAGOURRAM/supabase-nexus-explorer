@@ -137,8 +137,7 @@ const Hero = () => {
         </p>
 
         <p className="text-lg text-gray-400 mb-10 max-w-3xl mx-auto">
-          Your gateway to hospitality careers, industry leaders, and exclusive
-          internship opportunities.
+          An exclusive event for SHBM students and trainees
         </p>
 
         {/* CTA Buttons */}
@@ -166,7 +165,7 @@ const Hero = () => {
           <AnimatedCounter end={500} label="Students" />
           <AnimatedCounter end={50} label="Companies" />
           <AnimatedCounter end={200} label="Internships" />
-          <AnimatedCounter end={10} label="Events" />
+          <AnimatedCounter end={4} label="Events" />
         </div>
       </div>
 
