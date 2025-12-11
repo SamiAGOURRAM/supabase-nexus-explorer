@@ -2,8 +2,11 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { ArrowLeft, Save } from 'lucide-react';
+import CompanyLayout from '@/components/company/CompanyLayout';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function CreateOffer() {
+  const { user } = useAuth('company');
   const [loading, setLoading] = useState(false);
   const [events, setEvents] = useState<any[]>([]);
   const [formData, setFormData] = useState({
@@ -86,34 +89,39 @@ export default function CreateOffer() {
     navigate('/company/offers');
   };
 
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    navigate('/');
+  };
+
   return (
-    <div className="min-h-screen bg-background">
-      <header className="bg-card border-b border-border">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center gap-4">
-            <Link to="/company/offers" className="text-muted-foreground hover:text-foreground">
+    <CompanyLayout onSignOut={handleSignOut}>
+      <div className="min-h-screen bg-gray-50">
+        <div className="bg-white border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-6">
+            <Link to="/company/offers" className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4 transition-colors">
               <ArrowLeft className="w-5 h-5" />
+              <span>Back to Offers</span>
             </Link>
             <div>
-              <h1 className="text-2xl font-bold text-foreground">Create New Offer</h1>
-              <p className="text-sm text-muted-foreground mt-1">Post a new internship opportunity</p>
+              <h1 className="text-3xl font-bold text-gray-900">Create New Offer</h1>
+              <p className="text-sm text-gray-600 mt-2">Post a new internship opportunity</p>
             </div>
           </div>
         </div>
-      </header>
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <form onSubmit={handleSubmit} className="bg-card rounded-xl border border-border p-6 space-y-6">
+        <main className="max-w-4xl mx-auto px-6 sm:px-8 lg:px-12 py-8">
+        <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200 shadow-sm p-8 space-y-6">
           {/* Event Selection */}
           <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
+            <label className="block text-sm font-semibold text-gray-900 mb-2">
               Event <span className="text-red-500">*</span>
             </label>
             <select
               required
               value={formData.event_id}
               onChange={(e) => setFormData({ ...formData, event_id: e.target.value })}
-              className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full px-4 py-3 bg-white border-2 border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#007e40] focus:border-[#007e40] transition-colors"
             >
               <option value="">Select an event</option>
               {events.map(event => (
@@ -122,14 +130,14 @@ export default function CreateOffer() {
                 </option>
               ))}
             </select>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-xs text-gray-500 mt-1.5">
               Select which recruiting event this offer is for
             </p>
           </div>
 
           {/* Title */}
           <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
+            <label className="block text-sm font-semibold text-gray-900 mb-2">
               Job Title <span className="text-red-500">*</span>
             </label>
             <input
@@ -137,14 +145,14 @@ export default function CreateOffer() {
               required
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full px-4 py-3 bg-white border-2 border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#007e40] focus:border-[#007e40] transition-colors"
               placeholder="e.g., Software Developer Intern"
             />
           </div>
 
           {/* Description */}
           <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
+            <label className="block text-sm font-semibold text-gray-900 mb-2">
               Description <span className="text-red-500">*</span>
             </label>
             <textarea
@@ -152,21 +160,21 @@ export default function CreateOffer() {
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               rows={6}
-              className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full px-4 py-3 bg-white border-2 border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#007e40] focus:border-[#007e40] transition-colors"
               placeholder="Describe the internship, responsibilities, and what the student will learn..."
             />
           </div>
 
           {/* Interest Tag */}
           <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
+            <label className="block text-sm font-semibold text-gray-900 mb-2">
               Interest Tag <span className="text-red-500">*</span>
             </label>
             <select
               required
               value={formData.interest_tag}
               onChange={(e) => setFormData({ ...formData, interest_tag: e.target.value as any })}
-              className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full px-4 py-3 bg-white border-2 border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#007e40] focus:border-[#007e40] transition-colors"
             >
               <option value="Opérationnel">Opérationnel</option>
               <option value="Administratif">Administratif</option>
@@ -175,22 +183,22 @@ export default function CreateOffer() {
 
           {/* Location */}
           <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
+            <label className="block text-sm font-semibold text-gray-900 mb-2">
               Location
             </label>
             <input
               type="text"
               value={formData.location}
               onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-              className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full px-4 py-3 bg-white border-2 border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#007e40] focus:border-[#007e40] transition-colors"
               placeholder="e.g., Paris, France"
             />
           </div>
 
           {/* Duration & Salary */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
+              <label className="block text-sm font-semibold text-gray-900 mb-2">
                 Duration (months) <span className="text-red-500">*</span>
               </label>
               <input
@@ -200,19 +208,19 @@ export default function CreateOffer() {
                 max="24"
                 value={formData.duration_months}
                 onChange={(e) => setFormData({ ...formData, duration_months: e.target.value })}
-                className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-4 py-3 bg-white border-2 border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#007e40] focus:border-[#007e40] transition-colors"
                 placeholder="6"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
+              <label className="block text-sm font-semibold text-gray-900 mb-2">
                 Salary Range
               </label>
               <input
                 type="text"
                 value={formData.salary_range}
                 onChange={(e) => setFormData({ ...formData, salary_range: e.target.value })}
-                className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-4 py-3 bg-white border-2 border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#007e40] focus:border-[#007e40] transition-colors"
                 placeholder="e.g., €1000-1500/month"
               />
             </div>
@@ -220,59 +228,60 @@ export default function CreateOffer() {
 
           {/* Skills */}
           <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
+            <label className="block text-sm font-semibold text-gray-900 mb-2">
               Required Skills (comma-separated)
             </label>
             <input
               type="text"
               value={formData.skills_required}
               onChange={(e) => setFormData({ ...formData, skills_required: e.target.value })}
-              className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full px-4 py-3 bg-white border-2 border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#007e40] focus:border-[#007e40] transition-colors"
               placeholder="e.g., JavaScript, React, TypeScript"
             />
           </div>
 
           {/* Checkboxes */}
-          <div className="space-y-3">
-            <label className="flex items-center gap-2 cursor-pointer">
+          <div className="space-y-3 pt-2">
+            <label className="flex items-center gap-3 cursor-pointer">
               <input
                 type="checkbox"
                 checked={formData.paid}
                 onChange={(e) => setFormData({ ...formData, paid: e.target.checked })}
-                className="w-4 h-4 text-primary border-border rounded focus:ring-2 focus:ring-primary"
+                className="w-4 h-4 text-[#007e40] border-gray-300 rounded focus:ring-2 focus:ring-[#007e40]"
               />
-              <span className="text-sm text-foreground">This is a paid internship</span>
+              <span className="text-sm font-medium text-gray-900">This is a paid internship</span>
             </label>
-            <label className="flex items-center gap-2 cursor-pointer">
+            <label className="flex items-center gap-3 cursor-pointer">
               <input
                 type="checkbox"
                 checked={formData.remote_possible}
                 onChange={(e) => setFormData({ ...formData, remote_possible: e.target.checked })}
-                className="w-4 h-4 text-primary border-border rounded focus:ring-2 focus:ring-primary"
+                className="w-4 h-4 text-[#007e40] border-gray-300 rounded focus:ring-2 focus:ring-[#007e40]"
               />
-              <span className="text-sm text-foreground">Remote work possible</span>
+              <span className="text-sm font-medium text-gray-900">Remote work possible</span>
             </label>
           </div>
 
           {/* Actions */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
+          <div className="flex items-center justify-end gap-3 pt-6 border-t border-gray-200">
             <Link
               to="/company/offers"
-              className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              className="px-6 py-2.5 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
             >
               Cancel
             </Link>
             <button
               type="submit"
               disabled={loading}
-              className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium disabled:opacity-50"
+              className="flex items-center gap-2 px-6 py-2.5 bg-[#007e40] text-white rounded-lg hover:bg-[#006835] transition-colors text-sm font-semibold shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Save className="w-4 h-4" />
               {loading ? 'Creating...' : 'Create Offer'}
             </button>
           </div>
         </form>
-      </main>
-    </div>
+        </main>
+      </div>
+    </CompanyLayout>
   );
 }

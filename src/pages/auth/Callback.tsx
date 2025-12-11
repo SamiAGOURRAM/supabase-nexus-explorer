@@ -76,7 +76,7 @@ export default function AuthCallback() {
 
           if (retryError || !retryProfile) {
             console.error('Profile still not found after retry');
-            setError('Profile creation failed. Please contact support at inf.um6p@um6p.ma');
+            setError('Profile creation failed. Please contact support at inf.shbm@um6p.ma');
             setTimeout(() => navigate('/login'), 3000);
             return;
           }

@@ -157,12 +157,15 @@ export default function CompanyProfile() {
       <StudentLayout onSignOut={signOut}>
         <div className="p-6 md:p-8">
           <div className="max-w-7xl mx-auto">
-            <Link to="/student/offers" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6">
+            <button 
+              onClick={() => navigate(-1)} 
+              className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6"
+            >
               <ArrowLeft className="w-5 h-5" />
-              Back to Offers
-            </Link>
+              Back
+            </button>
             {error.message.includes('not found') ? (
-              <NotFound resource="Company" backTo="/student/offers" backLabel="Back to Offers" />
+              <NotFound resource="Company" backTo="/student/companies" backLabel="Back to Companies" />
             ) : (
               <ErrorDisplay error={error} onRetry={loadCompanyProfile} />
             )}
@@ -177,7 +180,7 @@ export default function CompanyProfile() {
       <StudentLayout onSignOut={signOut}>
         <div className="p-6 md:p-8">
           <div className="max-w-7xl mx-auto">
-            <NotFound resource="Company" backTo="/student/offers" backLabel="Back to Offers" />
+            <NotFound resource="Company" backTo="/student/companies" backLabel="Back to Companies" />
           </div>
         </div>
       </StudentLayout>
@@ -190,10 +193,13 @@ export default function CompanyProfile() {
         {/* Hero Header */}
         <div className="bg-[#1a1f3a] border-b border-gray-200">
           <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-8">
-            <Link to="/student/companies" className="inline-flex items-center gap-2 text-white/70 hover:text-white mb-6 transition-colors">
+            <button 
+              onClick={() => navigate(-1)} 
+              className="inline-flex items-center gap-2 text-white/70 hover:text-white mb-6 transition-colors"
+            >
               <ArrowLeft className="w-5 h-5" />
-              <span>Back to Companies</span>
-            </Link>
+              <span>Back</span>
+            </button>
             
             <div className="flex items-start gap-6">
               {company.logo_url ? (

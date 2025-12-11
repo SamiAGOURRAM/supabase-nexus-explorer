@@ -442,7 +442,7 @@ export default function StudentProfile() {
                 className="w-full px-4 py-2 bg-gray-100 border border-border rounded-lg text-foreground cursor-not-allowed"
               />
               <p className="mt-1 text-xs text-muted-foreground">
-                Full name cannot be modified. Contact the administrator at inf.um6p@um6p.ma for corrections.
+                Full name cannot be modified. Contact the administrator at inf.shbm@um6p.ma for corrections.
               </p>
             </div>
 

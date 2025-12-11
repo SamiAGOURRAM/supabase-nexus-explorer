@@ -107,7 +107,7 @@ const Footer = () => {
             <ul className="space-y-3">
               <li className="flex items-start">
                 <Mail size={18} className="mr-2 mt-1 text-[#ffb300]" />
-                <span className="text-gray-400 text-sm">inf.um6p@um6p.ma</span>
+                <span className="text-gray-400 text-sm">inf.shbm@um6p.ma</span>
               </li>
               <li className="flex items-start">
                 <MapPin size={18} className="mr-2 mt-1 text-[#ffb300]" />

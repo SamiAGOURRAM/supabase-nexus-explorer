@@ -649,10 +649,10 @@ export default function Login() {
                   <p className="mt-3 text-xs text-center text-gray-600">
                     Contact us at{' '}
                     <a
-                      href="mailto:inf.um6p@um6p.ma"
+                      href="mailto:inf.shbm@um6p.ma"
                       className="font-semibold text-[#007e40] hover:text-[#005a2d] hover:underline transition-all"
                     >
-                      inf.um6p@um6p.ma
+                      inf.shbm@um6p.ma
                     </a>
                   </p>
                 </div>
@@ -670,7 +670,7 @@ export default function Login() {
                 </Link>
                 <span className="text-gray-300">•</span>
                 <a
-                  href="mailto:inf.um6p@um6p.ma"
+                  href="mailto:inf.shbm@um6p.ma"
                   className="text-gray-600 hover:text-[#007e40] font-medium transition-colors"
                 >
                   Need help?
