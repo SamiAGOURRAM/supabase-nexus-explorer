@@ -26,23 +26,12 @@ type CompanyProfile = {
   company_size: string | null;
 };
 
-type Representative = {
-  id?: string;
-  full_name: string;
-  title: string;
-  phone: string;
-  email: string;
-};
-
 export default function CompanyProfile() {
   const { signOut } = useAuth('company');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [profile, setProfile] = useState<CompanyProfile | null>(null);
-  const [representatives, setRepresentatives] = useState<Representative[]>([]);
-  const [newRep, setNewRep] = useState<Representative>({ full_name: '', title: '', phone: '', email: '' });
-  const [repErrors, setRepErrors] = useState<Record<number, Record<string, string>>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
