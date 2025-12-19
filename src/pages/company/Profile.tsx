@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/contexts/ToastContext';
-import { Building2, Save, Users, Plus, Trash2, AlertTriangle, Download } from 'lucide-react';
+import { Building2, Save, AlertTriangle, Download } from 'lucide-react';
 import { validateEmail, validatePhoneNumber } from '@/utils/securityUtils';
 import { error as logError } from '@/utils/logger';
 import LoadingScreen from '@/components/shared/LoadingScreen';
