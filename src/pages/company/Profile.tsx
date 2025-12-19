@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/contexts/ToastContext';
-import { Building2, Save, AlertTriangle, Download } from 'lucide-react';
-import { validateEmail, validatePhoneNumber } from '@/utils/securityUtils';
+import { Building2, Save, AlertTriangle, Download, Trash2 } from 'lucide-react';
+import { validateEmail } from '@/utils/securityUtils';
 import { error as logError } from '@/utils/logger';
 import LoadingScreen from '@/components/shared/LoadingScreen';
 import ErrorDisplay from '@/components/shared/ErrorDisplay';
@@ -68,27 +68,6 @@ export default function CompanyProfile() {
       if (company) {
         setProfile(company);
         setError(null);
-
-        // Load representatives
-        const { data: repsData, error: repsError } = await supabase
-          .from('company_representatives')
-          .select('*')
-          .eq('company_id', company.id)
-          .order('created_at', { ascending: true });
-
-        if (repsError) {
-          logError('Error loading representatives:', repsError);
-        } else {
-          // Map database results to Representative type
-          const mappedReps: Representative[] = (repsData || []).map(rep => ({
-            id: rep.id,
-            full_name: rep.full_name,
-            title: rep.title,
-            phone: rep.phone || '',
-            email: rep.email,
-          }));
-          setRepresentatives(mappedReps);
-        }
       } else {
         throw new Error('Company profile not found.');
       }
@@ -129,91 +108,8 @@ export default function CompanyProfile() {
       }
     }
 
-    // Validate representatives
-    representatives.forEach((rep, index) => {
-      const repErrors: Record<string, string> = {};
-      if (!rep.full_name || rep.full_name.trim().length < 2) {
-        repErrors.full_name = 'Full name is required';
-      }
-      if (!rep.title || rep.title.trim().length < 2) {
-        repErrors.title = 'Title is required';
-      }
-      if (!rep.email || rep.email.trim().length === 0) {
-        repErrors.email = 'Email is required';
-      } else {
-        const emailValidation = validateEmail(rep.email);
-        if (!emailValidation.isValid) {
-          repErrors.email = emailValidation.error || 'Invalid email format';
-        }
-      }
-      if (rep.phone && rep.phone.trim().length > 0) {
-        const phoneValidation = validatePhoneNumber(rep.phone, 'MA');
-        if (!phoneValidation.isValid) {
-          repErrors.phone = phoneValidation.error || 'Invalid phone number format';
-        }
-      }
-      if (Object.keys(repErrors).length > 0) {
-        setRepErrors(prev => ({ ...prev, [index]: repErrors }));
-        newErrors.representatives = 'Please fix errors in representatives';
-      }
-    });
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  };
-
-  const addRepresentative = () => {
-    const repErrors: Record<string, string> = {};
-    if (!newRep.full_name || newRep.full_name.trim().length < 2) {
-      repErrors.full_name = 'Full name is required';
-    }
-    if (!newRep.title || newRep.title.trim().length < 2) {
-      repErrors.title = 'Title is required';
-    }
-    if (!newRep.email || newRep.email.trim().length === 0) {
-      repErrors.email = 'Email is required';
-    } else {
-      const emailValidation = validateEmail(newRep.email);
-      if (!emailValidation.isValid) {
-        repErrors.email = emailValidation.error || 'Invalid email format';
-      }
-    }
-    if (newRep.phone && newRep.phone.trim().length > 0) {
-      const phoneValidation = validatePhoneNumber(newRep.phone, 'MA');
-      if (!phoneValidation.isValid) {
-        repErrors.phone = phoneValidation.error || 'Invalid phone number format';
-      }
-    }
-
-    if (Object.keys(repErrors).length > 0) {
-      setRepErrors({ ...repErrors, [-1]: repErrors });
-      return;
-    }
-
-    setRepresentatives([...representatives, { ...newRep }]);
-    setNewRep({ full_name: '', title: '', phone: '', email: '' });
-    setRepErrors({});
-  };
-
-  const updateRepresentative = (index: number, field: keyof Representative, value: string) => {
-    const updated = [...representatives];
-    updated[index] = { ...updated[index], [field]: value };
-    setRepresentatives(updated);
-    // Clear errors for this rep
-    const newRepErrors = { ...repErrors };
-    delete newRepErrors[index];
-    setRepErrors(newRepErrors);
-  };
-
-  const removeRepresentative = (index: number) => {
-    const rep = representatives[index];
-    if (rep.id) {
-      // Will be deleted in handleSave
-    }
-    setRepresentatives(representatives.filter((_, i) => i !== index));
-    const newRepErrors = { ...repErrors };
-    delete newRepErrors[index];
-    setRepErrors(newRepErrors);
   };
 
   const handleSave = async () => {
@@ -266,66 +162,6 @@ export default function CompanyProfile() {
       if (error) {
         logError('Error updating profile:', error);
         throw new Error(`Failed to update profile: ${error.message}`);
-      }
-
-      // Save representatives
-      if (profile) {
-        // Get current representatives from database
-        const { data: existingReps } = await supabase
-          .from('company_representatives')
-          .select('id')
-          .eq('company_id', profile.id);
-
-        const existingIds = new Set((existingReps || []).map(r => r.id));
-        const currentIds = new Set(representatives.filter(r => r.id).map(r => r.id!));
-
-        // Delete removed representatives
-        const toDelete = Array.from(existingIds).filter((id: string) => !currentIds.has(id));
-        if (toDelete.length > 0) {
-          const { error: deleteError } = await supabase
-            .from('company_representatives')
-            .delete()
-            .in('id', toDelete);
-
-          if (deleteError) {
-            logError('Error deleting representatives:', deleteError);
-          }
-        }
-
-        // Insert or update representatives
-        for (const rep of representatives) {
-          if (rep.id) {
-            // Update existing
-            const { error: updateError } = await supabase
-              .from('company_representatives')
-              .update({
-                full_name: rep.full_name.trim(),
-                title: rep.title.trim(),
-                phone: rep.phone?.trim() || null,
-                email: rep.email.trim(),
-              })
-              .eq('id', rep.id);
-
-            if (updateError) {
-              logError('Error updating representative:', updateError);
-            }
-          } else {
-            // Insert new
-            const { error: insertError } = await supabase
-              .from('company_representatives')
-              .insert({
-                company_id: profile.id,
-                full_name: rep.full_name.trim(),
-                title: rep.title.trim(),
-                phone: rep.phone?.trim() || null,
-                email: rep.email.trim(),
-              });
-
-            if (insertError) {
-              logError('Error inserting representative:', insertError);
-            }
-          }
-        }
       }
 
       showSuccess('Profile updated successfully!');
@@ -634,187 +470,6 @@ export default function CompanyProfile() {
               </div>
             </div>
 
-            {/* Representatives Section */}
-            <div className="pt-6 border-t border-border">
-              <div className="flex items-center justify-between mb-4">
-                <label className="flex items-center gap-2 text-sm font-medium text-foreground">
-                  <Users className="w-4 h-4" />
-                  Company Representatives
-                </label>
-              </div>
-
-              {/* Existing Representatives */}
-              {representatives.map((rep, index) => (
-                <div key={index} className="mb-4 p-4 bg-background rounded-lg border border-border">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-medium text-muted-foreground mb-1">
-                        Full Name *
-                      </label>
-                      <input
-                        type="text"
-                        value={rep.full_name}
-                        onChange={(e) => updateRepresentative(index, 'full_name', e.target.value)}
-                        className={`w-full px-3 py-2 bg-background border rounded-lg text-sm ${
-                          repErrors[index]?.full_name ? 'border-destructive' : 'border-border'
-                        }`}
-                      />
-                      {repErrors[index]?.full_name && (
-                        <p className="mt-1 text-xs text-destructive">{repErrors[index].full_name}</p>
-                      )}
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-muted-foreground mb-1">
-                        Title *
-                      </label>
-                      <input
-                        type="text"
-                        value={rep.title}
-                        onChange={(e) => updateRepresentative(index, 'title', e.target.value)}
-                        className={`w-full px-3 py-2 bg-background border rounded-lg text-sm ${
-                          repErrors[index]?.title ? 'border-destructive' : 'border-border'
-                        }`}
-                      />
-                      {repErrors[index]?.title && (
-                        <p className="mt-1 text-xs text-destructive">{repErrors[index].title}</p>
-                      )}
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-muted-foreground mb-1">
-                        Email *
-                      </label>
-                      <input
-                        type="email"
-                        value={rep.email}
-                        onChange={(e) => updateRepresentative(index, 'email', e.target.value)}
-                        className={`w-full px-3 py-2 bg-background border rounded-lg text-sm ${
-                          repErrors[index]?.email ? 'border-destructive' : 'border-border'
-                        }`}
-                      />
-                      {repErrors[index]?.email && (
-                        <p className="mt-1 text-xs text-destructive">{repErrors[index].email}</p>
-                      )}
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-muted-foreground mb-1">
-                        Phone
-                      </label>
-                      <div className="flex gap-2">
-                        <input
-                          type="tel"
-                          value={rep.phone}
-                          onChange={(e) => updateRepresentative(index, 'phone', e.target.value)}
-                          className={`flex-1 px-3 py-2 bg-background border rounded-lg text-sm ${
-                            repErrors[index]?.phone ? 'border-destructive' : 'border-border'
-                          }`}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeRepresentative(index)}
-                          className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
-                          aria-label="Remove representative"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                      {repErrors[index]?.phone && (
-                        <p className="mt-1 text-xs text-destructive">{repErrors[index].phone}</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-
-              {/* Add New Representative */}
-              <div className="p-4 bg-muted/30 rounded-lg border border-border">
-                <h4 className="text-sm font-medium text-foreground mb-3">Add New Representative</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1">
-                      Full Name *
-                    </label>
-                    <input
-                      type="text"
-                      value={newRep.full_name}
-                      onChange={(e) => setNewRep({ ...newRep, full_name: e.target.value })}
-                      className={`w-full px-3 py-2 bg-background border rounded-lg text-sm ${
-                        repErrors[-1]?.full_name ? 'border-destructive' : 'border-border'
-                      }`}
-                      placeholder="John Doe"
-                    />
-                    {repErrors[-1]?.full_name && (
-                      <p className="mt-1 text-xs text-destructive">{repErrors[-1].full_name}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1">
-                      Title *
-                    </label>
-                    <input
-                      type="text"
-                      value={newRep.title}
-                      onChange={(e) => setNewRep({ ...newRep, title: e.target.value })}
-                      className={`w-full px-3 py-2 bg-background border rounded-lg text-sm ${
-                        repErrors[-1]?.title ? 'border-destructive' : 'border-border'
-                      }`}
-                      placeholder="HR Manager"
-                    />
-                    {repErrors[-1]?.title && (
-                      <p className="mt-1 text-xs text-destructive">{repErrors[-1].title}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1">
-                      Email *
-                    </label>
-                    <input
-                      type="email"
-                      value={newRep.email}
-                      onChange={(e) => setNewRep({ ...newRep, email: e.target.value })}
-                      className={`w-full px-3 py-2 bg-background border rounded-lg text-sm ${
-                        repErrors[-1]?.email ? 'border-destructive' : 'border-border'
-                      }`}
-                      placeholder="john@company.com"
-                    />
-                    {repErrors[-1]?.email && (
-                      <p className="mt-1 text-xs text-destructive">{repErrors[-1].email}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1">
-                      Phone
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="tel"
-                        value={newRep.phone}
-                        onChange={(e) => setNewRep({ ...newRep, phone: e.target.value })}
-                        className={`flex-1 px-3 py-2 bg-background border rounded-lg text-sm ${
-                          repErrors[-1]?.phone ? 'border-destructive' : 'border-border'
-                        }`}
-                        placeholder="+212 6XX XXX XXX"
-                      />
-                      <button
-                        type="button"
-                        onClick={addRepresentative}
-                        className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-                        aria-label="Add representative"
-                      >
-                        <Plus className="w-4 h-4" />
-                      </button>
-                    </div>
-                    {repErrors[-1]?.phone && (
-                      <p className="mt-1 text-xs text-destructive">{repErrors[-1].phone}</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {errors.representatives && (
-                <p className="mt-2 text-sm text-destructive">{errors.representatives}</p>
-              )}
-            </div>
-
             <div className="flex justify-between items-center pt-4 border-t border-border">
               <button
                 onClick={handleExportData}
@@ -858,7 +513,6 @@ export default function CompanyProfile() {
                       <li>Your company profile and information</li>
                       <li>All your offers and job postings</li>
                       <li>All your event slots and bookings</li>
-                      <li>Company representatives and contact information</li>
                       <li>All other account-related data</li>
                     </ul>
                   </div>

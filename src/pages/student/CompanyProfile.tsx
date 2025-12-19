@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/contexts/ToastContext';
-import { ArrowLeft, Building2, MapPin, Globe, Briefcase } from 'lucide-react';
+import { ArrowLeft, Building2, MapPin, Globe, Briefcase, Users } from 'lucide-react';
 import LoadingScreen from '@/components/shared/LoadingScreen';
 import ErrorDisplay from '@/components/shared/ErrorDisplay';
 import NotFound from '@/components/shared/NotFound';
