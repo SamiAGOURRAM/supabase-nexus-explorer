@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/contexts/ToastContext';
-import { ArrowLeft, Building2, MapPin, Globe, Briefcase, Users, Mail, Phone, User } from 'lucide-react';
+import { ArrowLeft, Building2, MapPin, Globe, Briefcase } from 'lucide-react';
 import LoadingScreen from '@/components/shared/LoadingScreen';
 import ErrorDisplay from '@/components/shared/ErrorDisplay';
 import NotFound from '@/components/shared/NotFound';
@@ -18,14 +18,6 @@ type Company = {
   logo_url: string | null;
   company_size: string | null;
   address: string | null;
-};
-
-type Representative = {
-  id: string;
-  full_name: string;
-  title: string;
-  phone: string | null;
-  email: string;
 };
 
 type Offer = {
@@ -47,7 +39,6 @@ export default function CompanyProfile() {
   const [error, setError] = useState<Error | null>(null);
   const [company, setCompany] = useState<Company | null>(null);
   const [offers, setOffers] = useState<Offer[]>([]);
-  const [representatives, setRepresentatives] = useState<Representative[]>([]);
   const { showError } = useToast();
 
   useEffect(() => {
@@ -90,19 +81,6 @@ export default function CompanyProfile() {
       }
 
       setCompany(companyData);
-
-      // Load representatives
-      const { data: repsData, error: repsError } = await supabase
-        .from('company_representatives' as any)
-        .select('*')
-        .eq('company_id', companyId)
-        .order('created_at', { ascending: true });
-
-      if (repsError) {
-        console.error('Error loading representatives:', repsError);
-      } else {
-        setRepresentatives((repsData as unknown as Representative[]) || []);
-      }
 
       // Get upcoming event
       const { data: eventsData, error: eventsError } = await supabase
@@ -274,40 +252,6 @@ export default function CompanyProfile() {
             <p className="text-gray-600 leading-relaxed whitespace-pre-wrap">
               {company.description}
             </p>
-          </div>
-        )}
-
-        {/* Representatives Section */}
-        {representatives.length > 0 && (
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Contact Representatives</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {representatives.map((rep) => (
-                <div key={rep.id} className="bg-gray-50 rounded-lg border border-gray-200 p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="w-12 h-12 bg-[#007e40] rounded-lg flex items-center justify-center flex-shrink-0">
-                      <User className="w-6 h-6 text-white" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-gray-900 mb-0.5">{rep.full_name}</h3>
-                      <p className="text-sm text-gray-500 mb-3">{rep.title}</p>
-                      <div className="space-y-2">
-                        <a href={`mailto:${rep.email}`} className="flex items-center gap-2 text-sm text-gray-700 hover:text-[#007e40] transition-colors">
-                          <Mail className="w-4 h-4" />
-                          <span className="truncate">{rep.email}</span>
-                        </a>
-                        {rep.phone && (
-                          <a href={`tel:${rep.phone}`} className="flex items-center gap-2 text-sm text-gray-700 hover:text-[#007e40] transition-colors">
-                            <Phone className="w-4 h-4" />
-                            <span>{rep.phone}</span>
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
           </div>
         )}
 
