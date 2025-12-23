@@ -19,6 +19,8 @@
     "eslint": "^8.57.1",
     "eslint-plugin-react-hooks": "^4.6.2",
     "eslint-plugin-react-refresh": "^0.4.24",
+    "jspdf": "^3.0.4",
+    "jspdf-autotable": "^5.0.2",
     "lovable-tagger": "^1.1.11",
     "lucide-react": "^0.552.0",
     "react": "^19.2.0",

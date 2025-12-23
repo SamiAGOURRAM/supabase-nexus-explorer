@@ -2,12 +2,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/contexts/ToastContext';
-import { Calendar, Clock, MapPin, Building2, Briefcase, AlertTriangle, X } from 'lucide-react';
+import { Calendar, Clock, MapPin, Building2, Briefcase, AlertTriangle, X, Download } from 'lucide-react';
 import LoadingScreen from '@/components/shared/LoadingScreen';
 import ErrorDisplay from '@/components/shared/ErrorDisplay';
 import EmptyState from '@/components/shared/EmptyState';
 import { useAuth } from '@/hooks/useAuth';
 import StudentLayout from '@/components/student/StudentLayout';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 type Booking = {
   id: string;
@@ -37,6 +39,7 @@ export default function StudentBookings() {
     offerTitle: '',
     slotTime: ''
   });
+  const [downloadingBookings, setDownloadingBookings] = useState(false);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -211,6 +214,155 @@ export default function StudentBookings() {
     });
   };
 
+  const handleDownloadBookings = async () => {
+    try {
+      setDownloadingBookings(true);
+      
+      if (!user) {
+        showError('You must be logged in to download bookings');
+        return;
+      }
+
+      // Get complete booking data with all details
+      const { data: fullBookingsData, error: bookingsError } = await supabase
+        .rpc('fn_get_student_bookings', {
+          p_student_id: user.id,
+        });
+
+      if (bookingsError) {
+        throw new Error(`Failed to fetch bookings: ${bookingsError.message}`);
+      }
+
+      if (!fullBookingsData || fullBookingsData.length === 0) {
+        showError('No bookings to download');
+        return;
+      }
+
+      // Filter only upcoming/confirmed bookings (exclude past and cancelled)
+      const upcomingBookings = fullBookingsData.filter((booking: any) => 
+        booking.status === 'confirmed' && new Date(booking.slot_time) >= new Date()
+      );
+
+      if (upcomingBookings.length === 0) {
+        showError('No upcoming bookings to download');
+        return;
+      }
+
+      // Get user profile for PDF header
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name, email')
+        .eq('id', user.id)
+        .single();
+
+      // Generate PDF with only upcoming bookings
+      generateBookingsPDF(upcomingBookings, profile);
+      
+      showSuccess('Bookings downloaded successfully');
+    } catch (error: any) {
+      console.error('Error downloading bookings:', error);
+      showError(error.message || 'Failed to download bookings. Please try again.');
+    } finally {
+      setDownloadingBookings(false);
+    }
+  };
+
+  const generateBookingsPDF = (bookingsData: any[], profile: any) => {
+    const doc = new jsPDF();
+    
+    // Add title
+    doc.setFontSize(20);
+    doc.setTextColor(26, 31, 58); // #1a1f3a
+    doc.text('My Upcoming Interview Bookings', 14, 22);
+    
+    // Add student info
+    doc.setFontSize(10);
+    doc.setTextColor(100, 100, 100);
+    if (profile?.full_name) {
+      doc.text(`Student: ${profile.full_name}`, 14, 32);
+    }
+    if (profile?.email) {
+      doc.text(`Email: ${profile.email}`, 14, 38);
+    }
+    doc.text(`Generated: ${new Date().toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })}`, 14, 44);
+    
+    // Prepare table data
+    const tableData = bookingsData.map((booking) => {
+      const slotDate = new Date(booking.slot_time);
+      return [
+        booking.company_name || '',
+        booking.offer_title || '',
+        booking.event_name || '',
+        slotDate.toLocaleDateString('en-US', { 
+          month: 'short', 
+          day: 'numeric',
+          year: 'numeric'
+        }),
+        slotDate.toLocaleTimeString('en-US', { 
+          hour: '2-digit', 
+          minute: '2-digit'
+        }),
+        booking.status === 'confirmed' ? '✓' : 
+        booking.status === 'cancelled' ? '✗' : 
+        booking.status || ''
+      ];
+    });
+    
+    // Add table
+    autoTable(doc, {
+      startY: 52,
+      head: [['Company', 'Offer', 'Event', 'Date', 'Time', 'Status']],
+      body: tableData,
+      theme: 'striped',
+      headStyles: {
+        fillColor: [26, 31, 58], // #1a1f3a
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        fontSize: 10
+      },
+      bodyStyles: {
+        fontSize: 9,
+        textColor: [50, 50, 50]
+      },
+      alternateRowStyles: {
+        fillColor: [245, 245, 245]
+      },
+      columnStyles: {
+        0: { cellWidth: 35 }, // Company
+        1: { cellWidth: 45 }, // Offer
+        2: { cellWidth: 35 }, // Event
+        3: { cellWidth: 25 }, // Date
+        4: { cellWidth: 20 }, // Time
+        5: { cellWidth: 18, halign: 'center' } // Status
+      },
+      margin: { top: 52, left: 14, right: 14 }
+    });
+    
+    // Add footer
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(150, 150, 150);
+      doc.text(
+        `Page ${i} of ${pageCount}`,
+        doc.internal.pageSize.getWidth() / 2,
+        doc.internal.pageSize.getHeight() - 10,
+        { align: 'center' }
+      );
+    }
+    
+    // Download
+    const dateStr = new Date().toISOString().split('T')[0];
+    doc.save(`my-bookings-${dateStr}.pdf`);
+  };
+
   const upcomingBookings = useMemo(
     () =>
       bookings.filter(
@@ -260,12 +412,26 @@ export default function StudentBookings() {
         {/* Hero Section */}
         <section className="bg-[#1a1f3a] border-b border-gray-200">
           <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-12">
-            <h1 className="text-3xl font-bold text-white mb-2">
-              My Bookings
-            </h1>
-            <p className="text-white/70">
-              Manage your interview appointments
-            </p>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <h1 className="text-3xl font-bold text-white mb-2">
+                  My Bookings
+                </h1>
+                <p className="text-white/70">
+                  Manage your interview appointments
+                </p>
+              </div>
+              {bookings.length > 0 && (
+                <button
+                  onClick={handleDownloadBookings}
+                  disabled={downloadingBookings}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-white text-[#1a1f3a] rounded-lg hover:bg-gray-100 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Download className="w-4 h-4" />
+                  {downloadingBookings ? 'Generating PDF...' : 'Download PDF'}
+                </button>
+              )}
+            </div>
           </div>
         </section>
 
