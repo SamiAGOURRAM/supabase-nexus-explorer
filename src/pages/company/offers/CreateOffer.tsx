@@ -6,7 +6,7 @@ import CompanyLayout from '@/components/company/CompanyLayout';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function CreateOffer() {
-  const { user } = useAuth('company');
+  useAuth('company');
   const [loading, setLoading] = useState(false);
   const [events, setEvents] = useState<any[]>([]);
   const [formData, setFormData] = useState({

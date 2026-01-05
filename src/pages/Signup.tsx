@@ -174,10 +174,11 @@ export default function Signup() {
         return;
       }
 
-      // Validate email domain - only allow UM6P students
+      // Validate email domain - only allow UM6P students (and gmail for testing)
       const isUM6P = sanitizedEmail.endsWith('@um6p.ma');
+      const isGmail = sanitizedEmail.endsWith('@gmail.com'); // TODO: Remove after testing
       
-      if (!isUM6P) {
+      if (!isUM6P && !isGmail) {
         await recordFailedAttempt(sanitizedEmail, 'Invalid email domain', 'signup');
         throw new Error('Only UM6P email addresses (@um6p.ma) are allowed.');
       }
@@ -216,7 +217,7 @@ export default function Signup() {
         email: sanitizedEmail,
         password: formData.password,
         options: {
-          emailRedirectTo: `${window.location.origin}/verify-email`,
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
           data: {
             full_name: sanitizedName,
             role: role,

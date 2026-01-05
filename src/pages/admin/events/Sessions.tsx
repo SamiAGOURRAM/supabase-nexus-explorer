@@ -190,9 +190,10 @@ export default function SessionManagement() {
 
       resetForm();
       await loadData();
-    } catch (err) {
-      console.error('Error saving:', err);
-      alert('Error saving session');
+    } catch (err: any) {
+      console.error('Error saving session:', err);
+      const errorMessage = err?.message || err?.error_description || 'Unknown error occurred';
+      alert(`Error saving session: ${errorMessage}`);
     } finally {
       setSaving(false);
     }

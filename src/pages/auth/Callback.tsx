@@ -14,15 +14,23 @@ export default function AuthCallback() {
         const params = new URLSearchParams(window.location.search);
         const errorParam = params.get('error');
         const errorDescription = params.get('error_description');
+        const errorCode = params.get('error_code');
 
         if (errorParam) {
-          console.error('OAuth error:', errorParam, errorDescription);
-          setError(errorDescription || errorParam);
+          console.error('Auth error:', errorParam, errorDescription, errorCode);
+          
+          // Handle specific error cases
+          if (errorCode === 'otp_expired') {
+            setError('This confirmation link has expired. Please request a new one.');
+          } else {
+            setError(errorDescription || errorParam);
+          }
+          
           setTimeout(() => navigate('/login'), 3000);
           return;
         }
 
-        // Get the session from the URL (Supabase handles OAuth code exchange automatically)
+        // Exchange the code in the URL for a session
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
         if (sessionError) {
@@ -40,7 +48,7 @@ export default function AuthCallback() {
         }
 
         const user = session.user;
-        console.log('Azure AD user authenticated:', user.email);
+        console.log('User authenticated:', user.email);
 
         // Verify the user has an email address
         if (!user.email) {
@@ -51,40 +59,49 @@ export default function AuthCallback() {
           return;
         }
 
-        // Check if user profile exists
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
+        // Check if user profile exists (with retries)
+        let profile = null;
+        let retries = 0;
+        const maxRetries = 5;
 
-        if (profileError && profileError.code !== 'PGRST116') {
-          console.error('Profile fetch error:', profileError);
+        while (retries < maxRetries && !profile) {
+          if (retries > 0) {
+            await new Promise(resolve => setTimeout(resolve, 500 * retries));
+          }
+
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .maybeSingle();
+
+          if (profileError) {
+            console.error('Profile fetch error:', profileError);
+          } else if (profileData) {
+            profile = profileData;
+            break;
+          }
+
+          retries++;
         }
 
         if (!profile) {
-          // Profile doesn't exist - wait for trigger to create it
-          console.log('Profile not found, waiting for automatic creation...');
-          await new Promise(resolve => setTimeout(resolve, 2000));
-
-          // Try again
-          const { data: retryProfile, error: retryError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', user.id)
-            .single();
-
-          if (retryError || !retryProfile) {
-            console.error('Profile still not found after retry');
-            setError('Profile creation failed. Please contact support at inf.shbm@um6p.ma');
-            setTimeout(() => navigate('/login'), 3000);
-            return;
-          }
+          console.error('Profile not found after retries');
+          setError('Profile creation failed. Please contact support at inf.shbm@um6p.ma');
+          setTimeout(() => navigate('/login'), 3000);
+          return;
         }
 
-        // Success! Redirect to student dashboard
-        console.log('Azure AD login successful, redirecting to student dashboard');
-        navigate('/student/dashboard', { replace: true });
+        // Success! Redirect based on role
+        console.log('Login successful, redirecting to dashboard');
+        
+        if (profile.role === 'admin') {
+          navigate('/admin', { replace: true });
+        } else if (profile.role === 'company') {
+          navigate('/company', { replace: true });
+        } else {
+          navigate('/student', { replace: true });
+        }
 
       } catch (err: any) {
         console.error('Callback error:', err);

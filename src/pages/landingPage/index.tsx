@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import Footer from "./components/Footer";
 import Navigation from "./components/Navigation";
 import CallToAction from "./sections/CallToAction";
@@ -11,8 +11,26 @@ import WhyINF from "./sections/WhyINF";
 
 const LandingPage = () => {
   const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
+    // Check if this is a password recovery or email confirmation callback
+    const hashParams = new URLSearchParams(location.hash.substring(1));
+    const type = hashParams.get('type');
+    const error = hashParams.get('error');
+
+    // Handle password recovery
+    if (type === 'recovery' && !error) {
+      navigate('/reset-password');
+      return;
+    }
+
+    // Handle email confirmation from signup
+    if (type === 'signup' || hashParams.has('access_token')) {
+      navigate('/auth/callback');
+      return;
+    }
+
     // Handle hash navigation when page loads
     const hash = location.hash.replace('#', '');
     const scrollToSection = sessionStorage.getItem('scrollToSection');
@@ -39,7 +57,7 @@ const LandingPage = () => {
         }
       }, 100);
     }
-  }, [location.hash, location.pathname]);
+  }, [location.hash, location.pathname, navigate]);
 
   return (
     <div className="min-h-screen bg-white">

@@ -41,6 +41,10 @@ export function useEvents() {
       if (error) throw error;
       return data as Event[];
     },
+    staleTime: 0, // Always consider data stale
+    gcTime: 0, // Don't cache
+    refetchOnMount: true, // Refetch when component mounts
+    refetchOnWindowFocus: true, // Refetch when window regains focus
   });
 
   // Automatically select the closest upcoming event when events are loaded

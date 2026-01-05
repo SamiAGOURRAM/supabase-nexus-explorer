@@ -5,8 +5,6 @@ import { AlertCircle, Mail, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { warn, error as logError } from '@/utils/logger';
 
 export default function VerifyEmail() {
-  const [otp, setOtp] = useState('');
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [resending, setResending] = useState(false);
@@ -20,126 +18,51 @@ export default function VerifyEmail() {
     }
   }, [email, navigate]);
 
-  const handleVerify = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-
-    try {
-      // Verify the OTP code
-      const { data, error: verifyError } = await supabase.auth.verifyOtp({
-        email: email,
-        token: otp,
-        type: 'email',
-      });
-
-      if (verifyError) {
-        throw verifyError;
-      }
-
-      if (!data.session) {
-        throw new Error('Verification failed - no session created');
-      }
-
-      // Email verified successfully
-      
-      // Wait for profile to be created by database trigger
-      // Retry up to 5 times with increasing delays
-      let profile = null;
-      let retries = 0;
-      const maxRetries = 5;
-      
-      while (retries < maxRetries && !profile) {
-        // Wait before checking (exponential backoff)
-        if (retries > 0) {
-          await new Promise(resolve => setTimeout(resolve, 500 * retries));
-        }
-        
-        if (!data.user) {
-          throw new Error('User not found after verification');
-        }
-
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', data.user.id)
-          .maybeSingle(); // Use maybeSingle() instead of single() to avoid 406 errors
-
-        if (profileError) {
-          // Profile check attempt failed, will retry
-        } else if (profileData) {
-          profile = profileData;
-          break;
-        }
-        
-        retries++;
-      }
-
-      // Redirect based on user role
-      if (profile && profile.role) {
-        if (profile.role === 'admin') {
-          navigate('/admin');
-        } else if (profile.role === 'company') {
-          navigate('/company');
-        } else {
-          navigate('/student');
-        }
-      } else {
-        // If profile doesn't exist yet after retries, redirect to login
-        // The user can log in and the profile should be created by then
-        warn('Profile not found after verification, redirecting to login');
-        navigate('/login', { 
-          state: { 
-            verified: true, 
-            email: email,
-            message: 'Email verified! Please sign in to continue.'
-          } 
-        });
-      }
-      
-    } catch (err: any) {
-      logError('Verification error:', err);
-      setError(err.message || 'Invalid verification code. Please check the code and try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleResend = async () => {
+    if (!email) {
+      setError('Email address not found. Please go back and sign up again.');
+      return;
+    }
+
     setResending(true);
     setError('');
-    setSuccess(''); // Clear any previous success message
+    setSuccess('');
     
     try {
-      // For new users, resend OTP using signInWithOtp
-      // For existing users trying to verify, also use signInWithOtp
-      const { error: resendError } = await supabase.auth.signInWithOtp({
+      console.log('Attempting to resend confirmation email to:', email);
+      
+      // Resend confirmation email
+      const { error: resendError } = await supabase.auth.resend({
+        type: 'signup',
         email: email,
         options: {
-          shouldCreateUser: false, // Don't create new user, just resend OTP
-        },
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        }
       });
       
       if (resendError) {
-        // If signInWithOtp fails (user doesn't exist), try resending via resend endpoint
-        // This handles the case where user was created but needs OTP resent
-        const { error: resendError2 } = await supabase.auth.resend({
-          type: 'signup',
-          email: email,
-        });
-        
-        if (resendError2) throw resendError2;
+        console.error('Resend error:', resendError);
+        throw resendError;
       }
       
+      console.log('Confirmation email resent successfully');
+      
       // Show success message
-      setError('');
-      setSuccess('New verification code sent to your email!');
-      // Clear success message after 5 seconds
-      setTimeout(() => setSuccess(''), 5000);
+      setSuccess('A new confirmation link has been sent to your email! Check your inbox and spam folder.');
+      // Clear success message after 10 seconds
+      setTimeout(() => setSuccess(''), 10000);
       
     } catch (err: any) {
       logError('Resend error:', err);
-      setError('Failed to resend code: ' + (err.message || 'Unknown error'));
+      
+      // Handle specific error cases
+      if (err.message?.includes('rate limit')) {
+        setError('Too many requests. Please wait a few minutes before trying again.');
+      } else if (err.message?.includes('not found')) {
+        setError('Email not found. Please sign up again.');
+      } else {
+        setError('Failed to resend link: ' + (err.message || 'Unknown error. Please try again later.'));
+      }
     } finally {
       setResending(false);
     }
@@ -165,15 +88,15 @@ export default function VerifyEmail() {
 
         {/* Title */}
         <h2 className="text-2xl font-bold text-foreground text-center mb-2">
-          Verify Your Email
+          Check Your Email
         </h2>
         <p className="text-sm text-muted-foreground text-center mb-6">
-          We sent a 6-digit code to
+          We sent a confirmation link to
           <br />
           <span className="font-mono text-foreground">{email}</span>
           <br />
           <span className="text-xs text-muted-foreground mt-2 block">
-            Check your inbox and spam folder. The code expires in 10 minutes.
+            Click the link in the email to verify your account. Check your spam folder if you don't see it.
           </span>
         </p>
 
@@ -193,49 +116,39 @@ export default function VerifyEmail() {
           </div>
         )}
 
-        {/* OTP Form */}
-        <form onSubmit={handleVerify} className="space-y-4">
-          <div>
-            <label htmlFor="otp" className="block text-sm font-medium text-foreground mb-2">
-              Verification Code
-            </label>
-            <input
-              id="otp"
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              maxLength={6}
-              required
-              value={otp}
-              onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-              placeholder="000000"
-              className="w-full px-4 py-3 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring transition-shadow text-center text-2xl font-mono tracking-widest"
-            />
-            <p className="text-xs text-muted-foreground mt-2 text-center">
-              Enter the 6-digit code from your email
-            </p>
+        {/* Instructions */}
+        <div className="bg-muted/50 rounded-lg p-4 mb-4 space-y-3">
+          <div className="flex items-start gap-3">
+            <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <span className="text-xs font-bold text-primary">1</span>
+            </div>
+            <p className="text-sm text-foreground">Open your email inbox</p>
           </div>
-
-          <button
-            type="submit"
-            disabled={loading || otp.length !== 6}
-            className="w-full py-3 px-4 bg-primary text-primary-foreground rounded-lg font-medium shadow-soft hover:shadow-elegant transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? 'Verifying...' : 'Verify Email'}
-          </button>
-        </form>
+          <div className="flex items-start gap-3">
+            <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <span className="text-xs font-bold text-primary">2</span>
+            </div>
+            <p className="text-sm text-foreground">Find the email from UM6P Nexus Explorer</p>
+          </div>
+          <div className="flex items-start gap-3">
+            <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <span className="text-xs font-bold text-primary">3</span>
+            </div>
+            <p className="text-sm text-foreground">Click the confirmation link</p>
+          </div>
+        </div>
 
         {/* Resend */}
         <div className="mt-6 text-center">
           <p className="text-sm text-muted-foreground mb-2">
-            Didn't receive the code?
+            Didn't receive the email?
           </p>
           <button
             onClick={handleResend}
             disabled={resending}
             className="text-sm text-primary hover:underline font-medium disabled:opacity-50"
           >
-            {resending ? 'Sending...' : 'Resend verification code'}
+            {resending ? 'Sending...' : 'Resend confirmation link'}
           </button>
         </div>
       </div>

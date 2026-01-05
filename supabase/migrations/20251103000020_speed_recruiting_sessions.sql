@@ -37,6 +37,7 @@ CREATE INDEX IF NOT EXISTS idx_sessions_time ON speed_recruiting_sessions(start_
 CREATE INDEX IF NOT EXISTS idx_slots_session ON event_slots(session_id);
 
 -- Add trigger for updated_at
+DROP TRIGGER IF EXISTS update_sessions_updated_at ON speed_recruiting_sessions;
 CREATE TRIGGER update_sessions_updated_at 
     BEFORE UPDATE ON speed_recruiting_sessions
     FOR EACH ROW 
@@ -58,6 +59,10 @@ COMMENT ON COLUMN event_slots.session_id IS
 
 -- RLS Policies
 ALTER TABLE speed_recruiting_sessions ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Admins can manage speed recruiting sessions" ON speed_recruiting_sessions;
+DROP POLICY IF EXISTS "Anyone can view active speed recruiting sessions" ON speed_recruiting_sessions;
 
 -- Admins can manage sessions
 CREATE POLICY "Admins can manage speed recruiting sessions"
