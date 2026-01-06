@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/contexts/ToastContext';
-import { Calendar, Briefcase, User, AlertCircle, CheckCircle2, Building2, ArrowRight, TrendingUp } from 'lucide-react';
+import { Calendar, Briefcase, User, AlertCircle, CheckCircle2, Building2, ArrowRight, TrendingUp, AlertTriangle } from 'lucide-react';
 import { warn, error as logError } from '@/utils/logger';
 import ErrorDisplay from '@/components/shared/ErrorDisplay';
 import LoadingScreen from '@/components/shared/LoadingScreen';
@@ -19,12 +19,18 @@ type EventPhaseInfo = {
   message: string;
 };
 
+type ProfileCompleteness = {
+  isComplete: boolean;
+  missingFields: string[];
+};
+
 export default function StudentDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [stats, setStats] = useState({ bookings: 0, offers: 0 });
   const [phaseInfo, setPhaseInfo] = useState<EventPhaseInfo | null>(null);
   const [studentName, setStudentName] = useState('');
+  const [profileCompleteness, setProfileCompleteness] = useState<ProfileCompleteness>({ isComplete: true, missingFields: [] });
   const navigate = useNavigate();
   const { showError: showToastError } = useToast();
 
@@ -55,7 +61,7 @@ export default function StudentDashboard() {
 
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('role, full_name')
+        .select('role, full_name, phone, student_number, specialization, graduation_year, program, profile_photo_url, linkedin_url')
         .eq('id', user.id)
         .maybeSingle();
 
@@ -72,6 +78,21 @@ export default function StudentDashboard() {
 
       // Set student name
       setStudentName(profile.full_name || 'Student');
+
+      // Check profile completeness
+      const missingFields: string[] = [];
+      if (!profile.phone) missingFields.push('Phone Number');
+      if (!profile.student_number) missingFields.push('Student Number');
+      if (!profile.specialization) missingFields.push('Specialization');
+      if (!profile.graduation_year) missingFields.push('Graduation Year');
+      if (!profile.program) missingFields.push('Program');
+      if (!profile.profile_photo_url) missingFields.push('Profile Photo');
+      if (!profile.linkedin_url) missingFields.push('LinkedIn Profile');
+
+      setProfileCompleteness({
+        isComplete: missingFields.length === 0,
+        missingFields
+      });
 
       // Fetch stats in parallelstill
       const [bookingsResult, offersResult, eventsResult] = await Promise.all([
@@ -199,6 +220,43 @@ export default function StudentDashboard() {
             </div>
           </div>
         </section>
+
+        {/* Profile Incomplete Alert */}
+        {!profileCompleteness.isComplete && (
+          <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 pt-8">
+            <div className="bg-amber-50 border-l-4 border-amber-500 rounded-lg p-6 shadow-sm">
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0">
+                  <AlertTriangle className="w-6 h-6 text-amber-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-bold text-amber-900 mb-2">
+                    Complete Your Profile
+                  </h3>
+                  <p className="text-amber-800 text-sm mb-3">
+                    Your profile is incomplete. Complete your profile to stand out to recruiters and unlock all features.
+                  </p>
+                  <div className="mb-4">
+                    <p className="text-sm font-semibold text-amber-900 mb-2">Missing information:</p>
+                    <ul className="list-disc list-inside text-sm text-amber-800 space-y-1">
+                      {profileCompleteness.missingFields.map((field, index) => (
+                        <li key={index}>{field}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <Link 
+                    to="/student/profile"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors font-medium text-sm"
+                  >
+                    <User className="w-4 h-4" />
+                    <span>Complete Profile Now</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Phase Status */}
         {phaseInfo && (

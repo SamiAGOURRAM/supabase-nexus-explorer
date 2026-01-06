@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { ArrowLeft, Search, Download, Building2, Mail, UserPlus, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Search, Download, Building2, Mail, UserPlus, CheckCircle, Copy } from 'lucide-react';
+import { generateSecurePassword, copyToClipboard, formatCredentialsForClipboard } from '@/utils/passwordUtils';
 
 export default function QuickInvitePage() {
   const { id: eventId } = useParams<{ id: string }>();
@@ -17,6 +18,7 @@ export default function QuickInvitePage() {
   const [website, setWebsite] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
+  const [generatedCredentials, setGeneratedCredentials] = useState<{ email: string; password: string } | null>(null);
   
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -139,59 +141,86 @@ export default function QuickInvitePage() {
       if (!inviteEmail) {
         setResult({
           ...result,
-          message: (result.message || 'Company invited') + '\n\n⚠️ No email provided — magic link not sent.'
+          message: (result.message || 'Company invited') + '\n\n⚠️ No email provided — credentials not sent.'
         });
         return;
       }
 
-      // Always try to send magic link for new invites
-      // The RPC should tell us if it's a new company or existing
+      // Check if this is a new company that needs an account created
       const isNewCompany = result.next_step === 'send_invite_email' || result.company_created;
       
-      try {
-        const { error: magicLinkError } = await supabase.auth.signInWithOtp({
-          email: inviteEmail,
-          options: {
-            emailRedirectTo: `${window.location.origin}/auth/set-password`,
-            data: {
-              company_name: companyName.trim(),
-              company_code: result.company_code,
-              role: 'company',
-              event_name: eventName,
-              event_id: eventId
+      if (isNewCompany) {
+        try {
+          // Generate a secure default password using utility function
+          const defaultPassword = generateSecurePassword(16);
+          
+          // Create the company account with the default password
+          const { error: signUpError } = await supabase.auth.signUp({
+            email: inviteEmail,
+            password: defaultPassword,
+            options: {
+              data: {
+                company_name: companyName.trim(),
+                company_code: result.company_code,
+                role: 'company',
+                event_name: eventName,
+                event_id: eventId
+              },
+              emailRedirectTo: `${window.location.origin}/company`
             }
-          }
-        });
-
-        if (magicLinkError) {
-          console.error('Magic link error:', magicLinkError);
-          
-          // Handle rate limit specifically
-          const isRateLimit = magicLinkError.message?.toLowerCase().includes('rate limit') || 
-                              magicLinkError.message?.toLowerCase().includes('email rate');
-          
-          const errorMessage = isRateLimit
-            ? '\n\n⚠️ Email rate limit reached. The company has been invited successfully, but the magic link email could not be sent at this time. Please wait a few minutes and use the "Re-invite Existing" tab to send the magic link again, or contact the company directly with their login credentials.'
-            : `\n\n⚠️ Magic link email failed: ${magicLinkError.message}. The company has been invited successfully, but please contact them directly to set up their account.`;
-          
-          setResult({
-            ...result,
-            message: (result.message || '') + errorMessage
           });
-        } else {
+
+          if (signUpError) {
+            console.error('Sign up error:', signUpError);
+            
+            // If user already exists, just send credentials
+            if (signUpError.message?.includes('already registered') || signUpError.message?.includes('already exists')) {
+              setResult({
+                ...result,
+                message: (result.message || '') + 
+                  `\n\n⚠️ Account already exists for ${inviteEmail}.` +
+                  `\nThe company can login using their existing password.` +
+                  `\n\nℹ️ No slots auto-generated. Create slots manually via Sessions/Offers page.`
+              });
+            } else {
+              setResult({
+                ...result,
+                message: (result.message || '') + 
+                  `\n\n⚠️ Failed to create account: ${signUpError.message}` +
+                  `\nPlease contact the company directly to set up their account.`
+              });
+            }
+          } else {
+            // Store credentials for copy button
+            setGeneratedCredentials({ email: inviteEmail, password: defaultPassword });
+            
+            // Display credentials to admin (no email sent)
+            setResult({
+              ...result,
+              message: (result.message || '') + 
+                `\n\n✅ Account created successfully!` +
+                `\n\n📧 Email: ${inviteEmail}` +
+                `\n🔑 Default Password: ${defaultPassword}` +
+                `\n\n⚠️ Please share these credentials with the company securely.` +
+                `\nThey should change their password after first login.` +
+                `\n\nℹ️ No slots auto-generated. Create slots manually via Sessions/Offers page.`
+            });
+          }
+        } catch (emailError: any) {
+          console.error('Account creation error:', emailError);
           setResult({
             ...result,
-            message: (result.message || '') + 
-              `\n\n📧 Magic link sent to ${inviteEmail}!` +
-              `\n\nℹ️ No slots auto-generated. Create slots manually via Sessions/Offers page.` +
-              (isNewCompany ? '\n✅ Company will receive an email to set their password.' : '')
+            message: (result.message || '') + '\n\n⚠️ Failed to create account: ' + (emailError?.message || 'Unknown error')
           });
         }
-      } catch (emailError: any) {
-        // Email send error is non-critical, already handled in result message
+      } else {
+        // Existing company - just inform that they can use existing credentials
         setResult({
           ...result,
-          message: (result.message || '') + '\n\n⚠️ Failed to send magic link: ' + (emailError?.message || 'Unknown error')
+          message: (result.message || '') + 
+            `\n\n✅ Company re-invited to event!` +
+            `\nThey can login using their existing credentials at: ${inviteEmail}` +
+            `\n\nℹ️ No slots auto-generated. Create slots manually via Sessions/Offers page.`
         });
       }
 
@@ -223,6 +252,22 @@ export default function QuickInvitePage() {
     });
   } finally {
     setLoading(false);
+  }
+};
+
+const handleCopyCredentials = async () => {
+  if (!generatedCredentials) return;
+  
+  const credentialsText = formatCredentialsForClipboard(
+    generatedCredentials.email,
+    generatedCredentials.password
+  );
+  
+  const success = await copyToClipboard(credentialsText);
+  if (success) {
+    alert('✅ Credentials copied to clipboard!');
+  } else {
+    alert('⚠️ Failed to copy credentials. Please copy them manually.');
   }
 };
 
@@ -304,27 +349,49 @@ const handleSearch = async () => {
       }
 
       try {
-        const { error: magicLinkError } = await supabase.auth.signInWithOtp({
-          email: companyEmail,
-          options: {
-            emailRedirectTo: `${window.location.origin}/auth/set-password`,
-            data: {
-              company_name: companyData.company_name || companyName,
-              company_code: companyData.company_code,
-              role: 'company',
-              event_name: eventName,
-              event_id: eventId
-            }
-          }
+        // Check if account exists first
+        const { data: existingUser } = await supabase.rpc('check_email_exists', {
+          p_email: companyEmail
         });
 
-        if (magicLinkError) {
-          alert(`✅ ${companyName} invited to the event!\n\nℹ️ No slots auto-generated (create manually)\n\n⚠️ Could not send invite email: ${magicLinkError.message}`);
+        const accountExists = existingUser && (existingUser as any).exists;
+
+        if (accountExists) {
+          // Account exists, just inform admin to tell company to use existing credentials
+          alert(`✅ ${companyName} invited to the event!\n\n📧 Email: ${companyEmail}\n\nℹ️ Account already exists - company can login with their existing password.\n\nℹ️ No slots auto-generated. Create slots manually via Sessions/Offers page.`);
         } else {
-          alert(`✅ ${companyName} invited and magic link sent to ${companyEmail}!\n\nℹ️ No slots auto-generated. Create slots manually via Sessions/Offers page.`);
+          // Generate a secure default password using utility function
+          const defaultPassword = generateSecurePassword(16);
+          
+          // Create account with default password
+          const { error: signUpError } = await supabase.auth.signUp({
+            email: companyEmail,
+            password: defaultPassword,
+            options: {
+              data: {
+                company_name: companyData.company_name || companyName,
+                company_code: companyData.company_code,
+                role: 'company',
+                event_name: eventName,
+                event_id: eventId
+              },
+              emailRedirectTo: `${window.location.origin}/company`
+            }
+          });
+
+          if (signUpError) {
+            if (signUpError.message?.includes('already registered') || signUpError.message?.includes('already exists')) {
+              alert(`✅ ${companyName} invited to the event!\n\n📧 Email: ${companyEmail}\n\nℹ️ Account already exists - company can login with their existing password.\n\nℹ️ No slots auto-generated. Create slots manually via Sessions/Offers page.`);
+            } else {
+              alert(`✅ ${companyName} invited to the event!\n\nℹ️ No slots auto-generated (create manually)\n\n⚠️ Could not create account: ${signUpError.message}`);
+            }
+          } else {
+            // Display credentials to admin (no email sent)
+            alert(`✅ ${companyName} invited and account created!\n\n📧 Email: ${companyEmail}\n🔑 Default Password: ${defaultPassword}\n\n⚠️ Please share these credentials with the company securely.\nThey should change their password after first login.\n\nℹ️ No slots auto-generated. Create slots manually via Sessions/Offers page.`);
+          }
         }
       } catch (sendErr: any) {
-        alert(`✅ ${companyName} invited to the event!\n\nℹ️ No slots auto-generated (create manually)\n\n⚠️ Error sending invite: ${sendErr?.message || String(sendErr)}`);
+        alert(`✅ ${companyName} invited to the event!\n\nℹ️ No slots auto-generated (create manually)\n\n⚠️ Error creating account: ${sendErr?.message || String(sendErr)}`);
       }
 
       await handleSearch();
@@ -516,10 +583,19 @@ const handleSearch = async () => {
                 </button>
 
                 {result && (
-                  <div className={`p-4 rounded-lg ${
+                  <div className={`p-4 rounded-lg space-y-3 ${
                     result.success ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'
                   }`}>
                     <p className="whitespace-pre-line">{result.message}</p>
+                    {generatedCredentials && result.success && (
+                      <button
+                        onClick={handleCopyCredentials}
+                        className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition text-sm font-medium"
+                      >
+                        <Copy className="w-4 h-4" />
+                        Copy Credentials to Clipboard
+                      </button>
+                    )}
                   </div>
                 )}
               </form>

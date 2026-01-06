@@ -274,16 +274,16 @@ export default function Signup() {
       }
 
       debug('✅ Account created successfully for:', sanitizedEmail);
-      debug('📧 Check your email for verification link');
+      debug('📧 Account pending admin approval');
       
       // Clear rate limit on success
       await clearRateLimit(sanitizedEmail);
       
-      // Navigate to verification page
-      navigate('/verify-email', { 
+      // Navigate to pending approval page
+      navigate('/pending-approval', { 
         state: { 
-          message: 'Account created! Please check your email to verify your account.',
           email: sanitizedEmail,
+          name: sanitizedName,
         } 
       });
       

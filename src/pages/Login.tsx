@@ -303,7 +303,7 @@ export default function Login() {
 
             .from('profiles')
 
-            .select('role')
+            .select('role, account_approved, full_name')
 
             .eq('id', data.user.id)
 
@@ -352,7 +352,7 @@ export default function Login() {
             // Profile created, fetch it again
             const { data: newProfileData, error: newProfileError } = await supabase
               .from('profiles')
-              .select('role')
+              .select('role, account_approved, full_name')
               .eq('id', data.user.id)
               .maybeSingle();
             
@@ -370,6 +370,23 @@ export default function Login() {
             navigate('/offers', { replace: true });
             return;
           }
+        }
+
+
+
+        // If profile exists, check account approval status for students
+        if (profile && profile.role === 'student' && profile.account_approved === false) {
+          // Sign out immediately to prevent access
+          await supabase.auth.signOut();
+          
+          // Redirect to pending approval page
+          navigate('/pending-approval', {
+            state: {
+              email: email,
+              name: profile.full_name || 'Student'
+            }
+          });
+          return;
         }
 
 

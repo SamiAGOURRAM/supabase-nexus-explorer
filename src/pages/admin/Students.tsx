@@ -22,6 +22,7 @@ type Student = {
   specialization: string | null;
   graduation_year: number | null;
   is_deprioritized: boolean;
+  account_approved: boolean;
   created_at: string;
   updated_at?: string; // For cache busting and detecting changes
   profile_photo_url?: string | null;
@@ -165,7 +166,7 @@ export default function AdminStudents() {
       // Fetch fresh data - ensure we get all fields including updated_at if it exists
       const { data: fullStudentProfiles, error: fullError } = await supabase
         .from('profiles')
-        .select('id, email, full_name, phone, student_number, specialization, graduation_year, cv_url, is_deprioritized, created_at, updated_at, profile_photo_url, languages_spoken, program, biography, linkedin_url, resume_url, year_of_study')
+        .select('id, email, full_name, phone, student_number, specialization, graduation_year, cv_url, is_deprioritized, account_approved, created_at, updated_at, profile_photo_url, languages_spoken, program, biography, linkedin_url, resume_url, year_of_study')
         .in('id', studentIds)
         .order('created_at', { ascending: false });
       
@@ -274,6 +275,7 @@ export default function AdminStudents() {
         specialization: s.specialization || null,
         graduation_year: s.graduation_year || null,
         is_deprioritized: s.is_deprioritized || false,
+        account_approved: s.account_approved ?? true,
         created_at: s.created_at,
         updated_at: s.updated_at || s.created_at, // Include updated_at from database
         profile_photo_url: s.profile_photo_url || null,
@@ -345,6 +347,52 @@ export default function AdminStudents() {
         prevStudents.map(s => 
           s.id === studentId 
             ? { ...s, is_deprioritized: currentStatus }
+            : s
+        )
+      );
+    }
+  }, [showSuccess, showError]);
+
+  const handleActivateAccount = useCallback(async (studentId: string, currentStatus: boolean) => {
+    const newStatus = !currentStatus;
+    
+    try {
+      // Update database
+      const { error: updateError, data: updateData } = await supabase
+        .from('profiles')
+        .update({ account_approved: newStatus })
+        .eq('id', studentId)
+        .select();
+
+      if (updateError) {
+        logError('Database error toggling account activation:', updateError);
+        throw updateError;
+      }
+
+      if (!updateData || updateData.length === 0) {
+        throw new Error('Update failed: You may not have permission to update this profile.');
+      }
+
+      // Update local state IMMEDIATELY with the new status (optimistic update)
+      setStudents(prevStudents => {
+        const updated = prevStudents.map(s => 
+          s.id === studentId 
+            ? { ...s, account_approved: newStatus, updated_at: new Date().toISOString() }
+            : s
+        );
+        return [...updated];
+      });
+
+      showSuccess(`Student account ${newStatus ? 'activated' : 'deactivated'} successfully`);
+    } catch (err: any) {
+      logError('Error updating student account status:', err);
+      showError(err.message || 'Failed to update account status');
+      
+      // Revert the optimistic update on error
+      setStudents(prevStudents => 
+        prevStudents.map(s => 
+          s.id === studentId 
+            ? { ...s, account_approved: currentStatus }
             : s
         )
       );
@@ -1181,6 +1229,24 @@ export default function AdminStudents() {
                                 >
                                   <Edit2 className="w-3 h-3" />
                                   Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleActivateAccount(student.id, student.account_approved).catch((err) => {
+                                      logError('Error in handleActivateAccount:', err);
+                                    });
+                                  }}
+                                  disabled={savingStudentId === student.id}
+                                  className={`px-3 py-1.5 rounded text-xs font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer ${
+                                    student.account_approved
+                                      ? 'bg-warning/10 text-warning hover:bg-warning/20 border border-warning/20'
+                                      : 'bg-success/10 text-success hover:bg-success/20 border border-success/20'
+                                  }`}
+                                >
+                                  {student.account_approved ? 'Deactivate' : 'Activate'}
                                 </button>
                                 <button
                                   type="button"

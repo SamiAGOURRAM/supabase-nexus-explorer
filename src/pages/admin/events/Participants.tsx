@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { ArrowLeft, Users } from 'lucide-react';
+import { generateSecurePassword } from '@/utils/passwordUtils';
 
 interface Participant {
   id: string;
@@ -139,17 +140,14 @@ export default function EventParticipantsPage() {
       return;
     }
 
-    if (confirm(`Resend invitation email to ${company.email}?`)) {
+    if (confirm(`Send/Reset credentials for ${company.email}?`)) {
       try {
-        const array = new Uint8Array(24);
-        crypto.getRandomValues(array);
-        const hexPart = Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
-        const timestampPart = Date.now().toString(36);
-        const tempPassword = hexPart + timestampPart;
+        // Generate a secure default password using utility function
+        const defaultPassword = generateSecurePassword(16);
 
         const { error: signUpError } = await supabase.auth.signUp({
           email: company.email.toLowerCase(),
-          password: tempPassword,
+          password: defaultPassword,
           options: {
             data: {
               company_name: company.company_name,
@@ -163,12 +161,18 @@ export default function EventParticipantsPage() {
         });
 
         if (signUpError) {
-          alert('Error resending email: ' + signUpError.message);
+          // Check if account already exists
+          if (signUpError.message?.includes('already registered') || signUpError.message?.includes('already exists')) {
+            alert(`⚠️ Account already exists for ${company.email}.\n\nThe company can login using their existing password.\n\nIf they forgot their password, they can use the "Forgot Password" link on the login page.`);
+          } else {
+            alert('Error creating/updating account: ' + signUpError.message);
+          }
         } else {
-          alert(`✅ Invitation email resent to ${company.email}`);
+          // Display credentials to admin (no email sent)
+          alert(`✅ Account credentials created!\n\n📧 Email: ${company.email}\n🔑 Default Password: ${defaultPassword}\n\n⚠️ Please share these credentials with the company securely.\nThey should change their password after first login.`);
         }
       } catch (err: any) {
-        alert('Failed to resend email: ' + err.message);
+        alert('Failed to create account: ' + err.message);
       }
     }
   };
