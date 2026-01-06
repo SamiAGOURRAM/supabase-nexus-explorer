@@ -12,7 +12,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { warn as logWarn, error as logError } from '@/utils/logger';
 
 type StudentBooking = {
-  booking_id: string;
+  booking_id: string | null;
   student_id: string;
   student_name: string;
   student_email: string;
@@ -24,9 +24,11 @@ type StudentBooking = {
   year_of_study: number | null;
   cv_url: string | null;
   resume_url: string | null;
-  offer_title: string;
-  slot_time: string;
-  status: string;
+  offer_title: string | null;
+  slot_time: string | null;
+  status: string | null;
+  linkedin_url: string | null;
+  biography: string | null;
 };
 
 export default function CompanyStudents() {
@@ -51,125 +53,102 @@ export default function CompanyStudents() {
       setError(null);
       setLoading(true);
 
-      const { data: company, error: companyError } = await supabase
+      // Get ALL student profiles
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, phone, student_number, specialization, graduation_year, cv_url, profile_photo_url, languages_spoken, program, biography, linkedin_url, resume_url, year_of_study, created_at')
+        .eq('role', 'student')
+        .order('full_name', { ascending: true });
+
+      if (profilesError) {
+        throw new Error(`Failed to load student profiles: ${profilesError.message}`);
+      }
+
+      if (!profilesData || profilesData.length === 0) {
+        setStudents([]);
+        setProfiles([]);
+        return;
+      }
+
+      // Store profiles for later use in rendering
+      setProfiles(profilesData);
+
+      // Get company info for bookings (optional - to show if they have booked with you)
+      const { data: company } = await supabase
         .from('companies')
         .select('id')
         .eq('profile_id', user.id)
         .maybeSingle();
 
-      if (companyError) {
-        throw new Error(`Failed to load company: ${companyError.message}`);
-      }
+      // Get bookings info if company exists
+      let bookingsMap = new Map<string, { booking_id: string; slot_time: string; offer_title: string }>();
+      if (company) {
+        const { data: slots } = await supabase
+          .from('event_slots')
+          .select('id, start_time, offer_id')
+          .eq('company_id', company.id);
 
-      if (!company) {
-        setStudents([]);
-        return;
-      }
+        if (slots && slots.length > 0) {
+          const slotIds = slots.map(s => s.id);
+          const offerIds = [...new Set(slots.map(s => s.offer_id).filter(Boolean))];
 
-      // Get all slots directly for this company (slots have company_id)
-      const { data: slots, error: slotsError } = await supabase
-        .from('event_slots')
-        .select('id, start_time, offer_id, company_id')
-        .eq('company_id', company.id);
+          // Get offer titles
+          let offerMap = new Map<string, string>();
+          if (offerIds.length > 0) {
+            const { data: offers } = await supabase
+              .from('offers')
+              .select('id, title')
+              .in('id', offerIds);
+            if (offers) {
+              offerMap = new Map(offers.map(o => [o.id, o.title]));
+            }
+          }
 
-      if (slotsError) {
-        throw new Error(`Failed to load slots: ${slotsError.message}`);
-      }
+          const { data: bookings } = await supabase
+            .from('bookings')
+            .select('id, student_id, slot_id, status')
+            .in('slot_id', slotIds)
+            .eq('status', 'confirmed');
 
-      if (!slots || slots.length === 0) {
-        setStudents([]);
-        return;
-      }
-
-      const slotIds = slots.map((s) => s.id);
-      
-      // Get all unique offer IDs from slots
-      const offerIds = [...new Set(slots.map((s) => s.offer_id).filter((id): id is string => Boolean(id)))];
-      
-      // Get offer titles
-      let offerMap = new Map<string, string>();
-      if (offerIds.length > 0) {
-        const { data: offers, error: offersError } = await supabase
-          .from('offers')
-          .select('id, title')
-          .in('id', offerIds);
-
-        if (offersError) {
-          logWarn('Failed to load offers:', offersError);
-        } else if (offers) {
-          offerMap = new Map(offers.map((o) => [o.id, o.title]));
+          if (bookings) {
+            bookings.forEach(booking => {
+              const slot = slots.find(s => s.id === booking.slot_id);
+              if (slot) {
+                bookingsMap.set(booking.student_id, {
+                  booking_id: booking.id,
+                  slot_time: slot.start_time,
+                  offer_title: slot.offer_id ? (offerMap.get(slot.offer_id) || 'Unknown Offer') : 'Unknown Offer'
+                });
+              }
+            });
+          }
         }
       }
 
-      const slotMap = new Map(slots.map((s) => [s.id, { time: s.start_time, offer_id: s.offer_id }]));
-
-      // Get bookings for these slots
-      const { data: bookings, error: bookingsError } = await supabase
-        .from('bookings')
-        .select('id, student_id, slot_id, status')
-        .in('slot_id', slotIds)
-        .eq('status', 'confirmed'); // Only show confirmed bookings
-
-      if (bookingsError) {
-        throw new Error(`Failed to load bookings: ${bookingsError.message}`);
-      }
-
-      if (!bookings || bookings.length === 0) {
-        setStudents([]);
-        return;
-      }
-
-      const studentIds = [...new Set(bookings.map((b) => b.student_id))];
-      
-      // Get all student profile information for companies to view
-      let profiles: any[] = [];
-      if (studentIds.length > 0) {
-        const { data: profilesData, error: profilesError } = await supabase
-          .from('profiles')
-          .select('id, full_name, email, phone, student_number, specialization, graduation_year, cv_url, profile_photo_url, languages_spoken, program, biography, linkedin_url, resume_url, year_of_study, created_at')
-          .in('id', studentIds)
-          .eq('role', 'student'); // Ensure we only get students
-
-        if (profilesError) {
-          throw new Error(`Failed to load student profiles: ${profilesError.message}`);
-        }
-
-        profiles = profilesData || [];
-      }
-
-      // Store profiles for later use in rendering
-      setProfiles(profiles);
-
-      const profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
-
-      const studentsData: StudentBooking[] = bookings.map((booking) => {
-        const profile = profileMap.get(booking.student_id);
-        const slotInfo = slotMap.get(booking.slot_id);
-        const offerId = slotInfo?.offer_id;
+      // Map all students
+      const studentsData: StudentBooking[] = profilesData.map((profile) => {
+        const bookingInfo = bookingsMap.get(profile.id);
         
         return {
-          booking_id: booking.id,
-          student_id: booking.student_id,
-          student_name: profile?.full_name || 'Unknown',
-          student_email: profile?.email || '',
-          student_phone: profile?.phone || null,
-          student_number: profile?.student_number || null,
-          specialization: profile?.specialization || null,
-          graduation_year: profile?.graduation_year || null,
-          program: profile?.program || null,
-          year_of_study: profile?.year_of_study || null,
-          cv_url: profile?.cv_url || null,
-          resume_url: profile?.resume_url || null,
-          offer_title: offerId ? (offerMap.get(offerId) || 'Unknown') : 'Unknown',
-          slot_time: slotInfo?.time || '',
-          status: booking.status,
+          booking_id: bookingInfo?.booking_id || null,
+          student_id: profile.id,
+          student_name: profile.full_name || 'Unknown',
+          student_email: profile.email || '',
+          student_phone: profile.phone || null,
+          student_number: profile.student_number || null,
+          specialization: profile.specialization || null,
+          graduation_year: profile.graduation_year || null,
+          program: profile.program || null,
+          year_of_study: profile.year_of_study || null,
+          cv_url: profile.cv_url || null,
+          resume_url: profile.resume_url || null,
+          offer_title: bookingInfo?.offer_title || null,
+          slot_time: bookingInfo?.slot_time || null,
+          status: bookingInfo ? 'confirmed' : null,
+          linkedin_url: profile.linkedin_url || null,
+          biography: profile.biography || null,
         };
       });
-
-      studentsData.sort(
-        (a, b) => new Date(b.slot_time).getTime() - new Date(a.slot_time).getTime()
-      );
-
 
       setStudents(studentsData);
     } catch (err: any) {
@@ -293,10 +272,10 @@ export default function CompanyStudents() {
         <section className="bg-[#1a1f3a] border-b border-gray-200">
           <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-12">
             <h1 className="text-3xl font-bold text-white mb-2">
-              Students
+              All Students
             </h1>
             <p className="text-white/70">
-              View students who booked interviews
+              Browse all student profiles and candidates
             </p>
 
             {/* Stats Grid */}
@@ -413,11 +392,11 @@ export default function CompanyStudents() {
         {filteredStudents.length === 0 ? (
           <EmptyState
             icon={Users}
-            title={students.length === 0 ? 'No students yet' : 'No students match your search'}
+            title={students.length === 0 ? 'No students found' : 'No students match your search'}
             message={
               students.length === 0
-                ? 'Students will appear here once they book interviews.'
-                : 'Try a different search term.'
+                ? 'No student profiles are available at the moment.'
+                : 'Try adjusting your search or filters.'
             }
             className="bg-card rounded-xl border border-border"
           />
@@ -430,14 +409,13 @@ export default function CompanyStudents() {
                     <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Student</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Contact</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Academic</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Offer</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Interview</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Status</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {paginatedStudents.map((student) => (
-                    <tr key={student.booking_id} className="hover:bg-muted/30 transition-colors">
+                    <tr key={student.student_id} className="hover:bg-muted/30 transition-colors">
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-2">
                           {profiles.find((p: any) => p.id === student.student_id)?.profile_photo_url ? (
@@ -478,15 +456,16 @@ export default function CompanyStudents() {
                         )}
                       </td>
                       <td className="px-4 py-4">
-                        <p className="text-sm text-foreground">{student.offer_title}</p>
-                      </td>
-                      <td className="px-4 py-4">
-                        <p className="text-sm text-foreground">
-                          {new Date(student.slot_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {new Date(student.slot_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-                        </p>
+                        {student.booking_id ? (
+                          <div>
+                            <p className="text-sm text-foreground font-medium">{student.offer_title}</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {student.slot_time ? new Date(student.slot_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}
+                            </p>
+                          </div>
+                        ) : (
+                          <span className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded-full">No Booking</span>
+                        )}
                       </td>
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-2">

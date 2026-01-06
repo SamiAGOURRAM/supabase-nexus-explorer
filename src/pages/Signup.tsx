@@ -212,12 +212,12 @@ export default function Signup() {
       // We use 'student' for both UM6P and Gmail accounts
       const role = 'student';
 
-      // Sign up with enhanced security
+      // Sign up with enhanced security (email confirmation disabled in Supabase settings)
       const { data, error: signupError } = await supabase.auth.signUp({
         email: sanitizedEmail,
         password: formData.password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          // Remove emailRedirectTo to prevent confirmation email sending
           data: {
             full_name: sanitizedName,
             role: role,
@@ -232,22 +232,30 @@ export default function Signup() {
         // Record failed attempt
         await recordFailedAttempt(sanitizedEmail, signupError.message, 'signup');
         
+        // Ignore email sending errors - account may still be created
+        if (signupError.message?.includes('Error sending confirmation email') || 
+            signupError.message?.toLowerCase().includes('email')) {
+          console.warn('Email notification failed, proceeding with account creation');
+          // Continue - the account is likely created despite email error
+        }
         // Handle specific Supabase errors with user-friendly messages
-        if (signupError.message.includes('already registered') || signupError.message.includes('already exists')) {
+        else if (signupError.message.includes('already registered') || signupError.message.includes('already exists')) {
           throw new Error('This email is already registered. Please sign in instead.');
         }
         
-        if (signupError.message.includes('Database error') || signupError.message.includes('saving new user')) {
+        else if (signupError.message.includes('Database error') || signupError.message.includes('saving new user')) {
           logError('Database error during signup - trigger may have failed:', signupError);
           throw new Error('Account creation failed. Please try again or contact support if the issue persists.');
         }
         
-        if (signupError.message.includes('Invalid login credentials')) {
+        else if (signupError.message.includes('Invalid login credentials')) {
           throw new Error('Invalid credentials. Please check your email and password.');
         }
         
-        // Generic error fallback
-        throw new Error(signupError.message || 'An error occurred during signup. Please try again.');
+        else {
+          // Generic error fallback
+          throw new Error(signupError.message || 'An error occurred during signup. Please try again.');
+        }
       }
 
       // Check if user was created

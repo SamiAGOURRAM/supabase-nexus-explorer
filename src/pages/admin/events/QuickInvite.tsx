@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { ArrowLeft, Search, Download, Building2, Mail, UserPlus, CheckCircle, Copy } from 'lucide-react';
-import { generateSecurePassword, copyToClipboard, formatCredentialsForClipboard } from '@/utils/passwordUtils';
+import { generateDefaultPasswordFromEmail, copyToClipboard, formatCredentialsForClipboard } from '@/utils/passwordUtils';
 
 export default function QuickInvitePage() {
   const { id: eventId } = useParams<{ id: string }>();
@@ -14,7 +14,7 @@ export default function QuickInvitePage() {
   // New company state
   const [email, setEmail] = useState('');
   const [companyName, setCompanyName] = useState('');
-  const [industry, setIndustry] = useState('Technology');
+  const [industry, setIndustry] = useState('Hotels');
   const [website, setWebsite] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
@@ -151,8 +151,8 @@ export default function QuickInvitePage() {
       
       if (isNewCompany) {
         try {
-          // Generate a secure default password using utility function
-          const defaultPassword = generateSecurePassword(16);
+          // Generate a default password based on email
+          const defaultPassword = generateDefaultPasswordFromEmail(inviteEmail);
           
           // Create the company account with the default password
           const { error: signUpError } = await supabase.auth.signUp({
@@ -228,7 +228,7 @@ export default function QuickInvitePage() {
       if (!result.already_invited) {
         setEmail('');
         setCompanyName('');
-        setIndustry('Technology');
+        setIndustry('Hotels');
         setWebsite('');
       }
     }
@@ -360,8 +360,8 @@ const handleSearch = async () => {
           // Account exists, just inform admin to tell company to use existing credentials
           alert(`✅ ${companyName} invited to the event!\n\n📧 Email: ${companyEmail}\n\nℹ️ Account already exists - company can login with their existing password.\n\nℹ️ No slots auto-generated. Create slots manually via Sessions/Offers page.`);
         } else {
-          // Generate a secure default password using utility function
-          const defaultPassword = generateSecurePassword(16);
+          // Generate a default password based on email
+          const defaultPassword = generateDefaultPasswordFromEmail(companyEmail);
           
           // Create account with default password
           const { error: signUpError } = await supabase.auth.signUp({
@@ -552,8 +552,22 @@ const handleSearch = async () => {
                       onChange={(e) => setIndustry(e.target.value)}
                       className="w-full px-3 py-2 bg-background border border-border rounded-md focus:ring-2 focus:ring-primary"
                     >
-                      <option value="Technology">Technology</option>
+                      <option value="Hotels">Hotels</option>
+                      <option value="Communication & Marketing">Communication & Marketing</option>
+                      <option value="Travel">Travel</option>
+                      <option value="Airlines">Airlines</option>
+                      <option value="Investment / Hospitality / Entertainment">Investment / Hospitality / Entertainment</option>
+                      <option value="Hotels / Events">Hotels / Events</option>
+                      <option value="Education">Education</option>
                       <option value="Finance">Finance</option>
+                      <option value="Riads">Riads</option>
+                      <option value="Resorts">Resorts</option>
+                      <option value="Hotels Relais & Châteaux">Hotels Relais & Châteaux</option>
+                      <option value="Events">Events</option>
+                      <option value="Consulting">Consulting</option>
+                      <option value="Hotel Management Company">Hotel Management Company</option>
+                      <option value="Recruitment">Recruitment</option>
+                      <option value="Technology">Technology</option>
                       <option value="Healthcare">Healthcare</option>
                       <option value="Retail">Retail</option>
                       <option value="Other">Other</option>

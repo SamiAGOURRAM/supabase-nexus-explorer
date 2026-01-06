@@ -5,6 +5,27 @@
  */
 
 /**
+ * Generate a default password based on the email address
+ * Format: email prefix (before @) + "@2026" suffix
+ * Example: company@example.com -> company@2026
+ * @param email - The email address to generate password from
+ * @returns A default password derived from the email
+ */
+export function generateDefaultPasswordFromEmail(email: string): string {
+  // Extract the part before @ from email
+  const emailPrefix = email.split('@')[0] || 'default';
+  
+  // Clean the prefix: remove special characters except letters and numbers
+  const cleanPrefix = emailPrefix.replace(/[^a-zA-Z0-9]/g, '');
+  
+  // Create password: prefix + @2026
+  // Ensure minimum length for security (at least 8 characters)
+  const basePassword = cleanPrefix.length >= 4 ? cleanPrefix : cleanPrefix + 'user';
+  
+  return `${basePassword}@2026`;
+}
+
+/**
  * Generate a secure random password
  * @param length - Length of the password (default: 16)
  * @returns A secure random password

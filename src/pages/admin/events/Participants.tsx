@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { ArrowLeft, Users } from 'lucide-react';
-import { generateSecurePassword } from '@/utils/passwordUtils';
+import { generateDefaultPasswordFromEmail } from '@/utils/passwordUtils';
 
 interface Participant {
   id: string;
@@ -142,8 +142,8 @@ export default function EventParticipantsPage() {
 
     if (confirm(`Send/Reset credentials for ${company.email}?`)) {
       try {
-        // Generate a secure default password using utility function
-        const defaultPassword = generateSecurePassword(16);
+        // Generate a default password based on email
+        const defaultPassword = generateDefaultPasswordFromEmail(company.email.toLowerCase());
 
         const { error: signUpError } = await supabase.auth.signUp({
           email: company.email.toLowerCase(),
