@@ -360,7 +360,7 @@ export default function AdminStudents() {
       // Update database
       const { error: updateError, data: updateData } = await supabase
         .from('profiles')
-        .update({ account_approved: newStatus })
+        .update({ account_approved: newStatus } as any)
         .eq('id', studentId)
         .select();
 

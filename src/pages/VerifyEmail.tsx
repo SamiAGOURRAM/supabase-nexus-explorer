@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { AlertCircle, Mail, ArrowLeft, CheckCircle2 } from 'lucide-react';
-import { warn, error as logError } from '@/utils/logger';
+import { error as logError } from '@/utils/logger';
 
 export default function VerifyEmail() {
   const [error, setError] = useState('');

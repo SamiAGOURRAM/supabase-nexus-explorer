@@ -9,7 +9,7 @@ import EmptyState from '@/components/shared/EmptyState';
 import Pagination from '@/components/shared/Pagination';
 import CompanyLayout from '@/components/company/CompanyLayout';
 import { useAuth } from '@/hooks/useAuth';
-import { warn as logWarn, error as logError } from '@/utils/logger';
+import { error as logError } from '@/utils/logger';
 
 type StudentBooking = {
   booking_id: string | null;
@@ -90,7 +90,7 @@ export default function CompanyStudents() {
 
         if (slots && slots.length > 0) {
           const slotIds = slots.map(s => s.id);
-          const offerIds = [...new Set(slots.map(s => s.offer_id).filter(Boolean))];
+          const offerIds = [...new Set(slots.map(s => s.offer_id).filter((id): id is string => id !== null))];
 
           // Get offer titles
           let offerMap = new Map<string, string>();
@@ -177,7 +177,7 @@ export default function CompanyStudents() {
         return (
           student.student_name.toLowerCase().includes(query) ||
           student.student_email.toLowerCase().includes(query) ||
-          student.offer_title.toLowerCase().includes(query) ||
+          (student.offer_title && student.offer_title.toLowerCase().includes(query)) ||
           (student.student_number && student.student_number.toLowerCase().includes(query))
         );
       });

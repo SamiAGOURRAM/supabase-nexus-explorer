@@ -375,7 +375,7 @@ export default function Login() {
 
 
         // If profile exists, check account approval status for students
-        if (profile && profile.role === 'student' && profile.account_approved === false) {
+        if (profile && 'role' in profile && profile.role === 'student' && 'account_approved' in profile && profile.account_approved === false) {
           // Sign out immediately to prevent access
           await supabase.auth.signOut();
           
@@ -383,7 +383,7 @@ export default function Login() {
           navigate('/pending-approval', {
             state: {
               email: email,
-              name: profile.full_name || 'Student'
+              name: 'full_name' in profile ? profile.full_name || 'Student' : 'Student'
             }
           });
           return;
@@ -393,7 +393,7 @@ export default function Login() {
 
         // If profile exists, redirect based on role
 
-        if (profile && profile.role) {
+        if (profile && 'role' in profile && profile.role) {
 
           // Check role matches login type BEFORE logging success
 
@@ -446,7 +446,7 @@ export default function Login() {
           // Set loading to false before redirect to prevent further submissions
           setLoading(false);
           
-          redirectUser(profile.role);
+          redirectUser(profile.role as string);
           
           // Return early to prevent any further execution
           return;
