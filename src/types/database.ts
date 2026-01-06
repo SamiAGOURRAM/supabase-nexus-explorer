@@ -36,6 +36,7 @@ export type Profile = {
   role: UserRole;
   phone?: string;
   is_deprioritized: boolean;
+  account_approved: boolean;
   created_at: string;
 };
 
