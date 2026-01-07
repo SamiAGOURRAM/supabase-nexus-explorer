@@ -111,34 +111,11 @@ export default function PendingApproval() {
                 </div>
                 <Clock className="h-5 w-5 text-amber-600" />
               </div>
-
-              <div className="flex items-start gap-4">
-                <div className="flex-shrink-0 w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
-                  <span className="text-gray-400 font-bold text-sm">3</span>
-                </div>
-                <div className="flex-1">
-                  <p className="font-medium text-gray-400">Account Activation</p>
-                  <p className="text-sm text-gray-500">You'll receive an email notification</p>
-                </div>
-                <Clock className="h-5 w-5 text-gray-400" />
-              </div>
             </div>
           </div>
 
           {/* Info cards */}
           <div className="grid sm:grid-cols-2 gap-4 mb-6">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="flex items-start gap-3">
-                <Mail className="h-5 w-5 text-blue-600 mt-0.5" />
-                <div>
-                  <p className="font-semibold text-gray-900 text-sm mb-1">Email Notification</p>
-                  <p className="text-xs text-gray-600">
-                    You'll receive an email once your account is approved
-                  </p>
-                </div>
-              </div>
-            </div>
-
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
               <div className="flex items-start gap-3">
                 <Clock className="h-5 w-5 text-green-600 mt-0.5" />

@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { useCompanyEvents } from '@/hooks/useCompanyEvents';
 import { useCompanyStats } from '@/hooks/useCompanyStats';
 import { useToast } from '@/contexts/ToastContext';
-import { Briefcase, Calendar, Users, TrendingUp } from 'lucide-react';
+import { Briefcase, Calendar, Users, TrendingUp, AlertTriangle, ArrowRight } from 'lucide-react';
 import LoadingScreen from '@/components/shared/LoadingScreen';
 import SkeletonLoader from '@/components/shared/SkeletonLoader';
 import ErrorDisplay from '@/components/shared/ErrorDisplay';
@@ -29,12 +30,27 @@ import LoadingCard from '@/components/shared/LoadingCard';
  * @example
  * <CompanyDashboard />
  */
+type CompanyProfileData = {
+  id: string;
+  company_name: string;
+  industry: string | null;
+  description: string | null;
+  website: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
+  address: string | null;
+  logo_url: string | null;
+  company_size: string | null;
+};
+
 export default function CompanyDashboard() {
   const { user, loading: authLoading, signOut } = useAuth('company');
   const [companyId, setCompanyId] = useState<string | null>(null);
+  const [companyProfile, setCompanyProfile] = useState<CompanyProfileData | null>(null);
   const [selectedEventId, setSelectedEventId] = useState<string>('');
   const [loadingCompany, setLoadingCompany] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const [showProfileBanner, setShowProfileBanner] = useState(false);
   const { showError } = useToast();
 
   const { events, loading: eventsLoading } = useCompanyEvents(companyId);
@@ -49,7 +65,7 @@ export default function CompanyDashboard() {
         setError(null);
         const { data: company, error: companyError } = await supabase
           .from('companies')
-          .select('id, company_name')
+          .select('id, company_name, industry, description, website, contact_email, contact_phone, address, logo_url, company_size')
           .eq('profile_id', user.id)
           .maybeSingle();
 
@@ -59,6 +75,15 @@ export default function CompanyDashboard() {
 
         if (company) {
           setCompanyId(company.id);
+          setCompanyProfile(company);
+          
+          // Check if profile is incomplete
+          const isIncomplete = !company.industry || 
+                               !company.description || 
+                               !company.website || 
+                               !company.contact_email || 
+                               !company.logo_url;
+          setShowProfileBanner(isIncomplete);
         } else {
           throw new Error('Company profile not found. Please contact support.');
         }
@@ -167,6 +192,48 @@ export default function CompanyDashboard() {
 
         {/* Main Content */}
         <section className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-8">
+          {/* Profile Completion Banner */}
+          {showProfileBanner && (
+            <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-l-4 border-amber-500 rounded-lg p-6 mb-8 shadow-sm">
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0">
+                  <AlertTriangle className="w-6 h-6 text-amber-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    Complete Your Company Profile
+                  </h3>
+                  <p className="text-gray-700 mb-4">
+                    Your profile is incomplete. Please add the following information to improve your visibility and attract top talent:
+                  </p>
+                  <ul className="space-y-1 mb-4 text-sm text-gray-600">
+                    {!companyProfile?.industry && <li>• Industry</li>}
+                    {!companyProfile?.description && <li>• Company Description</li>}
+                    {!companyProfile?.website && <li>• Website</li>}
+                    {!companyProfile?.contact_email && <li>• Contact Email</li>}
+                    {!companyProfile?.logo_url && <li>• Company Logo</li>}
+                  </ul>
+                  <Link
+                    to="/company/profile"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors font-medium"
+                  >
+                    Complete Profile Now
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                </div>
+                <button
+                  onClick={() => setShowProfileBanner(false)}
+                  className="flex-shrink-0 text-gray-400 hover:text-gray-600 transition-colors"
+                  aria-label="Dismiss"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          )}
+
           {events.length === 0 ? (
             <EmptyEventsState />
           ) : (

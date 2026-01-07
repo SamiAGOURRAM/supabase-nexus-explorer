@@ -82,7 +82,6 @@ export default function StudentDashboard() {
       // Check profile completeness
       const missingFields: string[] = [];
       if (!profile.phone) missingFields.push('Phone Number');
-      if (!profile.student_number) missingFields.push('Student Number');
       if (!profile.specialization) missingFields.push('Specialization');
       if (!profile.graduation_year) missingFields.push('Graduation Year');
       if (!profile.program) missingFields.push('Program');

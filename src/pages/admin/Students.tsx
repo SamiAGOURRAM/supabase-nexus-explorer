@@ -1161,11 +1161,13 @@ export default function AdminStudents() {
                               </div>
                             ) : (
                               <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold ${
-                                student.is_deprioritized
+                                !student.account_approved
+                                  ? 'bg-destructive/10 text-destructive border border-destructive/20'
+                                  : student.is_deprioritized
                                   ? 'bg-warning/10 text-warning border border-warning/20'
                                   : 'bg-success/10 text-success border border-success/20'
                               }`}>
-                                {student.is_deprioritized ? 'Deprioritized' : 'Active'}
+                                {!student.account_approved ? 'Inactive' : student.is_deprioritized ? 'Deprioritized' : 'Active'}
                               </span>
                             )}
                           </td>
