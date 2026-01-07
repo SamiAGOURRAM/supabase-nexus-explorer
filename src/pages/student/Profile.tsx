@@ -9,7 +9,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/contexts/ToastContext';
-import { User, Save, GraduationCap, Phone, FileText, Mail, Languages, Briefcase, Linkedin, BookOpen, Calendar, X, AlertTriangle, Building2, Clock, MapPin } from 'lucide-react';
+import { User, Save, GraduationCap, Phone, Mail, Languages, Briefcase, Linkedin, BookOpen, Calendar, X, AlertTriangle, Building2, Clock, MapPin } from 'lucide-react';
 import { validatePhoneNumber } from '@/utils/securityUtils';
 import { error as logError } from '@/utils/logger';
 import LoadingScreen from '@/components/shared/LoadingScreen';
@@ -149,15 +149,6 @@ export default function StudentProfile() {
       const phoneValidation = validatePhoneNumber(profile.phone, 'MA');
       if (!phoneValidation.isValid) {
         newErrors.phone = phoneValidation.error || 'Invalid phone number format';
-      }
-    }
-
-    // CV URL validation (optional but must be valid URL if provided)
-    if (profile.cv_url && profile.cv_url.trim().length > 0) {
-      try {
-        new URL(profile.cv_url);
-      } catch {
-        newErrors.cv_url = 'Please enter a valid URL';
       }
     }
 
@@ -653,29 +644,6 @@ export default function StudentProfile() {
               error={errors.resume}
             />
 
-            {/* CV URL (legacy - keeping for backward compatibility) */}
-            <div>
-              <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-2">
-                <FileText className="w-4 h-4" />
-                CV/Resume URL (Alternative)
-              </label>
-              <input
-                type="url"
-                value={profile.cv_url || ''}
-                onChange={(e) => setProfile({ ...profile, cv_url: e.target.value })}
-                className={`w-full px-4 py-2 bg-background border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground ${
-                  errors.cv_url ? 'border-destructive' : 'border-border'
-                }`}
-                placeholder="https://example.com/cv.pdf"
-              />
-              {errors.cv_url && (
-                <p className="mt-1 text-xs text-destructive">{errors.cv_url}</p>
-              )}
-              <p className="mt-1 text-xs text-muted-foreground">
-                Alternative: Link to your CV or resume (Google Drive, Dropbox, etc.)
-              </p>
-            </div>
-
             {/* Internship Status */}
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-5">
               <div className="flex items-start gap-3">
@@ -861,8 +829,8 @@ export default function StudentProfile() {
               </div>
             </div>
           </div>
+          </div>
         </div>
-      </div>
       </div>
     </StudentLayout>
   );

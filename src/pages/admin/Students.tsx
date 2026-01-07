@@ -792,7 +792,7 @@ export default function AdminStudents() {
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-muted-foreground">Complete Profiles</p>
                   <p className="text-3xl font-bold text-foreground">
-                    {students.filter(s => s.student_number && s.specialization).length}
+                    {students.filter(s => s.specialization).length}
                   </p>
                 </div>
                 <div className="w-12 h-12 bg-success/10 rounded-xl flex items-center justify-center">
@@ -977,16 +977,6 @@ export default function AdminStudents() {
                                     placeholder="https://..."
                                   />
                                 </div>
-                                <div>
-                                  <label className="text-xs text-muted-foreground mb-1 block">CV URL</label>
-                                  <input
-                                    type="url"
-                                    value={currentStudent.cv_url || ''}
-                                    onChange={(e) => editedStudent && setEditedStudent({ ...editedStudent, cv_url: e.target.value || null })}
-                                    className="w-full px-2 py-1 text-sm bg-background border border-input rounded focus:outline-none focus:ring-1 focus:ring-primary"
-                                    placeholder="https://..."
-                                  />
-                                </div>
                               </div>
                             ) : (
                               <div className="text-sm text-foreground">
@@ -1014,15 +1004,6 @@ export default function AdminStudents() {
                           <td className="px-4 sm:px-6 py-3 sm:py-4">
                             {isEditing ? (
                               <div className="space-y-2">
-                                <div>
-                                  <label className="text-xs text-muted-foreground mb-1 block">Student Number</label>
-                                  <input
-                                    type="text"
-                                    value={currentStudent.student_number || ''}
-                                    onChange={(e) => editedStudent && setEditedStudent({ ...editedStudent, student_number: e.target.value || null })}
-                                    className="w-full px-2 py-1 text-sm bg-background border border-input rounded focus:outline-none focus:ring-1 focus:ring-primary"
-                                  />
-                                </div>
                                 <div>
                                   <label className="text-xs text-muted-foreground mb-1 block">Specialization</label>
                                   <input
@@ -1111,9 +1092,6 @@ export default function AdminStudents() {
                               </div>
                             ) : (
                               <div className="text-sm space-y-1">
-                                {student.student_number && (
-                                  <div className="font-medium text-foreground">#{student.student_number}</div>
-                                )}
                                 {student.specialization && (
                                   <div className="text-xs text-foreground">{student.specialization}</div>
                                 )}
