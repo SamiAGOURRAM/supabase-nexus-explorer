@@ -51,6 +51,7 @@ export default function AdminStudents() {
   const [filterProgram, setFilterProgram] = useState<string>('all');
   const [filterYear, setFilterYear] = useState<string>('all');
   const [filterGraduationYear, setFilterGraduationYear] = useState<string>('all');
+  const [filterProfileComplete, setFilterProfileComplete] = useState<string>('all');
   const [companies, setCompanies] = useState<Array<{ id: string; name: string }>>([]);
   const [searchParams] = useSearchParams();
   const eventId = searchParams.get('eventId');
@@ -70,9 +71,20 @@ export default function AdminStudents() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
+  // Prevent automatic reload when returning to tab if user is editing
+  const isEditingRef = useState(false);
+
   useEffect(() => {
-    checkAdminAndLoadStudents();
+    // Only load if not currently editing
+    if (!editingStudentId) {
+      checkAdminAndLoadStudents();
+    }
   }, [eventId]);
+
+  // Update editing ref when editing state changes
+  useEffect(() => {
+    isEditingRef[0] = editingStudentId !== null;
+  }, [editingStudentId]);
 
   const checkAdminAndLoadStudents = async () => {
     try {
@@ -633,6 +645,13 @@ export default function AdminStudents() {
       if (student.graduation_year !== parseInt(filterGraduationYear)) return false;
     }
 
+    // Profile completeness filter
+    if (filterProfileComplete !== 'all') {
+      const isComplete = !!student.specialization;
+      if (filterProfileComplete === 'complete' && !isComplete) return false;
+      if (filterProfileComplete === 'incomplete' && isComplete) return false;
+    }
+
     return true;
   });
 
@@ -644,7 +663,7 @@ export default function AdminStudents() {
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, filterCompany, filterProgram, filterYear, filterGraduationYear]);
+  }, [searchQuery, filterCompany, filterProgram, filterYear, filterGraduationYear, filterProfileComplete]);
 
   // Calculate pagination
   const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
@@ -719,6 +738,16 @@ export default function AdminStudents() {
                 ))}
               </select>
 
+              <select
+                value={filterProfileComplete}
+                onChange={(e) => setFilterProfileComplete(e.target.value)}
+                className="w-full sm:w-auto px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground text-sm"
+              >
+                <option value="all">All Profiles</option>
+                <option value="complete">Complete Profiles</option>
+                <option value="incomplete">Incomplete Profiles</option>
+              </select>
+
               {eventId && (
                 <select
                   value={filterCompany}
@@ -745,13 +774,14 @@ export default function AdminStudents() {
               </div>
             )}
 
-            {(searchQuery || filterProgram !== 'all' || filterYear !== 'all' || filterGraduationYear !== 'all' || (eventId && filterCompany !== 'all')) && (
+            {(searchQuery || filterProgram !== 'all' || filterYear !== 'all' || filterGraduationYear !== 'all' || filterProfileComplete !== 'all' || (eventId && filterCompany !== 'all')) && (
               <button
                 onClick={() => {
                   setSearchQuery('');
                   setFilterProgram('all');
                   setFilterYear('all');
                   setFilterGraduationYear('all');
+                  setFilterProfileComplete('all');
                   setFilterCompany('all');
                 }}
                 className="text-sm text-primary hover:underline"

@@ -25,8 +25,9 @@ export default function AdminCreateOffer() {
     remote_possible: false,
     skills_required: '',
     event_id: '',
-    company_id: '',
+    company_ids: [] as string[],
   });
+  const [selectAll, setSelectAll] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -73,34 +74,37 @@ export default function AdminCreateOffer() {
     setLoading(true);
 
     try {
-      if (!formData.company_id) {
-        showError('Please select a company');
+      if (formData.company_ids.length === 0) {
+        showError('Please select at least one company');
         setLoading(false);
         return;
       }
 
+      // Create offers for all selected companies
+      const offers = formData.company_ids.map(company_id => ({
+        company_id,
+        event_id: formData.event_id,
+        title: formData.title,
+        description: formData.description,
+        interest_tag: formData.interest_tag,
+        location: formData.location || null,
+        duration_months: formData.duration_months ? parseInt(formData.duration_months) : null,
+        salary_range: formData.salary_range || null,
+        paid: formData.paid,
+        remote_possible: formData.remote_possible,
+        skills_required: formData.skills_required ? formData.skills_required.split(',').map(s => s.trim()) : null,
+        is_active: true,
+      }));
+
       const { error } = await supabase
         .from('offers')
-        .insert({
-          company_id: formData.company_id,
-          event_id: formData.event_id,
-          title: formData.title,
-          description: formData.description,
-          interest_tag: formData.interest_tag,
-          location: formData.location || null,
-          duration_months: formData.duration_months ? parseInt(formData.duration_months) : null,
-          salary_range: formData.salary_range || null,
-          paid: formData.paid,
-          remote_possible: formData.remote_possible,
-          skills_required: formData.skills_required ? formData.skills_required.split(',').map(s => s.trim()) : null,
-          is_active: true,
-        });
+        .insert(offers);
 
       if (error) {
         throw error;
       }
 
-      showSuccess('Offer created successfully');
+      showSuccess(`${formData.company_ids.length} offer(s) created successfully`);
       navigate('/admin/offers');
     } catch (error: any) {
       console.error('Error creating offer:', error);
@@ -138,21 +142,59 @@ export default function AdminCreateOffer() {
             {/* Company Selection */}
             <div>
               <label className="block text-sm font-medium text-foreground mb-2">
-                Company <span className="text-red-500">*</span>
+                Companies <span className="text-red-500">*</span>
               </label>
-              <select
-                required
-                value={formData.company_id}
-                onChange={(e) => setFormData({ ...formData, company_id: e.target.value })}
-                className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-              >
-                <option value="">Select a company</option>
-                {companies.map(company => (
-                  <option key={company.id} value={company.id}>
-                    {company.company_name}
-                  </option>
-                ))}
-              </select>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 pb-2 border-b border-border">
+                  <input
+                    type="checkbox"
+                    id="select-all"
+                    checked={selectAll}
+                    onChange={(e) => {
+                      setSelectAll(e.target.checked);
+                      if (e.target.checked) {
+                        setFormData({ ...formData, company_ids: companies.map(c => c.id) });
+                      } else {
+                        setFormData({ ...formData, company_ids: [] });
+                      }
+                    }}
+                    className="w-4 h-4 text-primary border-border rounded focus:ring-2 focus:ring-primary"
+                  />
+                  <label htmlFor="select-all" className="text-sm font-medium text-foreground cursor-pointer">
+                    Select All ({companies.length} companies)
+                  </label>
+                </div>
+                <div className="max-h-60 overflow-y-auto border border-border rounded-lg p-3 bg-background space-y-2">
+                  {companies.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">No companies available</p>
+                  ) : (
+                    companies.map(company => (
+                      <div key={company.id} className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id={`company-${company.id}`}
+                          checked={formData.company_ids.includes(company.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setFormData({ ...formData, company_ids: [...formData.company_ids, company.id] });
+                            } else {
+                              setFormData({ ...formData, company_ids: formData.company_ids.filter(id => id !== company.id) });
+                              setSelectAll(false);
+                            }
+                          }}
+                          className="w-4 h-4 text-primary border-border rounded focus:ring-2 focus:ring-primary"
+                        />
+                        <label htmlFor={`company-${company.id}`} className="text-sm text-foreground cursor-pointer flex-1">
+                          {company.company_name}
+                        </label>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {formData.company_ids.length} company(ies) selected
+                </p>
+              </div>
             </div>
 
             {/* Event Selection */}
@@ -218,6 +260,7 @@ export default function AdminCreateOffer() {
               >
                 <option value="Opérationnel">Opérationnel</option>
                 <option value="Administratif">Administratif</option>
+                <option value="Other">Other</option>
               </select>
             </div>
 

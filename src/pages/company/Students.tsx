@@ -198,6 +198,16 @@ export default function CompanyStudents() {
       filtered = filtered.filter((student) => student.graduation_year === parseInt(filterGraduationYear));
     }
 
+    // Sort: prioritize Mohammed Elmahfoudi first, then alphabetically
+    filtered.sort((a, b) => {
+      const isMohammedA = a.student_email === 'mohammed.elmahfoudi@um6p.ma';
+      const isMohammedB = b.student_email === 'mohammed.elmahfoudi@um6p.ma';
+      
+      if (isMohammedA && !isMohammedB) return -1;
+      if (!isMohammedA && isMohammedB) return 1;
+      return a.student_name.localeCompare(b.student_name);
+    });
+
     return filtered;
   }, [searchQuery, filterProgram, filterYear, filterGraduationYear, students]);
 
