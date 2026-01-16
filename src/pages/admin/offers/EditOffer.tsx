@@ -17,7 +17,7 @@ export default function AdminEditOffer() {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    interest_tag: 'Opérationnel' as 'Opérationnel' | 'Administratif',
+    interest_tag: 'Opérationnel' as 'Opérationnel' | 'Administratif' | 'Other',
     location: '',
     duration_months: '',
     salary_range: '',
