@@ -149,8 +149,8 @@ export default function AdminEvents() {
       await loadEvents();
       
       // Show detailed deletion summary
-      if (data && data.length > 0) {
-        const result = data[0];
+      if (data && Array.isArray(data) && data.length > 0) {
+        const result = data[0] as { slots_deleted: number; bookings_deleted: number; sessions_deleted: number };
         showSuccess(
           `Event deleted successfully! Deleted: ${result.slots_deleted} slots, ${result.bookings_deleted} bookings, ${result.sessions_deleted} sessions.`
         );

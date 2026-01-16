@@ -13,7 +13,7 @@ type Offer = {
   id: string;
   title: string;
   description: string;
-  interest_tag: 'Opérationnel' | 'Administratif';
+  interest_tag: 'Opérationnel' | 'Administratif' | 'Other';
   location: string | null;
   duration_months: number | null;
   paid: boolean | null;

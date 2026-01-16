@@ -83,7 +83,7 @@ export type Offer = {
   event_id: string;
   title: string;
   description: string;
-  interest_tag: 'Opérationnel' | 'Administratif';
+  interest_tag: 'Opérationnel' | 'Administratif' | 'Other';
   is_active: boolean;
   created_at: string;
 };
