@@ -26,7 +26,8 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-google-recaptcha-v3": "^1.11.0",
-    "react-router-dom": "^7.9.5"
+    "react-router-dom": "^7.9.5",
+    "recharts": "^3.6.0"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",

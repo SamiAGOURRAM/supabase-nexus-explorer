@@ -114,7 +114,7 @@ serve(async (req) => {
     console.error('Rate limit check error:', error)
     return new Response(
       JSON.stringify({
-        error: error.message,
+        error: error instanceof Error ? error.message : 'Unknown error',
         allowed: true, // Fail open for better UX
       }),
       {

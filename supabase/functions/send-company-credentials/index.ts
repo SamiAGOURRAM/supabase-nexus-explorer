@@ -281,7 +281,7 @@ This is an automated message from UM6P Nexus Explorer
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message || 'Internal server error',
+        error: error instanceof Error ? error.message : 'Internal server error',
       }),
       {
         status: 500,
