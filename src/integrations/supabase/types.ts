@@ -180,6 +180,7 @@ export type Database = {
           feedback: string | null
           id: string
           ip_address: unknown
+          offer_id: string | null
           rating: number | null
           slot_id: string
           status: Database["public"]["Enums"]["booking_status"]
@@ -197,6 +198,7 @@ export type Database = {
           feedback?: string | null
           id?: string
           ip_address?: unknown
+          offer_id?: string | null
           rating?: number | null
           slot_id: string
           status?: Database["public"]["Enums"]["booking_status"]
@@ -214,6 +216,7 @@ export type Database = {
           feedback?: string | null
           id?: string
           ip_address?: unknown
+          offer_id?: string | null
           rating?: number | null
           slot_id?: string
           status?: Database["public"]["Enums"]["booking_status"]
@@ -222,6 +225,13 @@ export type Database = {
           user_agent?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "bookings_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "offers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "bookings_slot_id_fkey"
             columns: ["slot_id"]
@@ -329,6 +339,54 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_representatives: {
+        Row: {
+          company_id: string
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          phone: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          email: string
+          full_name: string
+          id?: string
+          phone?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          phone?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_representatives_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_representatives_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_dashboard"
+            referencedColumns: ["company_id"]
           },
         ]
       }
@@ -700,6 +758,7 @@ export type Database = {
           is_active: boolean
           location: string | null
           name: string
+          phase_2_start_at: string | null
           phase_mode: string | null
           phase1_end_date: string | null
           phase1_max_bookings: number | null
@@ -721,6 +780,7 @@ export type Database = {
           is_active?: boolean
           location?: string | null
           name: string
+          phase_2_start_at?: string | null
           phase_mode?: string | null
           phase1_end_date?: string | null
           phase1_max_bookings?: number | null
@@ -742,6 +802,7 @@ export type Database = {
           is_active?: boolean
           location?: string | null
           name?: string
+          phase_2_start_at?: string | null
           phase_mode?: string | null
           phase1_end_date?: string | null
           phase1_max_bookings?: number | null
@@ -751,6 +812,30 @@ export type Database = {
           phase2_start_date?: string | null
           slots_per_time?: number | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      failed_login_attempts: {
+        Row: {
+          attempt_time: string | null
+          email: string
+          id: string
+          ip_address: unknown
+          reason: string | null
+        }
+        Insert: {
+          attempt_time?: string | null
+          email: string
+          id?: string
+          ip_address?: unknown
+          reason?: string | null
+        }
+        Update: {
+          attempt_time?: string | null
+          email?: string
+          id?: string
+          ip_address?: unknown
+          reason?: string | null
         }
         Relationships: []
       }
@@ -868,7 +953,7 @@ export type Database = {
           department: string | null
           description: string
           duration_months: number | null
-          event_id: string
+          event_id: string | null
           id: string
           interest_tag: Database["public"]["Enums"]["interest_tag"]
           is_active: boolean
@@ -889,7 +974,7 @@ export type Database = {
           department?: string | null
           description: string
           duration_months?: number | null
-          event_id: string
+          event_id?: string | null
           id?: string
           interest_tag: Database["public"]["Enums"]["interest_tag"]
           is_active?: boolean
@@ -910,7 +995,7 @@ export type Database = {
           department?: string | null
           description?: string
           duration_months?: number | null
-          event_id?: string
+          event_id?: string | null
           id?: string
           interest_tag?: Database["public"]["Enums"]["interest_tag"]
           is_active?: boolean
@@ -950,119 +1035,93 @@ export type Database = {
       }
       profiles: {
         Row: {
+          account_approved: boolean
+          biography: string | null
+          consent_date: string | null
+          consent_given: boolean
+          consent_version: string | null
+          consent_withdrawn: boolean
+          consent_withdrawn_date: string | null
           created_at: string
           cv_url: string | null
+          data_retention_until: string | null
           email: string
           full_name: string
           graduation_year: number | null
           id: string
           is_deprioritized: boolean
+          languages_spoken: string[] | null
+          linkedin_url: string | null
           phone: string | null
+          profile_photo_url: string | null
+          program: string | null
+          resume_url: string | null
+          retention_policy: string | null
           role: Database["public"]["Enums"]["user_role"]
           specialization: string | null
           student_number: string | null
           updated_at: string
-          profile_photo_url: string | null
-          languages_spoken: string[] | null
-          program: string | null
-          biography: string | null
-          linkedin_url: string | null
-          resume_url: string | null
           year_of_study: number | null
-          consent_given: boolean | null
-          consent_date: string | null
-          consent_version: string | null
         }
         Insert: {
+          account_approved?: boolean
+          biography?: string | null
+          consent_date?: string | null
+          consent_given?: boolean
+          consent_version?: string | null
+          consent_withdrawn?: boolean
+          consent_withdrawn_date?: string | null
           created_at?: string
           cv_url?: string | null
+          data_retention_until?: string | null
           email: string
           full_name: string
           graduation_year?: number | null
           id: string
           is_deprioritized?: boolean
+          languages_spoken?: string[] | null
+          linkedin_url?: string | null
           phone?: string | null
+          profile_photo_url?: string | null
+          program?: string | null
+          resume_url?: string | null
+          retention_policy?: string | null
           role: Database["public"]["Enums"]["user_role"]
           specialization?: string | null
           student_number?: string | null
           updated_at?: string
-          profile_photo_url?: string | null
-          languages_spoken?: string[] | null
-          program?: string | null
-          biography?: string | null
-          linkedin_url?: string | null
-          resume_url?: string | null
           year_of_study?: number | null
-          consent_given?: boolean | null
-          consent_date?: string | null
-          consent_version?: string | null
         }
         Update: {
+          account_approved?: boolean
+          biography?: string | null
+          consent_date?: string | null
+          consent_given?: boolean
+          consent_version?: string | null
+          consent_withdrawn?: boolean
+          consent_withdrawn_date?: string | null
           created_at?: string
           cv_url?: string | null
+          data_retention_until?: string | null
           email?: string
           full_name?: string
           graduation_year?: number | null
           id?: string
           is_deprioritized?: boolean
+          languages_spoken?: string[] | null
+          linkedin_url?: string | null
           phone?: string | null
+          profile_photo_url?: string | null
+          program?: string | null
+          resume_url?: string | null
+          retention_policy?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           specialization?: string | null
           student_number?: string | null
           updated_at?: string
-          profile_photo_url?: string | null
-          languages_spoken?: string[] | null
-          program?: string | null
-          biography?: string | null
-          linkedin_url?: string | null
-          resume_url?: string | null
           year_of_study?: number | null
-          consent_given?: boolean | null
-          consent_date?: string | null
-          consent_version?: string | null
         }
         Relationships: []
-      }
-      company_representatives: {
-        Row: {
-          id: string
-          company_id: string
-          full_name: string
-          title: string
-          phone: string | null
-          email: string
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          company_id: string
-          full_name: string
-          title: string
-          phone?: string | null
-          email: string
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          company_id?: string
-          full_name?: string
-          title?: string
-          phone?: string | null
-          email?: string
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "company_representatives_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       speed_recruiting_sessions: {
         Row: {
@@ -1138,30 +1197,6 @@ export type Database = {
         }
         Relationships: []
       }
-      failed_login_attempts: {
-        Row: {
-          id: string
-          email: string
-          ip_address: string
-          attempt_time: string
-          reason: string | null
-        }
-        Insert: {
-          id?: string
-          email: string
-          ip_address: string
-          attempt_time?: string
-          reason?: string | null
-        }
-        Update: {
-          id?: string
-          email?: string
-          ip_address?: string
-          attempt_time?: string
-          reason?: string | null
-        }
-        Relationships: []
-      }
     }
     Views: {
       company_dashboard: {
@@ -1208,7 +1243,29 @@ export type Database = {
       }
     }
     Functions: {
+      can_delete_account: { Args: never; Returns: boolean }
       check_email_exists: { Args: { p_email: string }; Returns: Json }
+      cleanup_expired_data: {
+        Args: never
+        Returns: {
+          deleted_bookings: number
+          deleted_companies: number
+          deleted_offers: number
+          deleted_profiles: number
+        }[]
+      }
+      create_company_account: {
+        Args: {
+          p_company_code: string
+          p_company_name: string
+          p_email: string
+          p_event_id?: string
+          p_event_name?: string
+          p_password: string
+        }
+        Returns: Json
+      }
+      create_profile_for_user: { Args: { p_user_id: string }; Returns: boolean }
       delete_user_account: { Args: never; Returns: undefined }
       fn_add_event_time_range: {
         Args: {
@@ -1235,6 +1292,15 @@ export type Database = {
           success: boolean
         }[]
       }
+      fn_check_rate_limit: {
+        Args: {
+          p_email: string
+          p_ip_address: string
+          p_max_attempts?: number
+          p_window_minutes?: number
+        }
+        Returns: boolean
+      }
       fn_check_slot_availability: {
         Args: { p_slot_id: string }
         Returns: {
@@ -1254,6 +1320,11 @@ export type Database = {
           message: string
         }[]
       }
+      fn_clear_rate_limit: {
+        Args: { p_email: string; p_ip_address: string }
+        Returns: number
+      }
+      fn_delete_event: { Args: { p_event_id: string }; Returns: Json }
       fn_delete_event_time_range: {
         Args: { p_range_id: string }
         Returns: undefined
@@ -1264,6 +1335,22 @@ export type Database = {
           companies_processed: number
           slots_created: number
           time_ranges_processed: number
+        }[]
+      }
+      fn_generate_inf_slots: {
+        Args: {
+          p_event_id: string
+          p_session1_end: string
+          p_session1_start: string
+          p_session2_end: string
+          p_session2_start: string
+        }
+        Returns: {
+          companies_processed: number
+          message: string
+          session1_slots: number
+          session2_slots: number
+          total_slots_created: number
         }[]
       }
       fn_generate_slots_for_session: {
@@ -1395,6 +1482,24 @@ export type Database = {
         Args: { p_notes?: string; p_registration_id: string; p_status: string }
         Returns: undefined
       }
+      fn_rate_limit_status: {
+        Args: {
+          p_email: string
+          p_ip_address: string
+          p_max_attempts?: number
+          p_window_minutes?: number
+        }
+        Returns: {
+          allowed: boolean
+          attempt_count: number
+          remaining_attempts: number
+          wait_time_minutes: number
+        }[]
+      }
+      fn_record_failed_login: {
+        Args: { p_email: string; p_ip_address: string; p_reason: string }
+        Returns: undefined
+      }
       fn_regenerate_event_slots: {
         Args: { p_session_id: string }
         Returns: {
@@ -1466,6 +1571,15 @@ export type Database = {
           total_slots: number
         }[]
       }
+      get_retention_status: {
+        Args: { p_user_id: string }
+        Returns: {
+          data_retention_until: string
+          days_remaining: number
+          is_expired: boolean
+          retention_policy: string
+        }[]
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -1518,87 +1632,12 @@ export type Database = {
         }[]
       }
       unaccent: { Args: { "": string }; Returns: string }
-      fn_record_failed_login: {
-        Args: {
-          p_email: string
-          p_ip_address: string
-          p_reason: string
-        }
-        Returns: undefined
-      }
-      fn_clear_rate_limit: {
-        Args: {
-          p_email: string
-          p_ip_address: string
-        }
-        Returns: number
-      }
-      fn_check_rate_limit: {
-        Args: {
-          p_email: string
-          p_ip_address: string
-          p_max_attempts?: number
-          p_window_minutes?: number
-        }
-        Returns: boolean
-      }
-      fn_rate_limit_status: {
-        Args: {
-          p_email: string
-          p_ip_address: string
-          p_max_attempts?: number
-          p_window_minutes?: number
-        }
-        Returns: {
-          allowed: boolean
-          attempt_count: number
-          remaining_attempts: number
-          wait_time_minutes: number
-        }[]
-      }
-      fn_delete_event: {
-        Args: {
-          p_event_id: string
-        }
-        Returns: {
-          bookings_deleted: number
-          companies_processed: number
-          message: string
-          offers_updated: number
-          registrations_deleted: number
-          sessions_deleted: number
-          slots_created: number
-          slots_deleted: number
-          time_ranges_processed: number
-        }[]
-      }
-      fn_generate_inf_slots: {
-        Args: {
-          p_event_id: string
-          p_session1_end: string
-          p_session1_start: string
-          p_session2_end: string
-          p_session2_start: string
-        }
-        Returns: {
-          message: string
-          success: boolean
-        }[]
-      }
-      create_profile_for_user: {
-        Args: {
-          p_email: string
-          p_full_name: string
-          p_role: Database["public"]["Enums"]["app_role"]
-        }
-        Returns: undefined
-      }
     }
     Enums: {
       app_role: "admin" | "company" | "student"
       booking_status: "confirmed" | "cancelled"
       company_verification_status: "pending" | "verified" | "rejected"
-      interest_tag: "Opérationnel" | "Administratif"
+      interest_tag: "Opérationnel" | "Administratif" | "Other"
       user_role: "student" | "company" | "admin"
     }
     CompositeTypes: {
@@ -1730,7 +1769,7 @@ export const Constants = {
       app_role: ["admin", "company", "student"],
       booking_status: ["confirmed", "cancelled"],
       company_verification_status: ["pending", "verified", "rejected"],
-      interest_tag: ["Opérationnel", "Administratif"],
+      interest_tag: ["Opérationnel", "Administratif", "Other"],
       user_role: ["student", "company", "admin"],
     },
   },

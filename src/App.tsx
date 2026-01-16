@@ -39,6 +39,7 @@ const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const Offers = lazy(() => import("./pages/Offers"));
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
+const Report2026 = lazy(() => import("./pages/Report2026"));
 const AdminDashboard = lazy(() => import("./pages/admin/Dashboard"));
 const AdminEvents = lazy(() => import("./pages/admin/Events"));
 const AdminCompanies = lazy(() => import("./pages/admin/Companies"));
@@ -96,6 +97,7 @@ function AppRoutes() {
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/offers" element={<Offers />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/report-2026" element={<Report2026 />} />
           
           {/* Admin Routes */}
           <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
